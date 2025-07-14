@@ -1,0 +1,45 @@
+# Bytecode and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.*
+
+# Editor-specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Flask Migrations
+migrations/
+migrations/__pycache__/
+migrations/versions/*.pyc
+
+# Logs
+*.log
+
+# Database (if local SQLite used for testing)
+*.sqlite3
+*.db
+
+# Test / coverage tools
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# macOS
+.DS_Store
