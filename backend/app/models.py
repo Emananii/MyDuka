@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from . import db
 
+
 class SerializerMixin:
     def to_dict(self):
         return {
