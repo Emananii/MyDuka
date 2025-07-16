@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from .routes.sales_routes import sales_bp
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -15,6 +16,8 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
+
+    app.register_blueprint(sales_bp)
 
     from .models import (
         Store,
