@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from app import db
 from app.models import Store,StoreProduct,SupplyRequest,StockTransfer,StockTransferItem,Product,User,SupplyRequestStatus,StockTransferStatus
-from app.routes.auth import role_required
+from app.routes.auth_routes import role_required
 
 store_bp = Blueprint("store", __name__, url_prefix="/api/store")
 

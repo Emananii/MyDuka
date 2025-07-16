@@ -2,13 +2,14 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from dotenv import load_dotenv
-
-load_dotenv()
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from config import Config
+from dotenv import load_dotenv
 
+# Load environment variables from .env
+load_dotenv()
+
+# Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
@@ -16,24 +17,20 @@ jwt = JWTManager()
 def create_app():
     app = Flask(__name__)
 
-    # Config
+    # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
+    app.config["CORS_HEADERS"] = "Content-Type"
 
-    # Initialize extensions
-    app.config.from_object(Config)
+    # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     CORS(app)
 
-    from app import models
-    from app.routes.auth import auth_bp
-    from app.routes.store_routes import store_bp
-
-    # Import models AFTER initializing db
-    
-    from .models import (
+    # --- Import Models (needed for Flask-Migrate) ---
+    from app.models import (
         Store,
         User,
         Category,
@@ -49,12 +46,16 @@ def create_app():
         StockTransferItem,
         AuditLog
     )
-    
 
-    # Register routes AFTER importing models
-    from .routes import routes
-    app.register_blueprint(routes)
+    # --- Register Blueprints ---
+    from app.routes.auth_routes import auth_bp
+    from app.routes.store_routes import store_bp
+    from app.routes.sales_routes import sales_bp
+    from app.routes.inventory_routes import inventory_bp
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
+    app.register_blueprint(sales_bp)
+    app.register_blueprint(inventory_bp)
 
     return app
