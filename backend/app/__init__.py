@@ -4,12 +4,11 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from config import Config
+from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env
 load_dotenv()
 
 # Initialize extensions
@@ -20,32 +19,45 @@ jwt = JWTManager()
 def create_app():
     app = Flask(__name__)
 
-    # Load config
+    # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config.from_object(Config)
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
+    app.config["CORS_HEADERS"] = "Content-Type"
 
-    # Init extensions
+    # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     CORS(app)
 
-    # Import models after db init
-    from . import models
-    from .models import (
-        Store, User, Category, Product, StoreProduct, Sale, SaleItem,
-        Supplier, Purchase, PurchaseItem, SupplyRequest,
-        StockTransfer, StockTransferItem, AuditLog
+    # --- Import Models (needed for Flask-Migrate) ---
+    from app.models import (
+        Store,
+        User,
+        Category,
+        Product,
+        StoreProduct,
+        Sale,
+        SaleItem,
+        Supplier,
+        Purchase,
+        PurchaseItem,
+        SupplyRequest,
+        StockTransfer,
+        StockTransferItem,
+        AuditLog
     )
 
-    # Register blueprints
-    from app .routes.auth import auth_bp
-    from app .routes.store_routes import store_bp
-    from app .routes.routes import routes 
+    # --- Register Blueprints ---
+    from app.routes.auth_routes import auth_bp
+    from app.routes.store_routes import store_bp
+    from app.routes.sales_routes import sales_bp
+    from app.routes.inventory_routes import inventory_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
-    app.register_blueprint(routes)
+    app.register_blueprint(sales_bp)
+    app.register_blueprint(inventory_bp)
 
     return app
