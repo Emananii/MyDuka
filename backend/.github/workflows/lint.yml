@@ -1,15 +1,15 @@
 name : CI/CD Pipeline
 on:
-push:
-branches:
-  - main
-pull_request:
-branches:
-- main
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
-pull_request: write
-contents: write
+  pull-requests: write
+  contents: write
 
 jobs:
 # Code has been linted
@@ -23,25 +23,25 @@ jobs:
       with:
         python-version: "3.x"
 
-    -name: Install dependencies
+    - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
         pip install flake8 black isort bandit
         pip install -r requirements.txt
 
 #Testing
-test:
-needs: [lint]
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v3
-- name: Set up Python 3.x
-  uses: actions/setup-python@v3
-  with:
-    python-version: "3.x"
+  test:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.x"
 
-- name: Install dependencies
-  run: |
-    python3 -m pip install --upgrade pip
-    pip install flake8 black isort bandit
-    pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install flake8 black isort bandit
+        pip install -r requirements.txt
