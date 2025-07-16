@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify, request
-from .models import db, Category, Product, Purchase, PurchaseItem
+from flask import jsonify, request
+from ..models import db, Category, Product, Purchase, PurchaseItem
+from flask import Blueprint
 
-routes = Blueprint('routes', __name__)
+routes = Blueprint("routes", __name__)
 
 # Category 
 @routes.route('/categories', methods=['GET'])
