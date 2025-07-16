@@ -60,4 +60,5 @@ def create_app():
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
 
+
     return app
