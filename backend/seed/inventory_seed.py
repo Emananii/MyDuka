@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app, db
 from app.models import (
     Store, Category, Product,
@@ -5,8 +11,6 @@ from app.models import (
     StoreProduct, User
 )
 from datetime import datetime
-from werkzeug.security import generate_password_hash
-import os
 from faker import Faker
 import random
 
@@ -114,7 +118,7 @@ with app.app_context():
         merchant = User(
             name="Victor Merchant",
             email="merchant@myduka.com",
-            password_digest=generate_password_hash("merchant123"),
+            password="merchant123",
             role="merchant",
             store_id=downtown_store.id
         )
