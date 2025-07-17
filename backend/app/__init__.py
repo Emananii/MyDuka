@@ -25,6 +25,7 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
     app.config["CORS_HEADERS"] = "Content-Type"
 
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
