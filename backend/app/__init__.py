@@ -1,3 +1,5 @@
+# app/__init__.py
+
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -57,5 +59,6 @@ def create_app():
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
+
 
     return app

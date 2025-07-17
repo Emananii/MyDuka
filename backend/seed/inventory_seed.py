@@ -7,6 +7,11 @@ from app.models import (
 from datetime import datetime
 from werkzeug.security import generate_password_hash
 import os
+from faker import Faker
+import random
+
+faker = Faker()
+
 
 app = create_app()
 
@@ -32,17 +37,35 @@ with app.app_context():
         db.session.commit()
 
         # --- Create Categories ---
-        beverages = Category(name="Beverages", description="Soft drinks, water, juices")
-        snacks = Category(name="Snacks", description="Biscuits, chips, chocolate bars")
-        db.session.add_all([beverages, snacks])
+        categories = []
+        for _ in range(30):
+            name = faker.unique.word().capitalize() + "s"
+            description = faker.sentence(nb_words=5)
+            category = Category(name=name, description=description)
+            categories.append(category)
+
+        db.session.add_all(categories)
         db.session.commit()
 
         # --- Create Products ---
-        coke = Product(name="Coca-Cola 500ml", sku="COKE500", unit="bottle", description="Soft drink", category_id=beverages.id)
-        fanta = Product(name="Fanta Orange 500ml", sku="FANTA500", unit="bottle", description="Orange soft drink", category_id=beverages.id)
-        pepsi = Product(name="Pepsi 500ml", sku="PEPSI500", unit="bottle", description="Cola drink", category_id=beverages.id)
-        lays = Product(name="Lays Chips", sku="LAYS100", unit="pack", description="Salted chips", category_id=snacks.id)
-        db.session.add_all([coke, fanta, pepsi, lays])
+        products = []
+        for _ in range(50):
+            category = random.choice(categories)
+            name = faker.unique.company() + " " + faker.word().capitalize()
+            sku = faker.unique.bothify(text='???###').upper()
+            unit = random.choice(["piece", "box", "bottle", "pack"])
+            description = faker.sentence(nb_words=6)
+
+            product = Product(
+                name=name,
+                sku=sku,
+                unit=unit,
+                description=description,
+                category_id=category.id
+            )
+            products.append(product)
+
+        db.session.add_all(products)
         db.session.commit()
 
         # --- Create Supplier ---
@@ -69,14 +92,15 @@ with app.app_context():
         db.session.flush()  # Needed to get purchase_id
 
         # --- Create Purchase Items ---
-        item1 = PurchaseItem(purchase_id=purchase1.id, product_id=coke.id, quantity=100, unit_cost=25.00)
-        item2 = PurchaseItem(purchase_id=purchase1.id, product_id=lays.id, quantity=60, unit_cost=30.00)
-        db.session.add_all([item1, item2])
-        db.session.commit()
+        product_sample = random.sample(products, 2)
+        item1 = PurchaseItem(purchase_id=purchase1.id, product_id=product_sample[0].id, quantity=100, unit_cost=25.00)
+        item2 = PurchaseItem(purchase_id=purchase1.id, product_id=product_sample[1].id, quantity=60, unit_cost=30.00)
+
+
 
         # --- Create Stock Records ---
-        stock1 = StoreProduct(store_id=store1.id, product_id=coke.id, quantity_in_stock=100, low_stock_threshold=10)
-        stock2 = StoreProduct(store_id=store1.id, product_id=lays.id, quantity_in_stock=60, low_stock_threshold=5)
+        stock1 = StoreProduct(store_id=store1.id, product_id=product_sample[0].id, quantity_in_stock=100, low_stock_threshold=10)
+        stock2 = StoreProduct(store_id=store1.id, product_id=product_sample[1].id, quantity_in_stock=60, low_stock_threshold=5)
         db.session.add_all([stock1, stock2])
         db.session.commit()
 
