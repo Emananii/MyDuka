@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from . import db
@@ -36,7 +37,7 @@ class User(BaseModel):
 
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)  # ✅ Changed: Renamed and length set for Argon2
+    password_hash = db.Column(db.String(255), nullable=True)  # ✅ Changed: Renamed and length set for Argon2
     role = db.Column(db.Enum('merchant', 'admin', 'clerk', 'cashier', name='user_roles'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), index=True)
@@ -108,10 +109,34 @@ class Sale(BaseModel):
 
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
     cashier_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    total_amount = db.Column(db.Numeric(10, 2))
-    payment_status = db.Column(db.Enum('paid', 'unpaid', name='payment_status'), nullable=False)
+    payment_status = db.Column(
+        db.Enum('paid', 'unpaid', name='payment_status'),
+        nullable=False
+    )
+    is_deleted = db.Column(db.Boolean, default=False)
 
-    sale_items = db.relationship('SaleItem', backref='sale')
+    sale_items = db.relationship(
+        'SaleItem',
+        backref='sale',
+        cascade="all, delete-orphan",
+        lazy='dynamic'
+    )
+
+    @hybrid_property
+    def total(self):
+        return sum(
+            item.price * item.quantity
+            for item in self.sale_items.filter_by(is_deleted=False)
+        )
+
+    @total.expression
+    def total(cls):
+        from models.sale_item import SaleItem  # avoid circular imports
+        return (
+            select([func.sum(SaleItem.price * SaleItem.quantity)])
+            .where((SaleItem.sale_id == cls.id) & (SaleItem.is_deleted == False))
+            .label('total')
+        )
 
 class SaleItem(BaseModel):
     __tablename__ = 'sale_items'
@@ -164,6 +189,14 @@ class SupplyRequest(BaseModel):
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     admin_response = db.Column(db.Text)
 
+class SupplyRequestStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    declined = "declined"
+
+    def __str__(self):
+        return self.value
+
 class StockTransfer(BaseModel):
     __tablename__ = 'stock_transfers'
 
@@ -174,8 +207,15 @@ class StockTransfer(BaseModel):
     status = db.Column(db.Enum('pending', 'approved', 'rejected', name='transfer_status'), default='pending')
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
-
     stock_transfer_items = db.relationship('StockTransferItem', backref='transfer')
+
+class StockTransferStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+    def __str__(self):
+        return self.value
 
 class StockTransferItem(BaseModel):
     __tablename__ = 'stock_transfer_items'
