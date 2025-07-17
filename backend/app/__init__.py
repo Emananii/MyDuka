@@ -52,10 +52,12 @@ def create_app():
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
+    from app.routes.report_routes import report_bp  
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
+    app.register_blueprint(report_bp) 
 
     return app
