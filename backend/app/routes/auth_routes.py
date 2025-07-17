@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from app.models import User
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -46,7 +46,8 @@ def login():
         return jsonify({"error": "Email and password are required"}), 400
 
     user = User.query.filter_by(email=email).first()
-    if user is None or not check_password_hash(user.password_digest, password):
+    if user is None or not user.check_password(password):
+         # Use the check_password method in the User model for verification
         return jsonify({"error": "Invalid credentials"}), 401
 
     token = create_access_token(identity=user.id)
@@ -74,3 +75,37 @@ def who_am_i():
         role=user.role,
         store_id=user.store_id,
     )
+
+
+@auth_bp.route("/register", methods=["POST"])
+def register():
+    """
+    Register a new user.
+    Expected JSON:
+        { "email": "test@myduka.com", "password": "test123", "role": "user", "store_id": null }
+    """
+    from app import db
+    data = request.get_json(force=True)
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name")  # Added
+    role = data.get("role")
+    store_id = data.get("store_id")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    user = User(
+        email=email,
+        name=name, # Added
+        password=password,  # Corrected: Use 'password'
+        role=role or "user",
+        store_id=store_id
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"message": "User registered successfully"}), 201
