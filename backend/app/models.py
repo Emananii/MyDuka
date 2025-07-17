@@ -82,13 +82,44 @@ class StoreProduct(BaseModel):
     low_stock_threshold = db.Column(db.Integer, default=10)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, func
+from models.base_model import BaseModel
+from extensions import db
+
 class Sale(BaseModel):
     __tablename__ = 'sales'
+
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
     cashier_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    total_amount = db.Column(db.Numeric(10, 2))
-    payment_status = db.Column(db.Enum('paid', 'unpaid', name='payment_status'), nullable=False)
-    sale_items = db.relationship('SaleItem', backref='sale')
+    payment_status = db.Column(
+        db.Enum('paid', 'unpaid', name='payment_status'),
+        nullable=False
+    )
+    is_deleted = db.Column(db.Boolean, default=False)
+
+    sale_items = db.relationship(
+        'SaleItem',
+        backref='sale',
+        cascade="all, delete-orphan",
+        lazy='dynamic'
+    )
+
+    @hybrid_property
+    def total(self):
+        return sum(
+            item.price * item.quantity
+            for item in self.sale_items.filter_by(is_deleted=False)
+        )
+
+    @total.expression
+    def total(cls):
+        from models.sale_item import SaleItem  # avoid circular imports
+        return (
+            select([func.sum(SaleItem.price * SaleItem.quantity)])
+            .where((SaleItem.sale_id == cls.id) & (SaleItem.is_deleted == False))
+            .label('total')
+        )
 
 class SaleItem(BaseModel):
     __tablename__ = 'sale_items'
