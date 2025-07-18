@@ -1,16 +1,14 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
-from decimal import Decimal # Still needed for float conversion
-from sqlalchemy.orm import joinedload # Still needed for response formatting if not using service to_dict
-from sqlalchemy import desc, func # Still needed for response formatting if not using service to_dict
+from decimal import Decimal
+from sqlalchemy.orm import joinedload
+from sqlalchemy import desc, func
 
-# Import your custom error classes
-from ..errors import BadRequestError, NotFoundError, InsufficientStockError, APIError # Keep APIError for generic catches
+from ..errors import BadRequestError, NotFoundError, InsufficientStockError, APIError
 
-# Import your models (still needed for jsonify responses if not using model.to_dict extensively)
 from ..models import db, Sale, SaleItem, Product, StoreProduct, User, Store
 
-# Import your SalesService
+# Importing SalesService
 from services.sales_services import SalesService
 
 sales_bp = Blueprint('sales_bp', __name__)

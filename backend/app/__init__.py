@@ -69,9 +69,19 @@ def create_app():
     # --- Configure Logging ---
     # Only configure file logging if not in debug mode and not running tests
     if not app.debug and not app.testing:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+        backend_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        # Construct the full path to your desired logs directory.
+        log_dir = os.path.join(backend_base_dir, 'logs') # This will be /app/backend/logs
+
+        # Ensure the log directory exists (and its parents)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True) # Use os.makedirs with exist_ok=True for robustness
+
+        # Use the full path for the RotatingFileHandler
+        file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'),
+                                           maxBytes=10240, backupCount=10)
+
         # Define a formatter for log messages
         formatter = logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -83,6 +93,5 @@ def create_app():
 
         app.logger.setLevel(logging.INFO) # Set the overall logging level for the app logger
         app.logger.info('Application startup') # Log a message on startup
-
     return app
 
