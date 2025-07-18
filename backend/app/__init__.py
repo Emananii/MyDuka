@@ -7,6 +7,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import logging # Import logging module
 from logging.handlers import RotatingFileHandler # Import RotatingFileHandler
+from flasgger import Swagger # Import Swagger
 
 # Load environment variables from .env
 load_dotenv()
@@ -15,6 +16,7 @@ load_dotenv()
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+swagger = Swagger() # Initialize Flasgger Swagger
 
 # Import the registration function for error handlers
 from app.error_handlers import register_error_handlers
@@ -30,12 +32,46 @@ def create_app():
     # Set Flask's debug mode based on environment variable (optional but good practice)
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
+    # Flasgger configuration
+    app.config['SWAGGER'] = {
+        'title': 'Your Application API',
+        'uiversion': 3,
+        'headers': [
+            ('Access-Control-Allow-Origin', '*'),
+            ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
+            ('Access-Control-Allow-Credentials', "true"),
+        ],
+        'specs': [
+            {
+                'endpoint': 'apispec_1',
+                'route': '/apispec_1.json',
+                'rule_filter': lambda rule: True,  # all in
+                'model_filter': lambda tag: True,  # all in
+            }
+        ],
+        'static_url_path': '/flasgger_static',
+        'swagger_ui_bundle_path': '/flasgger_static/swagger-ui-bundle.js',
+        'swagger_ui_css_path': '/flasgger_static/swagger-ui.css',
+        'securityDefinitions': {
+            'Bearer': {
+                'type': 'apiKey',
+                'name': 'Authorization',
+                'in': 'header',
+                'description': 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
+            }
+        },
+        'security': [
+            {'Bearer': []}
+        ]
+    }
+
 
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     CORS(app)
+    swagger.init_app(app) # Initialize Flasgger with your app
 
     # --- Import Models (needed for Flask-Migrate) ---
     # It's generally better to import models within the application context or blueprints
@@ -85,4 +121,3 @@ def create_app():
         app.logger.info('Application startup') # Log a message on startup
 
     return app
-
