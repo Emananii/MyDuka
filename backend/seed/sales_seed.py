@@ -78,7 +78,7 @@ def seed_sales():
             for product in selected_products:
                 item = SaleItem(
                     sale_id=sale.id,
-                    product_id=product.id,
+                    store_product_id=product.id,
                     quantity=random.randint(1, 5),
                     price_at_sale=Decimal(str(random.randint(100, 500)))
                 )
