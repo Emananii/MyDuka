@@ -90,19 +90,18 @@ class User(BaseModel):
     approved_transfers = db.relationship(
         'StockTransfer', backref='approver', foreign_keys='StockTransfer.approved_by')
 
-
-    def __init__(self, name, email, password, role, store_id=None, created_by=None):  
+    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):  
         self.name = name
         self.email = email
         self.password_hash = hash_password(password)  
         self.role = role
         self.store_id = store_id
         self.created_by = created_by
+        self.is_active = is_active
 
     def check_password(self, password):
 
         return verify_password(self.password_hash, password)  
-=======
         # ✅ Secure verification
         return verify_password(self.password_hash, password)
 
