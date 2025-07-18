@@ -69,13 +69,14 @@ class User(BaseModel):
     approved_transfers = db.relationship(
         'StockTransfer', backref='approver', foreign_keys='StockTransfer.approved_by')
 
-    def __init__(self, name, email, password, role, store_id=None, created_by=None):  # ✅ Added created_by
+    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):  # ✅ Added created_by
         self.name = name
         self.email = email
         self.password_hash = hash_password(password)  # ✅ Secure Argon2 hash
         self.role = role
         self.store_id = store_id
         self.created_by = created_by
+        self.is_active = True  # Default to active
 
     def check_password(self, password):
         # ✅ Secure verification

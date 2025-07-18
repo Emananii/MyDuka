@@ -2,7 +2,8 @@ from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 from werkzeug.security import check_password_hash, generate_password_hash
-from app.models import User
+from app.models import User # Ensure User is imported
+from app.auth.utils import hash_password, verify_password # Ensure these are imported if used by User model
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -20,7 +21,8 @@ def role_required(*allowed_roles):
         def wrapper(*args, **kwargs):
             from app import db # Import db here to avoid circular import issues if db is in __init__.py
             user_id = get_jwt_identity()
-            user = User.query.get(user_id)
+            # Ensure user_id is properly cast back to int if it was stored as string in token
+            user = User.query.get(int(user_id)) # <--- IMPORTANT: Cast get_jwt_identity() back to int for DB lookup
 
             if user is None or user.role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
@@ -100,7 +102,7 @@ def login():
               type: string
               example: Invalid credentials
     """
-    from app import db
+    from app import db # Import db here to avoid circular import issues if db is in __init__.py
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
@@ -113,7 +115,8 @@ def login():
          # Use the check_password method in the User model for verification
         return jsonify({"error": "Invalid credentials"}), 401
 
-    token = create_access_token(identity=user.id)
+    # --- FIX IS HERE: Cast user.id to string ---
+    token = create_access_token(identity=str(user.id))
 
     return jsonify(
         access_token=token,
@@ -174,7 +177,8 @@ def who_am_i():
     """
     from app import db # Import db here to avoid circular import issues if db is in __init__.py
     user_id = get_jwt_identity()
-    user = User.query.get_or_404(user_id)
+    # --- IMPORTANT: Cast get_jwt_identity() back to int for DB lookup ---
+    user = User.query.get_or_404(int(user_id))
     return jsonify(
         id=user.id,
         email=user.email,
@@ -245,14 +249,14 @@ def register():
               example: Email already exists
     """
     from app import db # Import db here to avoid circular import issues if db is in __init__.py
-    data = request.get_json() # Changed to request.get_json() without force=True for standard behavior
+    data = request.get_json()
     email = data.get("email")
     password = data.get("password")
     name = data.get("name")
     role = data.get("role")
     store_id = data.get("store_id")
 
-    if not email or not password or not name: # Name is now required for registration
+    if not email or not password or not name:
         return jsonify({"error": "Email, password, and name are required"}), 400
 
     if User.query.filter_by(email=email).first():
@@ -261,7 +265,7 @@ def register():
     user = User(
         email=email,
         name=name,
-        password=password,  # Assuming User model's __init__ or a setter handles hashing
+        password=password,
         role=role or "user",
         store_id=store_id
     )
