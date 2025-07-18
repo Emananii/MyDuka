@@ -26,16 +26,20 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
+  
+   # app.config["CORS_HEADERS"] = "Content-Type"
+=======
     app.config["CORS_HEADERS"] = "Content-Type"
     # Set Flask's debug mode based on environment variable (optional but good practice)
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
+
 
 
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+   # CORS(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
     # It's generally better to import models within the application context or blueprints
@@ -52,6 +56,9 @@ def create_app():
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
+
+    from app.routes.user_routes import users_bp
+=======
     from app.routes.report_routes import report_bp  
     from app.users.routes import users_bp # Assuming you want to register your users blueprint too
 
@@ -59,6 +66,10 @@ def create_app():
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
+
+    app.register_blueprint(users_bp)
+    from . import models
+=======
     app.register_blueprint(report_bp) 
     app.register_blueprint(users_bp, url_prefix='/users') # Example with url_prefix
 
@@ -69,9 +80,19 @@ def create_app():
     # --- Configure Logging ---
     # Only configure file logging if not in debug mode and not running tests
     if not app.debug and not app.testing:
-        if not os.path.exists('logs'):
-            os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+        backend_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        # Construct the full path to your desired logs directory.
+        log_dir = os.path.join(backend_base_dir, 'logs') # This will be /app/backend/logs
+
+        # Ensure the log directory exists (and its parents)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True) # Use os.makedirs with exist_ok=True for robustness
+
+        # Use the full path for the RotatingFileHandler
+        file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'),
+                                           maxBytes=10240, backupCount=10)
+
         # Define a formatter for log messages
         formatter = logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -83,6 +104,5 @@ def create_app():
 
         app.logger.setLevel(logging.INFO) # Set the overall logging level for the app logger
         app.logger.info('Application startup') # Log a message on startup
-
     return app
 
