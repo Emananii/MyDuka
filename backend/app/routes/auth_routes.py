@@ -24,7 +24,7 @@ def role_required(*allowed_roles):
             # Ensure user_id is properly cast back to int if it was stored as string in token
             user = User.query.get(int(user_id)) # <--- IMPORTANT: Cast get_jwt_identity() back to int for DB lookup
 
-            if user is None or user.role not in allowed_roles:
+            if user is None or not user.is_active or user.role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
 
             return fn(*args, **kwargs)
@@ -111,9 +111,12 @@ def login():
         return jsonify({"error": "Email and password are required"}), 400
 
     user = User.query.filter_by(email=email).first()
-    if user is None or not user.check_password(password):
-         # Use the check_password method in the User model for verification
-        return jsonify({"error": "Invalid credentials"}), 401
+    if user is None or not user.check_password(password) or not user.is_active:
+        
+       
+         if user and not user.is_active:
+            return jsonify({"error": "This account has been deactivated"}), 403
+         return jsonify({"error": "Invalid credentials"}), 401
 
     # --- FIX IS HERE: Cast user.id to string ---
     token = create_access_token(identity=str(user.id))
@@ -252,6 +255,7 @@ def register():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+    name = data.get("name")
     name = data.get("name")
     role = data.get("role")
     store_id = data.get("store_id")
