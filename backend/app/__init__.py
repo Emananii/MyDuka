@@ -23,13 +23,13 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
-    app.config["CORS_HEADERS"] = "Content-Type"
+   # app.config["CORS_HEADERS"] = "Content-Type"
 
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+   # CORS(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
     from app.models import (
@@ -54,11 +54,14 @@ def create_app():
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
+    from app.routes.user_routes import users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
+    app.register_blueprint(users_bp)
+    from . import models
 
 
     return app
