@@ -11,8 +11,8 @@ from app.models import (
     Purchase,
     PurchaseItem,
     StoreProduct,
-    Supplier, # <-- Ensure Supplier is imported
-    Store,    # <-- Ensure Store is imported
+    Supplier,
+    Store, 
     User
 )
 
