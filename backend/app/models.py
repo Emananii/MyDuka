@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from . import db
@@ -164,6 +165,14 @@ class SupplyRequest(BaseModel):
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     admin_response = db.Column(db.Text)
 
+class SupplyRequestStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    declined = "declined"
+
+    def __str__(self):
+        return self.value
+
 class StockTransfer(BaseModel):
     __tablename__ = 'stock_transfers'
 
@@ -174,8 +183,15 @@ class StockTransfer(BaseModel):
     status = db.Column(db.Enum('pending', 'approved', 'rejected', name='transfer_status'), default='pending')
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
-
     stock_transfer_items = db.relationship('StockTransferItem', backref='transfer')
+
+class StockTransferStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+    def __str__(self):
+        return self.value
 
 class StockTransferItem(BaseModel):
     __tablename__ = 'stock_transfer_items'

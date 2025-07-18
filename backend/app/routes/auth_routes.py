@@ -50,7 +50,7 @@ def login():
          # Use the check_password method in the User model for verification
         return jsonify({"error": "Invalid credentials"}), 401
 
-    token = create_access_token(identity=user.id)
+    token = create_access_token(identity=str(user.id))
 
     return jsonify(
         access_token=token,
