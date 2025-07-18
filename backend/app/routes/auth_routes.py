@@ -1,7 +1,9 @@
 from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
-from app.models import User
+from werkzeug.security import check_password_hash, generate_password_hash
+from app.models import User # Ensure User is imported
+from app.auth.utils import hash_password, verify_password # Ensure these are imported if used by User model
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -17,9 +19,10 @@ def role_required(*allowed_roles):
         @wraps(fn)
         @jwt_required()
         def wrapper(*args, **kwargs):
-            from app import db
+            from app import db # Import db here to avoid circular import issues if db is in __init__.py
             user_id = get_jwt_identity()
-            user = User.query.get(user_id)
+            # Ensure user_id is properly cast back to int if it was stored as string in token
+            user = User.query.get(int(user_id)) # <--- IMPORTANT: Cast get_jwt_identity() back to int for DB lookup
 
             if user is None or not user.is_active or user.role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
@@ -32,11 +35,74 @@ def role_required(*allowed_roles):
 @auth_bp.route("/login", methods=["POST"])
 def login():
     """
-    Authenticate user and return JWT token.
-    Expected JSON:
-        { "email": "user@example.com", "password": "your_password" }
+    Authenticate user and return JWT access token.
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              description: User's email address.
+              example: merchant@myduka.com
+            password:
+              type: string
+              format: password
+              description: User's password.
+              example: merchant123
+    responses:
+      200:
+        description: User authenticated successfully.
+        schema:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: JWT access token.
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                email:
+                  type: string
+                  example: merchant@myduka.com
+                role:
+                  type: string
+                  example: merchant
+                store_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+      400:
+        description: Bad request, missing email or password.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Email and password are required
+      401:
+        description: Unauthorized, invalid credentials.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Invalid credentials
     """
-    from app import db
+    from app import db # Import db here to avoid circular import issues if db is in __init__.py
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
@@ -52,6 +118,7 @@ def login():
             return jsonify({"error": "This account has been deactivated"}), 403
          return jsonify({"error": "Invalid credentials"}), 401
 
+    # --- FIX IS HERE: Cast user.id to string ---
     token = create_access_token(identity=str(user.id))
 
     return jsonify(
@@ -68,60 +135,145 @@ def login():
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def who_am_i():
-    from app import db 
+    """
+    Get current authenticated user's details.
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: User details retrieved successfully.
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            email:
+              type: string
+              example: test@myduka.com
+            role:
+              type: string
+              example: user
+            store_id:
+              type: integer
+              nullable: true
+              example: null
+      401:
+        description: Unauthorized, missing or invalid token.
+        schema:
+          type: object
+          properties:
+            msg:
+              type: string
+              example: Missing Authorization Header
+      404:
+        description: User not found.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Not Found
+    """
+    from app import db # Import db here to avoid circular import issues if db is in __init__.py
     user_id = get_jwt_identity()
-    user = User.query.get_or_404(user_id)
-    return jsonify(user.to_dict())
+    # --- IMPORTANT: Cast get_jwt_identity() back to int for DB lookup ---
+    user = User.query.get_or_404(int(user_id))
+    return jsonify(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        store_id=user.store_id,
+    )
 
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
     """
     Register a new user.
-    Expected JSON:
-        { "name": "Your Name", "email": "your_email@example.com", "password": "your_secure_password", "role": "merchant", "store_name": "Your Store Name" }
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+            - name
+          properties:
+            email:
+              type: string
+              format: email
+              description: User's email address.
+              example: newuser@example.com
+            password:
+              type: string
+              format: password
+              description: User's password (will be hashed).
+              example: strong_password_123
+            name:
+              type: string
+              description: User's full name.
+              example: Jane Doe
+            role:
+              type: string
+              description: User's role (e.g., "user", "merchant", "admin"). Defaults to "user".
+              enum: ["user", "merchant", "admin"] # Example roles
+              default: "user"
+              example: user
+            store_id:
+              type: integer
+              nullable: true
+              description: Optional ID of the store the user is associated with.
+              example: 1
+    responses:
+      201:
+        description: User registered successfully.
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: User registered successfully
+      400:
+        description: Bad request, missing data or email already exists.
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Email already exists
     """
-    from app import db
-    from app.models import Store
+    from app import db # Import db here to avoid circular import issues if db is in __init__.py
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
     name = data.get("name")
+    name = data.get("name")
     role = data.get("role")
+    store_id = data.get("store_id")
 
-  
-    if not all([name, email, password, role]):
-        return jsonify({"error": "Name, email, password, and role are required"}), 400
-
-    
-    if role.lower() != 'merchant':
-        return jsonify({"error": "Public registration is only available for new merchants."}), 403
+    if not email or not password or not name:
+        return jsonify({"error": "Email, password, and name are required"}), 400
 
     if User.query.filter_by(email=email).first():
-        return jsonify({"error": "Email already exists"}), 409
+        return jsonify({"error": "Email already exists"}), 400
 
-    store_name = data.get("store_name")
-    if not store_name:
-        return jsonify({"error": "A store_name is required for merchant registration"}), 400
+    user = User(
+        email=email,
+        name=name,
+        password=password,
+        role=role or "user",
+        store_id=store_id
+    )
+    db.session.add(user)
+    db.session.commit()
 
-    try:
-       
-        new_store = Store(name=store_name)
-        db.session.add(new_store)
-        db.session.flush() 
-
-        new_merchant = User(
-            name=name,
-            email=email,
-            password=password,
-            role='merchant',
-            store_id=new_store.id 
-        )
-        db.session.add(new_merchant)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback() 
-       
-        return jsonify({"error": "An internal error occurred during registration."}), 500
-
-    return jsonify({"message": "Merchant and store registered successfully"}), 201
+    return jsonify({"message": "User registered successfully"}), 201

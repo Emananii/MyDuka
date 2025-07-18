@@ -4,21 +4,16 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import select, func # Added select and func
 from . import db
-
-from app.auth.utils import hash_password, verify_password  
-from app.enums import UserRole, SupplyRequestStatus, StockTransferStatus
-=======
 # ✅ Added: Import Argon2 utilities
 from app.auth.utils import hash_password, verify_password
 from decimal import Decimal
-
 
 
 class SerializerMixin:
     def to_dict(self):
         return {
             column.key: getattr(self, column.key)
-            for column in self.__mapper__.columns  
+            for column in self.__mapper__.columns  # type: ignore
             if not column.key.startswith('_')
         }
 
@@ -50,22 +45,6 @@ class User(BaseModel):
 
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True, index=True)
-
-    password_hash = db.Column(db.String(255), nullable=False) 
-    role = db.Column(db.Enum(UserRole), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
-    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), index=True)
-
-    
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))  
-    creator = db.relationship('User', remote_side='User.id', backref='created_users')
-
-    sales = db.relationship('Sale', backref='cashier', foreign_keys='Sale.cashier_id')
-    supply_requests = db.relationship('SupplyRequest', backref='clerk', foreign_keys='SupplyRequest.clerk_id')
-    approved_supply_requests = db.relationship('SupplyRequest', backref='admin', foreign_keys='SupplyRequest.admin_id')
-    initiated_transfers = db.relationship('StockTransfer', backref='initiator', foreign_keys='StockTransfer.initiated_by')
-    approved_transfers = db.relationship('StockTransfer', backref='approver', foreign_keys='StockTransfer.approved_by')
-=======
     # ✅ Changed: Renamed and length set for Argon2
     password_hash = db.Column(db.String(255), nullable=True)
     role = db.Column(db.Enum('merchant', 'admin', 'clerk',
@@ -90,28 +69,25 @@ class User(BaseModel):
     approved_transfers = db.relationship(
         'StockTransfer', backref='approver', foreign_keys='StockTransfer.approved_by')
 
-    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):  
+    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):  # ✅ Added created_by
         self.name = name
         self.email = email
-        self.password_hash = hash_password(password)  
+        self.password_hash = hash_password(password)  # ✅ Secure Argon2 hash
         self.role = role
         self.store_id = store_id
         self.created_by = created_by
-        self.is_active = is_active
+        self.is_active = True  # Default to active
 
     def check_password(self, password):
-
-        return verify_password(self.password_hash, password)  
         # ✅ Secure verification
         return verify_password(self.password_hash, password)
 
-
     def to_dict(self):
         data = super().to_dict()
-        data.pop('password_hash', None)  
+        data.pop('password_hash', None)  # ✅ Hide sensitive info
         return data
 
-    def __repr__(self):  
+    def __repr__(self):  # ✅ Optional: useful debug info
         return f"<User {self.email} ({self.role})>"
 
 
@@ -250,12 +226,8 @@ class SupplyRequest(BaseModel):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
     clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     requested_quantity = db.Column(db.Integer, nullable=False)
-
-    status = db.Column(db.Enum(SupplyRequestStatus), default=SupplyRequestStatus.PENDING)
-=======
     status = db.Column(db.Enum('pending', 'approved', 'declined',
                        name='supply_status'), default='pending')
-
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     admin_response = db.Column(db.Text)
 
@@ -276,12 +248,8 @@ class StockTransfer(BaseModel):
     to_store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
     initiated_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-
-    status = db.Column(db.Enum(StockTransferStatus), default=StockTransferStatus.PENDING)
-=======
     status = db.Column(db.Enum('pending', 'approved', 'rejected',
                        name='transfer_status'), default='pending')
-
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
     stock_transfer_items = db.relationship(
