@@ -26,6 +26,7 @@ migrations/versions/*.pyc
 
 # Logs
 *.log
+*.log.*
 
 # Database (if local SQLite used for testing)
 *.sqlite3
