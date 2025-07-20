@@ -120,11 +120,11 @@ MyDuka is built using a modern and robust technical stack to ensure scalability,
 * **Backend:**
     * **Python (Flask)**
     * **RESTful API architecture**
-    * **SQLite3 database** (for local development, pre-production)
+    * **Postgres database** (for local development, pre-production)
     * **JWT authentication** for secure access
 * **Testing:**
     * **Frontend:** Jest for comprehensive component and UI tests
-    * **Backend:** Minitest or Pytest for robust model and route validations
+    * **Backend:** Pytest for robust model and route validations
 
 ---
 

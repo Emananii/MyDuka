@@ -129,14 +129,12 @@ def test_register_user_success(client, app):
         assert user.role == "clerk"
 
 def test_register_user_missing_fields(client):
-    """Tests user registration with missing required fields."""
-    response = client.post("/api/auth/register", json={
-        "email": "incomplete@test.com",
-        # "password" is missing
+    response = client.post('/api/auth/register', json={
+        "email": "incomplete@example.com",
+        # password and name are missing
     })
     assert response.status_code == 400
-    assert response.json["error"] == "Email and password are required"
-
+    assert response.json == {"error": "Email, password, and name are required"} # <--- Updated to match current code
 def test_register_user_existing_email(client, setup_auth_data):
     """Tests user registration with an email that already exists."""
     merchant_user = setup_auth_data["merchant_user"]
