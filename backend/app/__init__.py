@@ -81,14 +81,14 @@ def create_app():
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp  
-    from app.users.routes import users_bp
+    from app.routes.user_routes import users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp) 
-    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(users_bp)
 
 
     # --- Register Global Error Handlers ---

@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add the project's root directory (backend) to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app, db
 from app.models import User, Store
 
@@ -18,9 +24,9 @@ with app.app_context():
 
     # Create Merchant user (first user)
     merchant = User(
-        name="Emmanuel",
-        email="emmanuelwambugu5@gmail.com",
-        password="@12345",  # plain password; User.__init__ hashes it
+        name="Admin User",
+        email="merchant@example.com",
+        password="adminpass123",  # plain password; User.__init__ hashes it
         role="merchant",
         is_active=True,
         store_id=store.id
@@ -29,5 +35,5 @@ with app.app_context():
     db.session.commit()
 
     print("✅ Seeding complete.")
-    print("📧 Email: emmanuelwambugu5@gmail.com")
-    print("🔑 Password: @12345")
+    print("📧 Email: merchant@example.com")
+    print("🔑 Password: adminpass123")

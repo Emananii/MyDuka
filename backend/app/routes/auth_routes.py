@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 from werkzeug.security import check_password_hash, generate_password_hash
 from app.models import User # Ensure User is imported
+from sqlalchemy import func
 from app.auth.utils import hash_password, verify_password # Ensure these are imported if used by User model
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -103,14 +104,21 @@ def login():
               example: Invalid credentials
     """
     from app import db # Import db here to avoid circular import issues if db is in __init__.py
-    data = request.get_json()
+    try:
+        data = request.get_json()
+    except Exception as e:
+        return jsonify({"error": "Invalid JSON data in request body"}), 400
+
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
     email = data.get("email")
     password = data.get("password")
 
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter(func.lower(User.email) == func.lower(email)).first()
     if user is None or not user.check_password(password) or not user.is_active:
         
        
