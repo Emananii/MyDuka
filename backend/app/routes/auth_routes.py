@@ -118,7 +118,6 @@ def login():
             return jsonify({"error": "This account has been deactivated"}), 403
          return jsonify({"error": "Invalid credentials"}), 401
 
-    # --- FIX IS HERE: Cast user.id to string ---
     token = create_access_token(identity=str(user.id))
 
     return jsonify(
