@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add the project root to the Python path to allow for 'app' module import
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app, db
 from app.models import User, Store, Category, Product, StoreProduct, Supplier, Purchase, PurchaseItem, Sale, SaleItem # Import all necessary models
 from app.auth.utils import hash_password # Ensure this is correctly imported
