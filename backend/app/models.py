@@ -231,10 +231,6 @@ class SupplyRequest(BaseModel):
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     admin_response = db.Column(db.Text)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> main
 class SupplyRequestStatus(str, Enum):
     pending = "pending"
     approved = "approved"
@@ -243,10 +239,6 @@ class SupplyRequestStatus(str, Enum):
     def __str__(self):
         return self.value
 
-<<<<<<< HEAD
-=======
-
->>>>>>> main
 class StockTransfer(BaseModel):
     __tablename__ = 'stock_transfers'
 
@@ -258,9 +250,7 @@ class StockTransfer(BaseModel):
                        name='transfer_status'), default='pending')
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
-<<<<<<< HEAD
     stock_transfer_items = db.relationship('StockTransferItem', backref='transfer')
-=======
     stock_transfer_items = db.relationship(
         'StockTransferItem', backref='transfer')
 
@@ -272,8 +262,6 @@ class StockTransferStatus(str, Enum):
 
     def __str__(self):
         return self.value
-
->>>>>>> main
 
 class StockTransferStatus(str, Enum):
     pending = "pending"

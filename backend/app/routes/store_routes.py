@@ -16,7 +16,6 @@ store_bp = Blueprint("store", __name__, url_prefix="/api/store")
 @jwt_required()
 @role_required("merchant")
 def create_store():
-<<<<<<< HEAD
     data = request.get_json() or {}
     name = data.get("name")
 
@@ -24,7 +23,6 @@ def create_store():
         abort(400, description="Store name is required and must be a string.")
 
     store = Store(name=name.strip(), address=data.get("address"))
-=======
     """
     Create a new store.
     ---
@@ -71,7 +69,6 @@ def create_store():
     if not data.get("name"):
         abort(400, "Store name required")
     store = Store(name=data["name"], address=data.get("address"))
->>>>>>> main
     db.session.add(store)
     db.session.commit()
     return jsonify({"id": store.id, "name": store.name}), 201
@@ -438,14 +435,11 @@ def respond_supply_request(store_id, req_id):
 
     req.status = SupplyRequestStatus.approved if action == "approve" else SupplyRequestStatus.declined
     req.admin_id = get_jwt_identity()
-<<<<<<< HEAD
     req.admin_response = comment
     req.updated_at = datetime.utcnow()
 
-=======
     req.admin_response = data.get("comment")
     req.updated_at = datetime.now(timezone.utc) # Use timezone-aware datetime
->>>>>>> main
     db.session.commit()
     return jsonify({"status": req.status.value, "request_id": req.id})
 
@@ -454,14 +448,12 @@ def respond_supply_request(store_id, req_id):
 @jwt_required()
 @role_required("admin")
 def initiate_transfer():
-<<<<<<< HEAD
     data = request.get_json() or {}
     items = data.get("items", [])
 
     if not data.get("from_store_id") or not data.get("to_store_id") or not items:
         abort(400, "from_store_id, to_store_id, and items are required.")
 
-=======
     """
     Initiates a new stock transfer between stores.
     ---
@@ -532,7 +524,6 @@ def initiate_transfer():
         description: Source or destination store, or product not found.
     """
     data = request.get_json()
->>>>>>> main
     transfer = StockTransfer(
         from_store_id=data["from_store_id"],
         to_store_id=data["to_store_id"],
@@ -599,13 +590,7 @@ def approve_transfer(transfer_id):
 
     transfer.status = StockTransferStatus.approved
     transfer.approved_by = get_jwt_identity()
-<<<<<<< HEAD
     transfer.transfer_date = datetime.utcnow()
 
     db.session.commit()
     return jsonify({"status": "approved", "transfer_id": transfer.id})
-=======
-    transfer.transfer_date = datetime.now(timezone.utc) # Use timezone-aware datetime
-    db.session.commit()
-    return jsonify({"status": "approved"})
->>>>>>> main
