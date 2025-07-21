@@ -139,4 +139,3 @@ with app.app_context():
 
     finally:
         db.session.close()
-        
