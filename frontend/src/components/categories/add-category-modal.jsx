@@ -22,7 +22,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { BASE_URL } from "@/lib/constants";
 import * as z from "zod";
 
-// ✅ Zod validation schema
 const formSchema = z.object({
   name: z.string().min(1, "Category name is required"),
   description: z.string().min(1, "Description is required"),
@@ -40,15 +39,10 @@ export default function AddCategoryModal({ isOpen, onClose }) {
   });
 
   const addCategoryMutation = useMutation({
-    mutationFn: async (data) => {
-      return apiRequest("POST", `${BASE_URL}/categories`, data);
-    },
+    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/categories`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
-      toast({
-        title: "Success",
-        description: "Category added successfully!",
-      });
+      toast({ title: "Success", description: "Category added successfully!" });
       form.reset();
       onClose();
     },
@@ -62,7 +56,6 @@ export default function AddCategoryModal({ isOpen, onClose }) {
   });
 
   const onSubmit = (data) => {
-    console.log("Submitting category:", data); // Debug
     addCategoryMutation.mutate(data);
   };
 
@@ -70,14 +63,11 @@ export default function AddCategoryModal({ isOpen, onClose }) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-gray-800">
-            Add New Category
-          </DialogTitle>
+          <DialogTitle>Add New Category</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Name Field */}
             <FormField
               control={form.control}
               name="name"
@@ -91,8 +81,6 @@ export default function AddCategoryModal({ isOpen, onClose }) {
                 </FormItem>
               )}
             />
-
-            {/* Description Field */}
             <FormField
               control={form.control}
               name="description"
@@ -106,15 +94,8 @@ export default function AddCategoryModal({ isOpen, onClose }) {
                 </FormItem>
               )}
             />
-
-            {/* Buttons */}
             <div className="flex space-x-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={onClose}
-              >
+              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
               <Button

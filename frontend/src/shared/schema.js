@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-// Business form validation
-export const insertBusinessSchema = z.object({
-  name: z.string().min(2, "Business name must be at least 2 characters."),
+// Store form validation
+export const insertStoreSchema = z.object({
+  name: z.string().min(2, "Store name must be at least 2 characters."),
   address: z.string().min(5, "Address must be at least 5 characters."),
   contact_person: z.string().optional(),
   phone: z.string().optional(),
@@ -74,8 +74,8 @@ export const insertStockTransferSchema = z.object({
   ).min(1, "At least one product must be included in the transfer"),
 });
 
-// Business Location form validation
-export const insertBusinessLocationSchema = z.object({
+// Store Location form validation
+export const insertStoreLocationSchema = z.object({
   name: z.string().min(2),
   address: z.string().optional(),
   contact_person: z.string().optional(),
