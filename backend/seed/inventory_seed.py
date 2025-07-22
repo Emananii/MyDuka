@@ -16,7 +16,6 @@ import random
 
 faker = Faker()
 
-
 app = create_app()
 
 with app.app_context():
@@ -40,32 +39,59 @@ with app.app_context():
         db.session.add_all([store1, store2])
         db.session.commit()
 
-        # --- Create Categories ---
+        # --- Define realistic products and categories ---
+        base_products = [
+            ("Milk", "Dairy", "packet"),
+            ("Yogurt", "Dairy", "cup"),
+            ("Cheese", "Dairy", "block"),
+            ("Bread", "Bakery", "loaf"),
+            ("Cake", "Bakery", "piece"),
+            ("Buns", "Bakery", "pack"),
+            ("Toilet Paper", "Household", "roll"),
+            ("Soap", "Cleaning Supplies", "bar"),
+            ("Detergent", "Cleaning Supplies", "box"),
+            ("Dishwasher", "Cleaning Supplies", "bottle"),
+            ("Soda", "Beverages", "bottle"),
+            ("Juice", "Beverages", "carton"),
+            ("Water", "Beverages", "bottle"),
+            ("Biscuits", "Snacks", "pack"),
+            ("Chips", "Snacks", "packet"),
+            ("Cookies", "Snacks", "pack"),
+            ("Rice", "Grocery", "kg"),
+            ("Flour", "Grocery", "kg"),
+            ("Sugar", "Grocery", "kg"),
+            ("Tomatoes", "Vegetables", "kg"),
+            ("Onions", "Vegetables", "kg"),
+            ("Cabbage", "Vegetables", "head"),
+        ]
+
+        # Generate more by repeating and randomizing names
+        product_list = []
+        while len(product_list) < 50:
+            name, cat, unit = random.choice(base_products)
+            new_name = name + " " + faker.word().capitalize()
+            product_list.append((new_name, cat, unit))
+
+        # Create categories
+        category_names = set([cat for _, cat, _ in product_list])
         categories = []
-        for _ in range(30):
-            name = faker.unique.word().capitalize() + "s"
-            description = faker.sentence(nb_words=5)
-            category = Category(name=name, description=description)
+        for name in category_names:
+            category = Category(name=name, description=faker.sentence(nb_words=5))
             categories.append(category)
 
         db.session.add_all(categories)
-        db.session.commit()
+        db.session.flush()
+        category_map = {c.name: c for c in categories}
 
-        # --- Create Products ---
+        # Create products
         products = []
-        for _ in range(50):
-            category = random.choice(categories)
-            name = faker.unique.company() + " " + faker.word().capitalize()
-            sku = faker.unique.bothify(text='???###').upper()
-            unit = random.choice(["piece", "box", "bottle", "pack"])
-            description = faker.sentence(nb_words=6)
-
+        for name, category_name, unit in product_list:
             product = Product(
                 name=name,
-                sku=sku,
+                sku=faker.unique.bothify(text='???###').upper(),
                 unit=unit,
-                description=description,
-                category_id=category.id
+                description=faker.text(max_nb_chars=40),
+                category_id=category_map[category_name].id
             )
             products.append(product)
 
@@ -93,14 +119,14 @@ with app.app_context():
             notes="First delivery for beverages and snacks"
         )
         db.session.add(purchase1)
-        db.session.flush()  # Needed to get purchase_id
+        db.session.flush()
 
         # --- Create Purchase Items ---
         product_sample = random.sample(products, 2)
         item1 = PurchaseItem(purchase_id=purchase1.id, product_id=product_sample[0].id, quantity=100, unit_cost=25.00)
         item2 = PurchaseItem(purchase_id=purchase1.id, product_id=product_sample[1].id, quantity=60, unit_cost=30.00)
 
-
+        db.session.add_all([item1, item2])
 
         # --- Create Stock Records ---
         stock1 = StoreProduct(store_id=store1.id, product_id=product_sample[0].id, quantity_in_stock=100, low_stock_threshold=10)
@@ -110,7 +136,7 @@ with app.app_context():
 
         print("✅ Inventory data seeded successfully.")
 
-        # --- Add a sample user and store (WITHOUT deleting existing data) ---
+        # --- Add a sample user and store ---
         downtown_store = Store(name="Downtown Store", address="Moi Avenue")
         db.session.add(downtown_store)
         db.session.flush()

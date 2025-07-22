@@ -18,8 +18,8 @@ import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
 import NotFound from "@/pages/not-found";
 import Suppliers from "@/pages/suppliers";
+import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import POSInterfacePage from "@/pages/pos-interface";
-
 import { Menu, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -47,8 +47,8 @@ function Layout({ children }) {
               >
                 <Menu className="h-6 w-6" />
               </Button>
-              <h2 className="text-2xl font-semibold text-gray-800">
-                My Duka.
+              <h2 className="text-2xl font-semibold text-gray-800">    MyDuka
+
               </h2>
             </div>
             <div className="flex items-center space-x-4">
@@ -76,9 +76,12 @@ function Router() {
       <Route path="/inventory" component={Inventory} />
       <Route path="/categories" component={Categories} />
       <Route path="/purchases" component={Purchases} />
+      <Route path="/purchases/:id" component={SupplyRequestDetailsPage} />
       <Route path="/stock-transfers" component={StockTransfers} />
       <Route path="/stores" component={Stores} />
       <Route path="/suppliers" component={Suppliers} />
+      <Route path="/reports" component={Reports} />
+      
       <Route path="/pos" component={POSInterfacePage} />
       <Route component={NotFound} />
     </Switch>
