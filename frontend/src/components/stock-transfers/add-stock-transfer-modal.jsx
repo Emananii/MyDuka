@@ -62,9 +62,9 @@ export default function AddStockTransferModal({ isOpen, onClose }) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["business_locations"],
+    queryKey: ["store_locations"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/business_locations`);
+      const res = await fetch(`${BASE_URL}/store/locations`);
       if (!res.ok) throw new Error("Failed to fetch locations");
       return res.json();
     },

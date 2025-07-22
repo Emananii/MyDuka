@@ -38,11 +38,11 @@ export default function StockTransfers() {
     },
   });
 
-  const { data: businesses = [] } = useQuery({
-    queryKey: ["business_locations"],
+  const { data: stores = [] } = useQuery({
+    queryKey: ["store_locations"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/business_locations`);
-      if (!res.ok) throw new Error("Failed to fetch business locations");
+      const res = await fetch(`${BASE_URL}/store/locations`);
+      if (!res.ok) throw new Error("Failed to fetch store locations");
       return res.json();
     },
   });
@@ -109,7 +109,7 @@ export default function StockTransfers() {
   };
 
   const getLocationName = (id) => {
-    const location = businesses.find((b) => b.id === id);
+    const location = stores.find((b) => b.id === id);
     return location?.name || "Unknown";
   };
 
@@ -174,7 +174,7 @@ export default function StockTransfers() {
                 className="border rounded px-2 py-1 text-sm"
               >
                 <option value="">All Locations</option>
-                {businesses.map((loc) => (
+                {stores.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.name}
                   </option>

@@ -12,9 +12,18 @@ export default defineConfig({
       "@hooks": path.resolve(__dirname, "src/hooks"),
     },
   },
-  root: ".", // root is the project root (you can omit this line too)
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8000", 
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+  root: ".",
   build: {
-    outDir: "dist", // output folder
+    outDir: "dist",
     emptyOutDir: true,
   },
 })
