@@ -17,7 +17,7 @@ const navigation = [
   { name: "Categories", href: "/categories", icon: Tag }, // Added Categories
   { name: "Purchases", href: "/purchases", icon: ShoppingCart },
   { name: "Stock Transfers", href: "/stock-transfers", icon: Truck },
-  { name: "Businesses", href: "/businesses", icon: Warehouse },
+  { name: "Stores", href: "/stores", icon: Warehouse },
   { name: "Suppliers", href: "/suppliers", icon: Factory }, // ✅ Added this line
  // { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
@@ -32,7 +32,7 @@ export default function Sidebar() {
           {/* Logo / Brand Header */}
           <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200">
             <Warehouse className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-800">WareTracker</h1>
+            <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
           </div>
 
           {/* Navigation Links */}

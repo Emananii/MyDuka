@@ -13,7 +13,7 @@ import Dashboard from "@/pages/dashboard";
 import Inventory from "@/pages/inventory";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
-import Businesses from "@/pages/businesses";
+import Stores from "@/pages/stores"; // ✅ Correct import
 import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
 import NotFound from "@/pages/not-found";
@@ -47,7 +47,7 @@ function Layout({ children }) {
                 <Menu className="h-6 w-6" />
               </Button>
               <h2 className="text-2xl font-semibold text-gray-800">
-                WareTracker
+                My Duka.
               </h2>
             </div>
             <div className="flex items-center space-x-4">
@@ -76,7 +76,7 @@ function Router() {
       <Route path="/categories" component={Categories} />
       <Route path="/purchases" component={Purchases} />
       <Route path="/stock-transfers" component={StockTransfers} />
-      <Route path="/businesses" component={Businesses} />
+      <Route path="/stores" component={Stores} /> {/* ✅ Corrected path */}
       <Route path="/suppliers" component={Suppliers} />
       <Route path="/reports" component={Reports} />
       <Route component={NotFound} />
