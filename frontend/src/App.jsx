@@ -49,8 +49,8 @@ function Layout({ children }) {
               >
                 <Menu className="h-6 w-6" />
               </Button>
-              <h2 className="text-2xl font-semibold text-gray-800">
-                My Duka.
+              <h2 className="text-2xl font-semibold text-gray-800">    MyDuka
+
               </h2>
             </div>
             <div className="flex items-center space-x-4">

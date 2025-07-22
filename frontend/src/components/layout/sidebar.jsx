@@ -32,7 +32,11 @@ export default function Sidebar() {
           {/* Logo / Brand Header */}
           <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200">
             <Warehouse className="h-8 w-8 text-blue-600 mr-3" />
+
+            <h1 className="text-xl font-semibold text-gray-800">MyDuka</h1>
+
             <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
+
           </div>
 
           {/* Navigation Links */}
