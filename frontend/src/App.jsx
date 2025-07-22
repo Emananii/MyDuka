@@ -19,7 +19,7 @@ import Categories from "@/pages/categories";
 import NotFound from "@/pages/not-found";
 import Suppliers from "@/pages/suppliers";
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
-import POSInterfacePage from "@/pages/pos-interface";
+import POSInterfacePage from "@/pages/POS-interface";
 import { Menu, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -47,8 +47,8 @@ function Layout({ children }) {
               >
                 <Menu className="h-6 w-6" />
               </Button>
-              <h2 className="text-2xl font-semibold text-gray-800">    MyDuka
-
+              <h2 className="text-2xl font-semibold text-gray-800">
+                MyDuka.
               </h2>
             </div>
             <div className="flex items-center space-x-4">
