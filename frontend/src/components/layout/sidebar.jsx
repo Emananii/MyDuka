@@ -8,18 +8,19 @@ import {
   BarChart3,
   Warehouse,
   Factory,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Inventory", href: "/inventory", icon: Package },
-  { name: "Categories", href: "/categories", icon: Tag }, // Added Categories
+  { name: "Categories", href: "/categories", icon: Tag },
   { name: "Purchases", href: "/purchases", icon: ShoppingCart },
   { name: "Stock Transfers", href: "/stock-transfers", icon: Truck },
   { name: "Stores", href: "/stores", icon: Warehouse },
-  { name: "Suppliers", href: "/suppliers", icon: Factory }, // ✅ Added this line
- // { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Suppliers", href: "/suppliers", icon: Factory },
+  { name: "POS", href: "/pos", icon: Calculator },
 ];
 
 export default function Sidebar() {

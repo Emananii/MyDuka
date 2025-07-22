@@ -59,9 +59,8 @@ export const storeProductSchema = baseModelSchema.extend({
   low_stock_threshold: z.number().int().nonnegative(),
   price: z.number(), // db.Numeric(10, 2) maps to number
   last_updated: z.string().datetime(),
-  // Nested relationships if your backend serializes them (common for joined data)
-  product: productSchema.optional(), // The base product details
-  store: storeSchema.optional(), // The store details
+  // product: productSchema.optional(), // If your backend nests the base product details
+  // store: storeSchema.optional(), // If your backend nests the store details
 });
 
 export const supplierSchema = baseModelSchema.extend({
@@ -94,15 +93,16 @@ export const insertSaleSchema = z.object({
 
 // For fetching products for POS search (GET /api/products)
 // This schema assumes your backend joins Product and StoreProduct data.
-export const posProductDisplaySchema = storeProductSchema.extend({
-  // Assuming these fields are directly on the returned object (flattened from Product model)
-  // Re-confirm with your backend's actual serialization logic.
-  name: z.string(), // Product.name
-  sku: z.string().nullable(), // Product.sku
-  unit: z.string(), // Product.unit
-  description: z.string().nullable(), // Product.description
-  category_id: z.number().int().positive().nullable(), // Product.category_id
-  category: categorySchema.pick({ id: true, name: true }).optional(), // If category is nested
+export const posProductDisplaySchema = z.object({
+  store_product_id: z.number().int().positive(), // The ID of the StoreProduct instance
+  product_id: z.number().int().positive(), // The ID of the base Product
+  product_name: z.string(), // From Product.name
+  sku: z.string().nullable(), // From Product.sku
+  unit: z.string(), // From Product.unit
+  price: z.number().nonnegative(), // From StoreProduct.price
+  quantity_in_stock: z.number().int().nonnegative(), // From StoreProduct.quantity_in_stock
+  low_stock_threshold: z.number().int().nonnegative(), // From StoreProduct.low_stock_threshold
+  last_updated: z.string().nullable(), // From StoreProduct.last_updated
 });
 export const posProductListSchema = z.array(posProductDisplaySchema);
 

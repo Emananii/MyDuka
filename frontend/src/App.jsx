@@ -19,9 +19,7 @@ import Categories from "@/pages/categories";
 import NotFound from "@/pages/not-found";
 import Suppliers from "@/pages/suppliers";
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
-
-
-
+import POSInterfacePage from "@/pages/pos-interface";
 import { Menu, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -80,10 +78,11 @@ function Router() {
       <Route path="/purchases" component={Purchases} />
       <Route path="/purchases/:id" component={SupplyRequestDetailsPage} />
       <Route path="/stock-transfers" component={StockTransfers} />
-      <Route path="/stores" component={Stores} /> {/* ✅ Corrected path */}
+      <Route path="/stores" component={Stores} />
       <Route path="/suppliers" component={Suppliers} />
       <Route path="/reports" component={Reports} />
       
+      <Route path="/pos" component={POSInterfacePage} />
       <Route component={NotFound} />
     </Switch>
   );
