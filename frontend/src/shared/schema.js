@@ -282,8 +282,3 @@ export const stockTransferItemSchema = baseModelSchema.extend({
   quantity: z.number().int().nonnegative(),
   product: productSchema.optional(), // If backend nests product details
 });
-
-
-// Audit Log Schema (for fetched data)
-export const auditLogSchema = z.object({
-  id: z.number().int().positive(),
