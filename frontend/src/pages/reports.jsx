@@ -24,7 +24,7 @@ export default function Reports() {
     queryKey: ["/api/purchases"],
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
 

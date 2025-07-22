@@ -37,7 +37,7 @@ export default function MobileNav({ isOpen, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div className="flex items-center">
             <Warehouse className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-800">WareTracker</h1>
+            <h1 className="text-xl font-semibold text-gray-800">MyDuka</h1>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-6 w-6" />
