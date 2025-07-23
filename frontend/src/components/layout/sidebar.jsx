@@ -26,6 +26,12 @@ const navigation = [
 export default function Sidebar() {
   const [location] = useLocation();
 
+  // If we are on the POS page, return null to render nothing at all.
+  if (location === "/pos") {
+    return null;
+  }
+
+  // For all other pages, render the full sidebar as normal.
   return (
     <div className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">

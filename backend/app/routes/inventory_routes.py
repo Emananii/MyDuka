@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app.models import db, Category, Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
 from flask_jwt_extended import jwt_required # Assuming JWT protection will be added later
+from sqlalchemy.orm import joinedload
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix="/api/inventory") # Added url_prefix for consistency
 
@@ -954,7 +955,7 @@ def filter_purchases():
 @inventory_bp.route('/stock/<int:store_id>', methods=['GET'])
 def get_stock_by_store(store_id):
     """
-    Get current stock levels for products in a specific store.
+    Get current stock levels for products in a specific store, including price and product details.
     ---
     tags:
       - Inventory - Stock
@@ -965,6 +966,10 @@ def get_stock_by_store(store_id):
         required: true
         description: The ID of the store to retrieve stock for.
         example: 1
+      - name: search
+        in: query
+        type: string
+        description: Optional search term for product name or SKU.
     responses:
       200:
         description: A list of products and their stock details in the specified store.
@@ -973,6 +978,9 @@ def get_stock_by_store(store_id):
           items:
             type: object
             properties:
+              store_product_id: # <-- NEW: The ID of the StoreProduct instance
+                type: integer
+                example: 101
               product_id:
                 type: integer
                 example: 1
@@ -983,6 +991,13 @@ def get_stock_by_store(store_id):
                 type: string
                 nullable: true
                 example: LAP-HP-001
+              unit: # <-- NEW: Unit from Product model
+                type: string
+                example: pcs
+              price: # <-- NEW: Price from StoreProduct
+                type: number
+                format: float
+                example: 1200.50
               quantity_in_stock:
                 type: integer
                 example: 50
@@ -994,33 +1009,39 @@ def get_stock_by_store(store_id):
                 format: date-time
                 nullable: true
                 example: 2024-07-18T12:00:00Z
-      404:
-        description: Store not found (if you implement a check for store existence).
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: Store not found
     """
-    # You might want to add a check if the store_id actually exists in your Store model
-    # from app.models import Store
-    # if not Store.query.get(store_id):
-    #     return jsonify({"message": "Store not found"}), 404
+    # Optional: Check if the store_id actually exists
+    store = Store.query.get(store_id)
+    if not store:
+        return jsonify({"message": "Store not found"}), 404
 
-    store_products = StoreProduct.query.filter_by(store_id=store_id).all()
+    # Use joinedload to efficiently fetch related Product data
+    query = StoreProduct.query.options(joinedload(StoreProduct.product)).filter_by(store_id=store_id, is_deleted=False)
+
+    # Add search functionality based on product name or SKU
+    search_term = request.args.get('search')
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        query = query.join(Product).filter(
+            (Product.name.ilike(search_pattern)) |
+            (Product.sku.ilike(search_pattern))
+        )
+
+    store_products = query.all()
 
     results = []
     for sp in store_products:
-        product = Product.query.get(sp.product_id)
-        if product: # Ensure product exists before trying to access its attributes
+        if sp.product: # Ensure the joined product exists
             results.append({
-                'product_id': product.id,
-                'product_name': product.name,
-                'sku': product.sku,
+                'store_product_id': sp.id, # <-- Crucial for frontend keying and sale item payload
+                'product_id': sp.product.id,
+                'product_name': sp.product.name,
+                'sku': sp.product.sku,
+                'unit': sp.product.unit, # Include unit
+                'price': float(sp.price), # Convert Decimal to float for JSON
                 'quantity_in_stock': sp.quantity_in_stock,
                 'low_stock_threshold': sp.low_stock_threshold,
-                'last_updated': sp.last_updated.isoformat() if sp.last_updated else None # Format datetime for JSON
+                'last_updated': sp.last_updated.isoformat() if sp.last_updated else None
             })
 
     return jsonify(results), 200
