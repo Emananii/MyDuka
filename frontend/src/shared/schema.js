@@ -42,15 +42,17 @@ export const categorySchema = baseModelSchema.extend({
   // products: z.array(productSchema).optional(), // If backend nests products
 });
 
+// --- UPDATED: productSchema to include image_url as per your model and frontend needs ---
 export const productSchema = baseModelSchema.extend({
   name: z.string(),
   sku: z.string().nullable(), // Unique=True in DB, but nullable
   unit: z.string(),
   description: z.string().nullable(),
   category_id: z.number().int().positive().nullable(),
-  // category: categorySchema.optional(), // If backend nests category
+  image_url: z.string().url().nullable().optional(), // URL for the product image, optional since it can be null
 });
 
+// --- UPDATED: storeProductSchema to nest productSchema ---
 export const storeProductSchema = baseModelSchema.extend({
   store_id: z.number().int().positive().nullable(),
   product_id: z.number().int().positive().nullable(),
@@ -59,7 +61,7 @@ export const storeProductSchema = baseModelSchema.extend({
   low_stock_threshold: z.number().int().nonnegative(),
   price: z.number(), // db.Numeric(10, 2) maps to number
   last_updated: z.string().datetime(),
-  // product: productSchema.optional(), // If your backend nests the base product details
+  product: productSchema, // This should be required if your backend always nests the base product details with StoreProduct
   // store: storeSchema.optional(), // If your backend nests the store details
 });
 
@@ -91,8 +93,10 @@ export const insertSaleSchema = z.object({
   // `total` is a hybrid_property, calculated by backend, not sent by frontend for creation
 });
 
-// For fetching products for POS search (GET /api/products)
-// This schema assumes your backend joins Product and StoreProduct data.
+// For fetching products for POS search (GET /api/inventory/stock)
+// This schema assumes your backend joins Product and StoreProduct data into a FLAT structure.
+// If your backend changes to return nested StoreProduct/Product, this schema will need adjustment
+// or you'll use storeProductSchema directly for inventory.
 export const posProductDisplaySchema = z.object({
   store_product_id: z.number().int().positive(), // The ID of the StoreProduct instance
   product_id: z.number().int().positive(), // The ID of the base Product
@@ -103,18 +107,26 @@ export const posProductDisplaySchema = z.object({
   quantity_in_stock: z.number().int().nonnegative(), // From StoreProduct.quantity_in_stock
   low_stock_threshold: z.number().int().nonnegative(), // From StoreProduct.low_stock_threshold
   last_updated: z.string().nullable(), // From StoreProduct.last_updated
+  image_url: z.string().url().nullable().optional(), // From Product.image_url
+  // Additional fields from BaseModel if your backend sends them for these flat objects
+  // These might be optional if not always returned by the specific endpoint:
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
+  is_deleted: z.boolean().optional(),
 });
 export const posProductListSchema = z.array(posProductDisplaySchema);
 
 
-// For Sale details or individual sale items fetched from backend
+// --- UPDATED: For Sale details or individual sale items fetched from backend ---
+// This now correctly nests store_product using the full storeProductSchema
 export const saleItemFetchedSchema = baseModelSchema.extend({
   sale_id: z.number().int().positive(),
   store_product_id: z.number().int().positive(),
   quantity: z.number().int().nonnegative(),
   price_at_sale: z.number(),
-  // If backend nests the full StoreProduct with its Product details
-  store_product: posProductDisplaySchema.optional(),
+  // --- IMPORTANT CHANGE HERE ---
+  // If backend nests the full StoreProduct with its Product details, this should be required
+  store_product: storeProductSchema, // This now expects a full nested StoreProduct object
 });
 
 // For Sale history list (GET /api/sales)
@@ -129,7 +141,8 @@ export const saleHistoryItemSchema = baseModelSchema.extend({
 });
 export const saleHistoryListSchema = z.array(saleHistoryItemSchema);
 
-// For full Sale details (GET /api/sales/<id>)
+// --- UPDATED: For full Sale details (GET /api/sales/<id>) ---
+// This schema now relies on the correctly nested saleItemFetchedSchema
 export const saleDetailsSchema = baseModelSchema.extend({
   store_id: z.number().int().positive().nullable(),
   cashier_id: z.number().int().positive().nullable(),
@@ -138,9 +151,7 @@ export const saleDetailsSchema = baseModelSchema.extend({
   notes: z.string().nullable().optional(), // Assuming a `notes` field might be added to Sale model
   cashier: userSchema.pick({ id: true, name: true, email: true, role: true }).optional(),
   store: storeSchema.pick({ id: true, name: true, address: true }).optional(),
-  sale_items: z.array(saleItemFetchedSchema.extend({
-    store_product: posProductDisplaySchema, // Should have full product details here
-  })).min(1), // A sale must have at least one item
+  sale_items: z.array(saleItemFetchedSchema).min(1), // Now uses the updated saleItemFetchedSchema
 });
 
 
@@ -186,6 +197,7 @@ export const insertProductSchema = z.object({
   unit: z.string().min(1, "Unit is required."),
   description: z.string().nullable().optional(),
   category_id: z.coerce.number().int().positive("Category is required.").nullable(), // Nullable in model
+  image_url: z.string().url().nullable().optional(), // Added here for consistency
 });
 export const editProductSchema = insertProductSchema.extend({});
 
