@@ -1,5 +1,6 @@
 import os
 from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -29,6 +30,7 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
+    # app.config["CORS_HEADERS"] = "Content-Type" # Already commented out, good!
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
 
@@ -37,11 +39,20 @@ def create_app():
 
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
+        'title': 'MyDuka API',
         'uiversion': 3,
+        # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
+        # 'headers': [
+        #     ('Access-Control-Allow-Origin', '*'),
+        #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
+        #     ('Access-Control-Allow-Credentials', "true"),
+        # ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
                 'route': '/apispec_1.json',
+                'rule_filter': lambda rule: True,
+                'model_filter': lambda tag: True,
                 'rule_filter': lambda rule: True,
                 'model_filter': lambda tag: True,
             }
@@ -85,15 +96,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-
-    # ✅ FIXED CORS CONFIG
-    CORS(app, 
-    resources={r"/api/*": {"origins": "http://localhost:5173"}},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    )
-
+    CORS(app) # This should now work correctly without interference
     swagger.init_app(app)
 
     # --- Import Models --->>>>>>> main
@@ -148,6 +151,7 @@ def create_app():
           302:
             description: Redirect to Swagger UI
         """
+        return redirect(url_for('flasgger.apidocs'))
         return redirect(url_for('flasgger.apidocs'))
 
     # --- Logging ---
