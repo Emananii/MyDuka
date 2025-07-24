@@ -34,7 +34,6 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
     },
   });
 
-  
   useEffect(() => {
     if (category) {
       form.reset({
@@ -45,16 +44,11 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
   }, [category, form]);
 
   const editCategoryMutation = useMutation({
-    mutationFn: async (data) => {
-      return await apiRequest("PUT", `${BASE_URL}/categories/${category.id}`, data);
-    },
+    mutationFn: (data) =>
+      apiRequest("PUT", `${BASE_URL}/categories/${category.id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] }); 
-      toast({
-        title: "Success!",
-        description: "Category updated successfully.",
-        duration: 3000,
-      });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toast({ title: "Success", description: "Category updated successfully." });
       onClose();
     },
     onError: (error) => {
@@ -62,7 +56,6 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
         title: "Update failed",
         description: error.message || "Something went wrong",
         variant: "destructive",
-        duration: 4000,
       });
     },
   });
@@ -95,7 +88,6 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="description"
@@ -109,14 +101,8 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
                 </FormItem>
               )}
             />
-
             <div className="flex space-x-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={onClose}
-              >
+              <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
               <Button
@@ -124,9 +110,7 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
                 disabled={editCategoryMutation.isPending}
               >
-                {editCategoryMutation.isPending
-                  ? "Updating..."
-                  : "Update Category"}
+                {editCategoryMutation.isPending ? "Updating..." : "Update Category"}
               </Button>
             </div>
           </form>

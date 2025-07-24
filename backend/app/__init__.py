@@ -31,7 +31,10 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
-    # ✅ Flasgger configuration
+
+  
+    # --- Flasgger config ---
+
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
@@ -77,19 +80,43 @@ def create_app():
     )
 
     # --- Import models ---
+
+    # --- Initialize Extensions ---
+    db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
+
+    # ✅ FIXED CORS CONFIG
+    CORS(app, 
+    resources={r"/api/*": {"origins": "http://localhost:5173"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
+
+    swagger.init_app(app)
+
+    # --- Import Models --->>>>>>> main
     from app import models
 
     # --- Register blueprints ---
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
+
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_bp
 
+    from .routes.inventory_routes import inventory_bp
+    from app.routes.report_routes import report_bp
+    from app.users.routes import users_bp
+
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
+
     app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(users_bp)
@@ -103,6 +130,28 @@ def create_app():
         return redirect(url_for('flasgger.apidocs'))
 
     # --- Logging setup ---
+
+    app.register_blueprint(inventory_bp, url_prefix="/api")
+    app.register_blueprint(report_bp)
+    app.register_blueprint(users_bp, url_prefix='/users')
+
+    # --- Register Global Error Handlers ---
+    register_error_handlers(app)
+
+    # --- Swagger Home Redirect ---
+    @app.route('/')
+    def index():
+        """
+        Redirects to the Swagger UI documentation.
+        ---
+        responses:
+          302:
+            description: Redirect to Swagger UI
+        """
+        return redirect(url_for('flasgger.apidocs'))
+
+    # --- Logging ---
+
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')
