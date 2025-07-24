@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from faker import Faker
 import random
-from decimal import Decimal # <--- ADD THIS IMPORT
+from decimal import Decimal
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -15,8 +15,7 @@ from app.models import (
     StoreProduct, User
 )
 
-
-faker = Faker()
+faker = Faker('en_US') # Initialize Faker, optionally with a locale
 
 app = create_app()
 
@@ -45,7 +44,7 @@ with app.app_context():
         # --- Create Categories ---
         categories = []
         # Ensure enough categories for product variety
-        for _ in range(10): # Reduced number for more likely product per category
+        for _ in range(10):
             name = faker.unique.word().capitalize()
             description = faker.sentence(nb_words=5)
             category = Category(name=name, description=description)
@@ -58,19 +57,23 @@ with app.app_context():
         # --- Create Products ---
         products = []
         # Create a good number of products, ensuring they are linked to categories
-        for _ in range(50): # Increased product count for better testing
+        for _ in range(50):
             category = random.choice(categories)
             name = faker.unique.company() + " " + faker.word().capitalize()
             sku = faker.unique.bothify(text='???###').upper()
             unit = random.choice(["piece", "box", "bottle", "pack", "kg", "g", "ml", "L"])
             description = faker.sentence(nb_words=6)
+            # --- ADDED THIS LINE ---
+            image_url = faker.image_url() # Use faker.image_url() for product images
+            # -----------------------
 
             product = Product(
                 name=name,
                 sku=sku,
                 unit=unit,
                 description=description,
-                category_id=category.id
+                category_id=category.id,
+                image_url=image_url # Assign the generated image URL
             )
             products.append(product)
 
@@ -101,23 +104,21 @@ with app.app_context():
             notes="First delivery for beverages and snacks"
         )
         db.session.add(purchase1)
-        db.session.flush()  # Needed to get purchase_id
+        db.session.flush()
 
         # --- Create Purchase Items ---
-        # Ensure these products exist before referencing them
-        # Use products that will also be in StoreProduct to avoid inconsistencies
-        product_sample_for_purchase = random.sample(products, 2) # Get two random products from the main list
+        product_sample_for_purchase = random.sample(products, 2)
         item1 = PurchaseItem(
             purchase_id=purchase1.id,
             product_id=product_sample_for_purchase[0].id,
             quantity=100,
-            unit_cost=Decimal('25.00') # <--- Ensure unit_cost is Decimal if directly set
+            unit_cost=Decimal('25.00')
         )
         item2 = PurchaseItem(
             purchase_id=purchase1.id,
             product_id=product_sample_for_purchase[1].id,
             quantity=60,
-            unit_cost=Decimal('30.00') # <--- Ensure unit_cost is Decimal if directly set
+            unit_cost=Decimal('30.00')
         )
         db.session.add_all([item1, item2])
         db.session.commit()
@@ -125,23 +126,18 @@ with app.app_context():
 
 
         # --- Create StoreProduct Records (Inventory Stock with Prices) ---
-        all_stores = Store.query.all() # Get all stores, including the ones just created
-        all_products = Product.query.all() # Get all products
+        all_stores = Store.query.all()
+        all_products = Product.query.all()
 
         store_products_to_seed = []
         for store in all_stores:
-            # Seed a good number of products for each store
             num_products_per_store = random.randint(min(10, len(all_products)), min(25, len(all_products)))
             products_for_store = random.sample(all_products, num_products_per_store)
 
             for product in products_for_store:
-                # Generate realistic data for StoreProduct
-                quantity_in_stock = random.randint(0, 200) # Can be 0 for out of stock
-                # Ensure price is distinct from purchase cost, and realistic
-                # Simple rule: sell price is 1.2 to 2.5 times cost (assuming a theoretical average cost of 50-200)
-                # Use Decimal() for all monetary calculations
-                base_price = Decimal(str(round(random.uniform(50, 500), 2))) # Convert float to Decimal via string
-                price = (base_price * Decimal(str(random.uniform(1.2, 2.5)))).quantize(Decimal('0.01')) # Quantize to 2 decimal places
+                quantity_in_stock = random.randint(0, 200)
+                base_price = Decimal(str(round(random.uniform(50, 500), 2)))
+                price = (base_price * Decimal(str(random.uniform(1.2, 2.5)))).quantize(Decimal('0.01'))
                 low_stock_threshold = random.randint(5, 50)
                 last_updated = faker.date_time_between(start_date='-60d', end_date='now', tzinfo=None)
 
@@ -149,7 +145,7 @@ with app.app_context():
                     store_id=store.id,
                     product_id=product.id,
                     quantity_in_stock=quantity_in_stock,
-                    price=price, # CRUCIAL: Added price here
+                    price=price,
                     low_stock_threshold=low_stock_threshold,
                     last_updated=last_updated
                 )
@@ -161,7 +157,7 @@ with app.app_context():
             product_id=product_sample_for_purchase[0].id,
             quantity_in_stock=100,
             low_stock_threshold=10,
-            price=(item1.unit_cost * Decimal('1.5')).quantize(Decimal('0.01')), # <--- FIXED
+            price=(item1.unit_cost * Decimal('1.5')).quantize(Decimal('0.01')),
             last_updated=datetime.now()
         )
         stock2 = StoreProduct(
@@ -169,16 +165,14 @@ with app.app_context():
             product_id=product_sample_for_purchase[1].id,
             quantity_in_stock=60,
             low_stock_threshold=5,
-            price=(item2.unit_cost * Decimal('1.8')).quantize(Decimal('0.01')), # <--- FIXED
+            price=(item2.unit_cost * Decimal('1.8')).quantize(Decimal('0.01')),
             last_updated=datetime.now()
         )
 
-        # Remove potential duplicates from store_products_to_seed before adding specific ones
         unique_store_products = {}
         for sp in store_products_to_seed:
             unique_store_products[(sp.store_id, sp.product_id)] = sp
 
-        # Add specific ones, overwriting if they were generated
         unique_store_products[(stock1.store_id, stock1.product_id)] = stock1
         unique_store_products[(stock2.store_id, stock2.product_id)] = stock2
 
@@ -187,41 +181,44 @@ with app.app_context():
         print(f"✅ Created {StoreProduct.query.count()} StoreProduct records (inventory stock) with prices.")
 
         # --- Add a sample user and store ---
-        downtown_store_for_merchant = Store.query.filter_by(name="Downtown Store").first()
-        if not downtown_store_for_merchant:
+        # Fixed: Filter for existing store name, or create if not found.
+        # This prevents creating duplicate 'Downtown Store' entries if the seed is run multiple times
+        # and 'Main Branch (CBD)' isn't actually named 'Downtown Store'.
+        downtown_store_for_merchant = Store.query.filter_by(name="Main Branch (CBD)").first()
+        if not downtown_store_for_merchant: # Fallback if name changes
             downtown_store_for_merchant = Store(name="Downtown Store", address="Moi Avenue, Nairobi")
             db.session.add(downtown_store_for_merchant)
-            db.session.flush() # Ensure ID is assigned
+            db.session.flush()
 
         # Create specific users for testing different roles
         users_to_seed = []
         users_to_seed.append(User(
             name="Victor Merchant",
             email="merchant@myduka.com",
-            password="merchant123", # Password will be hashed by model's setter
+            password="merchant123",
             role="merchant",
-            store_id=store1.id # Associate merchant with store1
+            store_id=store1.id
         ))
         users_to_seed.append(User(
             name="Alice Admin",
             email="admin@myduka.com",
             password="admin123",
             role="admin",
-            store_id=None # Admins might not be tied to a specific store initially
+            store_id=None
         ))
         users_to_seed.append(User(
             name="Bob Cashier",
             email="cashier@myduka.com",
             password="cashier123",
             role="cashier",
-            store_id=store1.id # Cashier for store1
+            store_id=store1.id
         ))
         users_to_seed.append(User(
             name="Carol Clerk",
             email="clerk@myduka.com",
             password="clerk123",
             role="clerk",
-            store_id=store2.id # Clerk for store2
+            store_id=store2.id
         ))
 
         db.session.add_all(users_to_seed)
@@ -243,7 +240,6 @@ with app.app_context():
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error during seeding: {e}")
-        # Optionally, print traceback for debugging
         import traceback
         traceback.print_exc()
 
