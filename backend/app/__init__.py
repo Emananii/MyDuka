@@ -1,5 +1,5 @@
 import os
-from flask import Flask, redirect, url_for # Import redirect and url_for
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -28,24 +28,25 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
-    app.config["CORS_HEADERS"] = "Content-Type"
+    # app.config["CORS_HEADERS"] = "Content-Type" # Already commented out, good!
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
     # Flasgger configuration
     app.config['SWAGGER'] = {
-        'title': 'MyDuka API', # Updated title
+        'title': 'MyDuka API',
         'uiversion': 3,
-        'headers': [
-            ('Access-Control-Allow-Origin', '*'),
-            ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-            ('Access-Control-Allow-Credentials', "true"),
-        ],
+        # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
+        # 'headers': [
+        #     ('Access-Control-Allow-Origin', '*'),
+        #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
+        #     ('Access-Control-Allow-Credentials', "true"),
+        # ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
                 'route': '/apispec_1.json',
-                'rule_filter': lambda rule: True,  # all in
-                'model_filter': lambda tag: True,  # all in
+                'rule_filter': lambda rule: True,
+                'model_filter': lambda tag: True,
             }
         ],
         'static_url_path': '/flasgger_static',
@@ -69,7 +70,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+    CORS(app) # This should now work correctly without interference
     swagger.init_app(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
@@ -104,7 +105,7 @@ def create_app():
           302:
             description: Redirect to Swagger UI
         """
-        return redirect(url_for('flasgger.apidocs')) # 'flasgger.apidocs' is the endpoint for Swagger UI
+        return redirect(url_for('flasgger.apidocs'))
 
 
     # --- Configure Logging ---
