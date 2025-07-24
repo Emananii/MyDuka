@@ -2,6 +2,7 @@
 
 from flask import jsonify
 from sqlalchemy.exc import SQLAlchemyError
+from . import db
 from .errors import APIError # Import your base custom error class
 
 def register_error_handlers(app):
@@ -28,7 +29,7 @@ def register_error_handlers(app):
         # Log the full SQLAlchemy error for detailed debugging
         app.logger.exception(f"SQLAlchemy Error: {error}")
         # You might want to rollback the session here if it's not handled in the route
-        # db.session.rollback() # This assumes 'db' is accessible or passed
+        db.session.rollback()
         response = jsonify({"error": "A database error occurred. Please try again later."})
         response.status_code = 500
         return response
@@ -40,7 +41,7 @@ def register_error_handlers(app):
         """
         # Log the full traceback for unhandled exceptions
         app.logger.exception(f"Unhandled Exception: {e}")
-        # db.session.rollback() # Rollback for unhandled exceptions too
+        db.session.rollback()
         response = jsonify({"error": "An unexpected server error occurred."})
         response.status_code = 500
         return response

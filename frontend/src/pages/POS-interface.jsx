@@ -1,14 +1,16 @@
-// src/pages/POS/POSInterfacePage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
 import {
-  posProductListSchema, // Schema for products displayed in POS
-  insertSaleSchema,       // Schema for sending sale data to API
-  saleDetailsSchema       // Schema for receiving full sale details
-} from "@/shared/schema";    // Your Zod schemas
+  posProductListSchema,
+  insertSaleSchema,
+  saleDetailsSchema
+} from "@/shared/schema";
+
+import { Link } from "wouter"; // Import Link for the Home button
+import { Home } from "lucide-react"; // Import Home icon
 
 // POS Specific Components
 import ProductSearchInput from "@/components/pos/product-search-input";
@@ -16,10 +18,10 @@ import ProductList from "@/components/pos/product-list";
 import CartDisplay from "@/components/pos/cart-display";
 import CheckoutSummary from "@/components/pos/checkout-summary";
 import TransactionSuccessModal from "@/components/pos/transactional-success-modal";
-import { Input } from "@/components/ui/input"; // For store ID input
-import { Label } from "@/components/ui/label"; // For store ID label
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// --- Custom Hook for Debouncing (can be moved to a common utils file if preferred) ---
+// --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -36,19 +38,16 @@ function useDebounce(value, delay) {
 
 export default function POSInterfacePage() {
   // --- State Management ---
-  const [cartItems, setCartItems] = useState([]); // Stores items currently in the cart
-  const [searchTerm, setSearchTerm] = useState(""); // Input for product search
-  const [showSuccessModal, setShowSuccessModal] = useState(false); // Controls success modal visibility
-  const [lastSaleDetails, setLastSaleDetails] = useState(null); // Stores details of the last successful sale for the modal
+  const [cartItems, setCartItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastSaleDetails, setLastSaleDetails] = useState(null);
 
-  // For demonstration, let's use a state for the selected store ID.
-  // In a real app, this would come from user context/auth or a store selector.
-  const [selectedStoreId, setSelectedStoreId] = useState(1); // Default to store_id 1 for testing
+  const [selectedStoreId, setSelectedStoreId] = useState(1);
 
-  const { toast } = useToast(); // Initialize your toast notification hook
+  const { toast } = useToast();
 
-  // Debounce the search term to avoid excessive API calls while typing
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // 300ms debounce
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // --- Tanstack Query: Fetch Products for the Selected Store ---
   const {
@@ -57,37 +56,31 @@ export default function POSInterfacePage() {
     isError: isErrorProducts,
     error: productsError,
   } = useQuery({
-    queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm], // Key includes store ID
+    queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm],
     queryFn: async () => {
       if (!selectedStoreId) {
-        // If no store is selected, return an empty array or throw an error
         return [];
       }
-      // UPDATED ENDPOINT: Use the correct /api/inventory/stock/<store_id> route
       const url = new URL(`${BASE_URL}/api/inventory/stock/${selectedStoreId}`);
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm);
       }
-
       const res = await apiRequest("GET", url.toString());
-      // Validate the fetched data against your Zod schema
       return posProductListSchema.parse(res);
     },
-    enabled: !!selectedStoreId, // Only fetch if a store ID is selected
-    staleTime: 60 * 1000, // Keep data fresh for 1 minute
+    enabled: !!selectedStoreId,
+    staleTime: 60 * 1000,
   });
 
   // --- Tanstack Query: Create Sale Mutation ---
   const createSaleMutation = useMutation({
     mutationFn: (saleData) => apiRequest("POST", `${BASE_URL}/sales`, saleData),
     onSuccess: async (data) => {
-      // Invalidate queries to refetch latest data (e.g., sales history, updated product stock)
       queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/sales`] });
-      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId] }); // Invalidate for the specific store
+      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId] });
 
       const createdSaleId = data.sale_id;
       try {
-        // Fetch full sale details for the modal
         const fullSaleDetails = await apiRequest("GET", `${BASE_URL}/sales/${createdSaleId}`);
         setLastSaleDetails(saleDetailsSchema.parse(fullSaleDetails));
         setShowSuccessModal(true);
@@ -99,7 +92,6 @@ export default function POSInterfacePage() {
         });
       } catch (fetchError) {
         console.error("Error fetching full sale details after creation:", fetchError);
-        // Fallback with limited details if full fetch fails
         setLastSaleDetails({
           id: createdSaleId,
           total: data.total,
@@ -121,7 +113,6 @@ export default function POSInterfacePage() {
     onError: (error) => {
       console.error("Sale creation error:", error);
       let errorMessage = "Failed to complete sale. Please try again.";
-      // Attempt to parse specific error messages from APIError or BadRequestError
       if (error.response && error.response.data && error.response.data.message) {
         errorMessage = `API Error: ${error.response.data.message}`;
       } else if (error.message.includes("400") || error.message.includes("422")) {
@@ -138,7 +129,6 @@ export default function POSInterfacePage() {
   });
 
   // --- Cart Management Callbacks ---
-
   const handleAddToCart = useCallback((product) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.store_product_id === product.store_product_id);
@@ -152,7 +142,6 @@ export default function POSInterfacePage() {
         });
         return prevItems;
       }
-
       if (existingItem) {
         return prevItems.map(item =>
           item.store_product_id === product.store_product_id
@@ -162,13 +151,12 @@ export default function POSInterfacePage() {
       } else {
         return [...prevItems, {
           store_product_id: product.store_product_id,
-          product_id: product.product_id, // Keep base product ID
-          name: product.product_name, // Use product_name from the new schema
+          product_id: product.product_id,
+          name: product.product_name,
           price: product.price,
           quantity: 1,
           unit: product.unit,
           sku: product.sku,
-          // You might not need to store the full 'store_product' object if all needed fields are flattened
         }];
       }
     });
@@ -176,7 +164,6 @@ export default function POSInterfacePage() {
 
   const handleUpdateCartItem = useCallback((storeProductId, newQuantity) => {
     setCartItems(prevItems => {
-      // Find the original product from `products` list to get its stock
       const productInStock = products.find(p => p.store_product_id === storeProductId);
 
       if (productInStock && newQuantity > productInStock.quantity_in_stock) {
@@ -186,9 +173,8 @@ export default function POSInterfacePage() {
           variant: "destructive",
           duration: 2500,
         });
-        newQuantity = productInStock.quantity_in_stock; // Cap at max stock
+        newQuantity = productInStock.quantity_in_stock;
       }
-
       const updatedItems = prevItems.map(item =>
         item.store_product_id === storeProductId
           ? { ...item, quantity: newQuantity }
@@ -205,7 +191,7 @@ export default function POSInterfacePage() {
   // --- Sale Processing Function ---
   const handleProcessSale = useCallback((paymentMethod) => {
     const currentStoreId = selectedStoreId;
-    const currentCashierId = 1; // Placeholder for authenticated cashier user ID
+    const currentCashierId = 1;
 
     if (!currentStoreId) {
       toast({
@@ -216,7 +202,6 @@ export default function POSInterfacePage() {
       });
       return;
     }
-
     if (cartItems.length === 0) {
       toast({
         title: "Cart Empty",
@@ -226,20 +211,17 @@ export default function POSInterfacePage() {
       });
       return;
     }
-
     const saleItemsPayload = cartItems.map(item => ({
       store_product_id: item.store_product_id,
       quantity: item.quantity,
       price_at_sale: item.price,
     }));
-
     const salePayload = {
       store_id: currentStoreId,
       cashier_id: currentCashierId,
       payment_status: 'paid',
       sale_items: saleItemsPayload,
     };
-
     try {
       insertSaleSchema.parse(salePayload);
       createSaleMutation.mutate(salePayload);
@@ -267,7 +249,6 @@ export default function POSInterfacePage() {
       duration: 3000,
     });
   }, [toast]);
-
 
   return (
     <div className="pos-interface-container flex h-screen overflow-hidden bg-gray-100">
@@ -308,10 +289,24 @@ export default function POSInterfacePage() {
 
       {/* Right Panel: Product Search and List */}
       <div className="flex flex-col flex-grow p-4 bg-white">
-        <ProductSearchInput
-          value={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
+        {/* Header for the right panel */}
+        <div className="flex-shrink-0">
+          {/* Home Button aligned to the top-right */}
+          <div className="flex justify-end mb-4">
+            <Link href="/">
+              <a className="flex items-center justify-center h-10 w-10 rounded-full shadow-md bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+                <Home className="h-5 w-5" />
+              </a>
+            </Link>
+          </div>
+          {/* Search bar below the home button */}
+          <ProductSearchInput
+            value={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
+        </div>
+        {/* End of header */}
+        
         <div className="flex-grow mt-4">
           <ProductList
             products={products}

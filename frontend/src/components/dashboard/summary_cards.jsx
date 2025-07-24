@@ -1,7 +1,9 @@
+import React from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
+// ✅ API-driven summary component
 export default function DashboardSummary() {
   const { data = {}, isLoading } = useQuery({
     queryKey: ["/dashboard/summary"],
@@ -13,55 +15,11 @@ export default function DashboardSummary() {
   });
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-20 bg-gray-200 rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
+    return <p>Loading summary…</p>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {/* Total Items */}
-      <Card className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Products</p>
-              <p className="text-3xl font-semibold text-gray-900">
-                {data.total_items?.toLocaleString() || 0}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Package className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Total Stock */}
-      <Card className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Stock Units</p>
-              <p className="text-3xl font-semibold text-gray-900">
-                {data.total_stock?.toLocaleString() || 0}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Package className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {/* Low Stock */}
       <Card className="bg-white rounded-xl shadow-sm border border-gray-200">
         <CardContent className="p-6">
