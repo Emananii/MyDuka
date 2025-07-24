@@ -18,28 +18,26 @@ migrate = Migrate()
 jwt = JWTManager()
 swagger = Swagger()
 
-# Import the registration function for error handlers
+# Import error handlers
 from app.error_handlers import register_error_handlers
+
 
 def create_app():
     app = Flask(__name__)
 
     # --- Configuration ---
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
-    app.config["CORS_HEADERS"] = "Content-Type"
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
+
+  
     # --- Flasgger config ---
+
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
-        'headers': [
-            ('Access-Control-Allow-Origin', '*'),
-            ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-            ('Access-Control-Allow-Credentials', "true"),
-        ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
@@ -62,6 +60,27 @@ def create_app():
         'security': [{'Bearer': []}]
     }
 
+    # --- Initialize extensions ---
+    db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
+    swagger.init_app(app)
+
+    # ✅ Proper CORS configuration
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": ["http://localhost:5173"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+                "supports_credentials": True
+            }
+        }
+    )
+
+    # --- Import models ---
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
@@ -77,20 +96,41 @@ def create_app():
 
     swagger.init_app(app)
 
-    # --- Import Models ---
+    # --- Import Models --->>>>>>> main
     from app import models
 
-    # --- Register Blueprints ---
+    # --- Register blueprints ---
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
+
+    from app.routes.inventory_routes import inventory_bp
+    from app.routes.report_routes import report_bp
+    from app.routes.user_routes import users_bp
+
     from .routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.users.routes import users_bp
 
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
+
+    app.register_blueprint(inventory_bp)
+    app.register_blueprint(report_bp)
+    app.register_blueprint(users_bp)
+
+    # --- Register global error handlers ---
+    register_error_handlers(app)
+
+    # --- Root route redirects to Swagger UI ---
+    @app.route('/')
+    def index():
+        return redirect(url_for('flasgger.apidocs'))
+
+    # --- Logging setup ---
+
     app.register_blueprint(inventory_bp, url_prefix="/api")
     app.register_blueprint(report_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
@@ -111,6 +151,7 @@ def create_app():
         return redirect(url_for('flasgger.apidocs'))
 
     # --- Logging ---
+
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')

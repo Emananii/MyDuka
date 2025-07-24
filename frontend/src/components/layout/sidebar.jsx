@@ -36,7 +36,11 @@ export default function Sidebar() {
 
             <h1 className="text-xl font-semibold text-gray-800">MyDuka</h1>
 
+
+            <h1 className="text-xl font-semibold text-gray-800">MyDuka</h1>
+
             <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
+
 
           </div>
 
