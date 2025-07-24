@@ -1,3 +1,5 @@
+# seed.py
+
 import sys
 import os
 from datetime import datetime
@@ -5,7 +7,7 @@ from faker import Faker
 import random
 from decimal import Decimal # <--- ADD THIS IMPORT
 
-# Add the project root to the Python path
+# Setup Flask app context
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app, db
@@ -31,7 +33,7 @@ with app.app_context():
         print("✅ create_all() successful")
 
     except Exception as e:
-        print(" Error during schema reset:", e)
+        print("❌ Error during schema reset:", e)
         raise
 
     try:
@@ -89,7 +91,52 @@ with app.app_context():
         db.session.commit()
         print(f"✅ Created {Category.query.count()} categories.")
 
-        # Create products
+        # --- Products ---
+        product_data = [
+            {
+                "name": "Brookside Milk",
+                "category": "Dairy",
+                "unit": "packet",
+                "sku": "BRK123",
+                "image_url": "https://images.unsplash.com/photo-1606788075761-0f3c6f53fdf7"
+            },
+            {
+                "name": "Velvex Toilet Paper",
+                "category": "Household",
+                "unit": "roll",
+                "sku": "VEL456",
+                "image_url": "https://images.unsplash.com/photo-1606813903089-b876d7828d61"
+            },
+            {
+                "name": "Jik Bleach",
+                "category": "Cleaning Supplies",
+                "unit": "bottle",
+                "sku": "JIK789",
+                "image_url": "https://images.unsplash.com/photo-1590080876834-3956f8d8c504"
+            },
+            {
+                "name": "Fanta Orange",
+                "category": "Beverages",
+                "unit": "bottle",
+                "sku": "FNT001",
+                "image_url": "https://images.unsplash.com/photo-1614707267539-b421f66d76c8"
+            },
+            {
+                "name": "White Bread",
+                "category": "Bakery",
+                "unit": "loaf",
+                "sku": "BRD002",
+                "image_url": "https://images.unsplash.com/photo-1605478485489-0de1eaf9f4a6"
+            },
+            {
+                "name": "Baked Beans",
+                "category": "Grocery",
+                "unit": "can",
+                "sku": "BKN333",
+                "image_url": "https://images.unsplash.com/photo-1613145996811-6f543d818b12"
+            },
+        ]
+
         products = []
         # Create a good number of products, ensuring they are linked to categories
         for _ in range(50): # Increased product count for better testing
@@ -100,11 +147,12 @@ with app.app_context():
             description = faker.sentence(nb_words=6)
 
             product = Product(
-                name=name,
-                sku=faker.unique.bothify(text='???###').upper(),
-                unit=unit,
-                description=faker.text(max_nb_chars=40),
-                category_id=category_map[category_name].id
+                name=prod["name"],
+                sku=prod["sku"],
+                unit=prod["unit"],
+                description=f"{prod['name']} - top quality",
+                category_id=category_map[prod["category"]].id,
+                image_url=prod["image_url"]
             )
             products.append(product)
 
@@ -113,29 +161,29 @@ with app.app_context():
         print(f"✅ Created {Product.query.count()} products.")
 
 
-        # --- Create Supplier ---
-        supplier1 = Supplier(
+        # --- Supplier ---
+        supplier = Supplier(
             name="ABC Distributors",
             contact_person="Jane Doe",
             phone="0700123456",
             email="abc@distributors.com",
             address="Industrial Area, Nairobi"
         )
-        db.session.add(supplier1)
+        db.session.add(supplier)
         db.session.commit()
         print(f"✅ Created {Supplier.query.count()} supplier.")
 
-        # --- Create Purchase ---
-        purchase1 = Purchase(
-            supplier_id=supplier1.id,
+        # --- Purchase ---
+        purchase = Purchase(
+            supplier_id=supplier.id,
             store_id=store1.id,
             date=datetime(2025, 7, 15),
             reference_number="PO-1001",
             is_paid=True,
-            notes="First delivery for beverages and snacks"
+            notes="Initial stock delivery"
         )
-        db.session.add(purchase1)
-        db.session.flush()
+        db.session.add(purchase)
+        db.session.flush()  # So we can reference purchase.id
 
         # --- Create Purchase Items ---
         # Ensure these products exist before referencing them

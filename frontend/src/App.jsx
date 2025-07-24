@@ -38,7 +38,7 @@ import NotFound from "@/pages/not-found";
 import { UserProvider, UserContext } from "@/context/UserContext";
 
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
-import POSInterfacePage from "@/pages/pos-interface";
+import POSInterfacePage from "@/pages/POS-interface";
 import { Menu, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

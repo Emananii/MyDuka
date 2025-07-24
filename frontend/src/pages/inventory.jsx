@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -200,7 +201,16 @@ export default function Inventory() {
                 filteredAndSortedItems.map((item) => (
                   <TableRow key={item.id} className="hover:bg-gray-50">
                     <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.name}</TableCell>
+                    <TableCell className="flex items-center gap-3">
+                      <a href={item.image_url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={item.image_url || "/placeholder.png"}
+                          alt={item.name}
+                          className="w-10 h-10 rounded object-cover border"
+                        />
+                      </a>
+                      {item.name}
+                    </TableCell>
                     <TableCell>{item.category?.name}</TableCell>
                     <TableCell>{item.stock_level} {item.unit}</TableCell>
                     <TableCell>{getStockBadge(getStockStatus(item))}</TableCell>

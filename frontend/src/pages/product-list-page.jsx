@@ -46,33 +46,35 @@ export default function ProductListPage() {
         <table className="min-w-full border">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">SKU</th>
-              <th className="px-4 py-2 text-left">Unit</th>
+              <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Category</th>
+              <th className="px-4 py-2 text-left">Stock Level</th>
+              <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="5" className="px-4 py-2 text-center">
+                <td colSpan="6" className="px-4 py-2 text-center">
                   Loading...
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-4 py-2 text-center">
+                <td colSpan="6" className="px-4 py-2 text-center">
                   No products available.
                 </td>
               </tr>
             ) : (
               products.map((product) => (
                 <tr key={product.id} className="border-t">
-                  <td className="px-4 py-2">{product.name}</td>
                   <td className="px-4 py-2">{product.sku}</td>
-                  <td className="px-4 py-2">{product.unit}</td>
+                  <td className="px-4 py-2">{product.name}</td>
                   <td className="px-4 py-2">{product.category?.name}</td>
+                  <td className="px-4 py-2">{product.unit}</td>
+                  <td className="px-4 py-2">In Stock</td>
                   <td className="px-4 py-2 flex gap-2">
                     <Button size="sm" onClick={() => setEditItem(product)}>
                       Edit
@@ -93,11 +95,18 @@ export default function ProductListPage() {
       </div>
 
       {showAddModal && (
-        <AddItemModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} />
+        <AddItemModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+        />
       )}
 
       {editItem && (
-        <EditItemModal isOpen={!!editItem} onClose={() => setEditItem(null)} item={editItem} />
+        <EditItemModal
+          isOpen={!!editItem}
+          onClose={() => setEditItem(null)}
+          item={editItem}
+        />
       )}
     </div>
   );

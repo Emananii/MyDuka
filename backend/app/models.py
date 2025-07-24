@@ -112,12 +112,25 @@ class Product(BaseModel):
     description = db.Column(db.Text)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
 
+    image_url = db.Column(db.String, nullable=True)
+
     store_products = db.relationship('StoreProduct', backref='product')
     purchase_items = db.relationship('PurchaseItem', backref='product')
-    # Removed: sale_items = db.relationship('SaleItem', backref='product')
     supply_requests = db.relationship('SupplyRequest', backref='product')
-    stock_transfer_items = db.relationship(
-        'StockTransferItem', backref='product')
+    stock_transfer_items = db.relationship('StockTransferItem', backref='product')
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "sku": self.sku,
+            "unit": self.unit,
+            "description": self.description,
+            "image_url": self.image_url,
+            "category": self.category.name if self.category else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class StoreProduct(BaseModel):
