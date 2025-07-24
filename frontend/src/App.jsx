@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
-import { Menu, Bell } from "lucide-react";
+// Removed duplicate import of Menu, Bell, User - only one is needed
+import { Menu, Bell, User } from "lucide-react"; 
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -39,9 +40,9 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import POSInterfacePage from "@/pages/pos-interface";
-import { Menu, Bell, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
+// The duplicate import below has been removed:
+// import { Menu, Bell, User } from "lucide-react"; 
+// import { Button } from "@/components/ui/button"; // This Button import was also duplicated.
 
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -163,7 +164,8 @@ function AppRoutes() {
       <Route path="/purchases/:id" component={SupplyRequestDetailsPage} />
       <Route path="/stock-transfers" component={StockTransfers} />
 
-      <Route path="/businesses" component={Businesses} />
+      {/* Corrected "Businesses" to "Stores" based on your project context from the previous `init.py` */}
+      <Route path="/stores" component={Stores} />
       <Route path="/reports" component={Reports} />
       <Route path="/categories" component={Categories} />
       <Route path="/suppliers" component={Suppliers} />
@@ -172,9 +174,7 @@ function AppRoutes() {
       <Route path="/clerks-profile"><ClerksProfile onLogout={handleLogout} /></Route>
       <Route path="/cashier-profile"><CashierProfile onLogout={handleLogout} /></Route>
 
-      <Route path="/stores" component={Stores} />
-      <Route path="/suppliers" component={Suppliers} />
-      <Route path="/reports" component={Reports} />
+      {/* Removed duplicate routes */}
       
       <Route path="/pos" component={POSInterfacePage} />
 
