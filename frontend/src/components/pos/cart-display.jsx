@@ -2,7 +2,7 @@
 import React from 'react';
 import SaleItemRow from './sale-item-row'; // Assuming SaleItemRow will be created in the same folder
 
-/**
+/** ba
  * CartDisplay Component
  * Displays the list of items currently in the shopping cart and calculates the running total.
  *
