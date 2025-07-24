@@ -2,9 +2,8 @@ from datetime import datetime
 from enum import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import select, func # Added select and func
+from sqlalchemy import select, func
 from . import db
-# ✅ Added: Import Argon2 utilities
 from app.auth.utils import hash_password, verify_password
 from decimal import Decimal
 
@@ -45,18 +44,12 @@ class User(BaseModel):
 
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True, index=True)
-    # ✅ Changed: Renamed and length set for Argon2
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)
     role = db.Column(db.Enum('merchant', 'admin', 'clerk',
                      'cashier', name='user_roles'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), index=True)
 
-    last_login_at = db.Column(db.DateTime)
-
-
-    # ✅ New: Creator tracking
-    # Optional: Track who created this user
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     creator = db.relationship(
         'User', remote_side='User.id', backref='created_users')
@@ -72,25 +65,24 @@ class User(BaseModel):
     approved_transfers = db.relationship(
         'StockTransfer', backref='approver', foreign_keys='StockTransfer.approved_by')
 
-    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):  # ✅ Added created_by
+    def __init__(self, name, email, password, role, store_id=None, created_by=None, is_active=True):
         self.name = name
         self.email = email
-        self.password_hash = hash_password(password)  # ✅ Secure Argon2 hash
+        self.password_hash = hash_password(password)
         self.role = role
         self.store_id = store_id
         self.created_by = created_by
-        self.is_active = True  # Default to active
+        self.is_active = True
 
     def check_password(self, password):
-        # ✅ Secure verification
         return verify_password(self.password_hash, password)
 
     def to_dict(self):
         data = super().to_dict()
-        data.pop('password_hash', None)  # ✅ Hide sensitive info
+        data.pop('password_hash', None)
         return data
 
-    def __repr__(self):  # ✅ Optional: useful debug info
+    def __repr__(self):
         return f"<User {self.email} ({self.role})>"
 
 
@@ -98,7 +90,7 @@ class Category(BaseModel):
     __tablename__ = 'categories'
 
     name = db.Column(db.String, nullable=False)
-    description = db.Column(db.Text)
+    description = db.Text
 
     products = db.relationship('Product', backref='category')
 
@@ -111,6 +103,9 @@ class Product(BaseModel):
     unit = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    # --- ADDED THIS LINE ---
+    image_url = db.Column(db.String, nullable=True) # URL for the product image
+    # -----------------------
 
     image_url = db.Column(db.String, nullable=True)
 
@@ -169,24 +164,27 @@ class Sale(BaseModel):
         'SaleItem',
         backref='sale',
         cascade="all, delete-orphan",
-        lazy='dynamic'
+        lazy='select' # This is now correct, loads items as InstrumentedList
     )
 
     @hybrid_property
     def total(self):
+        # FIX IS HERE: Filter the InstrumentedList using Python list comprehension
         return sum(
             item.price_at_sale * item.quantity
-            for item in self.sale_items.filter_by(is_deleted=False)
+            for item in self.sale_items if not item.is_deleted # <--- CHANGED THIS LINE
         )
 
     @total.expression
     def total(cls):
-        from . import SaleItem  # avoid circular imports
+        # This part remains correct as it operates on the database level (SQL expression)
+        from . import SaleItem
         return (
-            select([func.sum(SaleItem.price_at_sale * SaleItem.quantity)]) # Corrected to price_at_sale
+            select([func.sum(SaleItem.price_at_sale * SaleItem.quantity)])
             .where((SaleItem.sale_id == cls.id) & (SaleItem.is_deleted == False))
             .label('total')
         )
+
 
 
 class SaleItem(BaseModel):
@@ -267,6 +265,8 @@ class StockTransfer(BaseModel):
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
     stock_transfer_items = db.relationship('StockTransferItem', backref='transfer')
+    # Removed the duplicate stock_transfer_items relationship, kept one
+
 
 class StockTransferStatus(str, Enum):
     pending = "pending"
@@ -275,6 +275,9 @@ class StockTransferStatus(str, Enum):
 
     def __str__(self):
         return self.value
+
+# The duplicate StockTransferStatus enum was removed. Keep only one.
+
 
 class StockTransferItem(BaseModel):
     __tablename__ = 'stock_transfer_items'

@@ -23,6 +23,7 @@ ENV/
 migrations/
 migrations/__pycache__/
 migrations/versions/*.pyc
+instance
 
 # Logs
 *.log

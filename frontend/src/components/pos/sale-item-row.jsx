@@ -1,18 +1,30 @@
+// src/components/POS/SaleItemRow.jsx
 import React from 'react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { formatCurrency } from '@/lib/utils'; // Import formatCurrency from utils
+
+// Placeholder for a generic product image if none is available or image fails to load
+const DEFAULT_CART_IMAGE = "https://picsum.photos/id/1084/60/60?grayscale&blur=1"; // A small, generic, slightly blurred image
 
 /**
  * SaleItemRow Component
- * Displays a single item in the shopping cart with quantity controls and a remove option.
+ * Displays a single item in the shopping cart with its image, name, price,
+ * quantity controls, and a remove option.
  *
  * @param {object} props
- * @param {object} props.item - The cart item object, expected to have:
- * `store_product_id`: The unique ID of the store product.
- * `name`: The name of the product.
- * `price`: The price per unit of the product.
+ * @param {object} props.item - The cart item object. Expected to have:
+ * `store_product_id`: Unique ID for the product in the store.
+ * `name`: Product name.
+ * `price`: Price of the product.
  * `quantity`: The current quantity of the product in the cart.
- * @param {function(number, number): void} props.onUpdateQuantity - Callback to update the item's quantity.
+ * `image_url`: string | null (URL to the product image thumbnail).
+ * `unit`: string (added for display)
+ * `sku`: string (added for display)
+ * @param {function(number, number): void} props.onUpdateQuantity - Callback to update an item's quantity.
  * (storeProductId, newQuantity)
- * @param {function(number): void} props.onRemoveItem - Callback to remove the item from the cart.
+ * @param {function(number): void} props.onRemoveItem - Callback to remove an item from the cart.
  * (storeProductId)
  */
 export default function SaleItemRow({ item, onUpdateQuantity, onRemoveItem }) {
@@ -30,11 +42,10 @@ export default function SaleItemRow({ item, onUpdateQuantity, onRemoveItem }) {
   };
 
   const handleDecreaseQuantity = () => {
-    if (item.quantity > 1) { // Prevent quantity from going below 1 via this button
-      onUpdateQuantity(item.store_product_id, item.quantity - 1);
-    } else {
-      // If quantity is 1 and decreased, remove the item
+    if (item.quantity <= 1) { // If quantity is 1 or less, remove item on decrement
       onRemoveItem(item.store_product_id);
+    } else {
+      onUpdateQuantity(item.store_product_id, item.quantity - 1);
     }
   };
 
@@ -43,60 +54,75 @@ export default function SaleItemRow({ item, onUpdateQuantity, onRemoveItem }) {
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-md shadow-sm border border-gray-100">
-      {/* Product Name & Price */}
-      <div className="flex-1 min-w-0 pr-4">
-        <h3 className="text-lg font-medium text-gray-900 truncate">{item.name}</h3>
-        <p className="text-sm text-gray-600">Price: ${item.price.toFixed(2)}</p>
+    <div className="flex items-center space-x-3 p-3 bg-white rounded-md shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors">
+      {/* Product Image Thumbnail */}
+      <div className="flex-shrink-0 w-16 h-16 rounded-md overflow-hidden bg-gray-200 flex items-center justify-center">
+        <img
+          src={item.image_url || DEFAULT_CART_IMAGE}
+          alt={item.name || "Product"}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.onerror = null; // Prevent infinite loop on error
+            e.currentTarget.src = DEFAULT_CART_IMAGE; // Fallback on error
+          }}
+        />
+      </div>
+
+      {/* Product Name and Price - ADJUSTED WIDTH HERE */}
+      <div className="flex-grow flex flex-col justify-center pr-2" style={{ minWidth: '120px' }}> {/* Added inline style for min-width */}
+        <h3 className="text-base font-medium text-gray-800 line-clamp-2">{item.name}</h3>
+        <p className="text-sm text-gray-500">{formatCurrency(item.price)} per {item.unit || 'unit'}</p>
       </div>
 
       {/* Quantity Controls */}
-      <div className="flex items-center space-x-2">
-        {/* Decrease Button */}
-        <button
+      <div className="flex items-center space-x-1 flex-shrink-0">
+        <Button
+          variant="outline"
+          size="icon"
           onClick={handleDecreaseQuantity}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 w-9"
-          type="button"
+          disabled={item.quantity <= 0}
+          className="h-7 w-7"
           aria-label="Decrease quantity"
         >
-          -
-        </button>
-        {/* Quantity Input */}
-        <input
+          <Minus className="h-4 w-4" />
+        </Button>
+        <Input
           type="number"
-          min="0" // Allow 0 to enable direct removal by typing 0
+          min="0"
           value={item.quantity}
           onChange={handleQuantityChange}
-          className="flex h-9 w-16 rounded-md border border-input bg-background px-3 py-2 text-center text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-12 text-center h-7 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           aria-label={`Quantity of ${item.name}`}
         />
-        {/* Increase Button */}
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={handleIncreaseQuantity}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 w-9"
-          type="button"
+          className="h-7 w-7"
           aria-label="Increase quantity"
         >
-          +
-        </button>
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Item Subtotal */}
-      <div className="w-24 text-right pl-4">
-        <span className="font-semibold text-gray-900">${itemSubtotal.toFixed(2)}</span>
+      <div className="flex-shrink-0 w-24 text-right pl-3">
+        <span className="font-semibold text-gray-800 text-base">
+          {formatCurrency(itemSubtotal)}
+        </span>
       </div>
 
       {/* Remove Button */}
-      <div className="ml-4">
-        <button
+      <div className="flex-shrink-0 ml-2">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleRemoveClick}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 w-9"
-          type="button"
-          aria-label="Remove item"
+          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-8 w-8"
+          aria-label={`Remove ${item.name} from cart`}
         >
-          {/* Using a simple X or icon if you have one */}
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-        </button>
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

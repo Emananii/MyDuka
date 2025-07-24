@@ -1,9 +1,14 @@
 from flask import Blueprint, jsonify, request
-from app.models import db,Category,Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
+from app.models import db, Category, Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
 from flask_jwt_extended import jwt_required # Assuming JWT protection will be added later
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError # Import these for better error handling in create_supplier (good practice)
+import logging # Import logging to use it for errors
 
-inventory_bp = Blueprint('inventory', __name__, url_prefix="/api/inventory") # Added url_prefix for consistency
+# Set up a logger for this blueprint
+logger = logging.getLogger(__name__)
+
+inventory_bp = Blueprint('inventory', __name__, url_prefix="/api/inventory")
 
 # --- CATEGORY ROUTES ---
 
@@ -36,7 +41,7 @@ def get_categories():
                 type: boolean
                 example: false
     """
-    categories = Category.query.filter_by(is_deleted=False).all() # Assuming you filter out deleted categories
+    categories = Category.query.filter_by(is_deleted=False).all()
     return jsonify([category.to_dict() for category in categories]), 200
 
 @inventory_bp.route('/categories', methods=['POST'])
@@ -254,7 +259,7 @@ def get_products():
                 type: boolean
                 example: false
     """
-    products = Product.query.filter_by(is_deleted=False).all() # Assuming you filter out deleted products
+    products = Product.query.filter_by(is_deleted=False).all()
     return jsonify([product.to_dict() for product in products]), 200
 
 @inventory_bp.route('/products', methods=['POST'])
@@ -489,8 +494,6 @@ def delete_product(id):
     return jsonify({'message': 'Product deleted'}), 200
 
 # -------------------- SUPPLIER ROUTES --------------------
-
-# --- START ADDITION: SUPPLIER ROUTES ---
 
 @inventory_bp.route('/suppliers', methods=['POST'])
 # @jwt_required() # Uncomment if you want to protect this route
@@ -956,6 +959,7 @@ def filter_purchases():
 def get_stock_by_store(store_id):
     """
     Get current stock levels for products in a specific store, including price and product details.
+    Allows for searching, filtering by category, and sorting.
     ---
     tags:
       - Inventory - Stock
@@ -969,7 +973,22 @@ def get_stock_by_store(store_id):
       - name: search
         in: query
         type: string
+        required: false
         description: Optional search term for product name or SKU.
+        example: "laptop"
+      - name: category_id
+        in: query
+        type: integer
+        required: false
+        description: Optional ID of the category to filter products by.
+        example: 1
+      - name: sort_order
+        in: query
+        type: string
+        enum: [asc, desc]
+        required: false
+        description: Optional sort order for products based on product name. 'asc' for ascending, 'desc' for descending. Defaults to 'asc'.
+        example: "asc"
     responses:
       200:
         description: A list of products and their stock details in the specified store.
@@ -978,7 +997,7 @@ def get_stock_by_store(store_id):
           items:
             type: object
             properties:
-              store_product_id: # <-- NEW: The ID of the StoreProduct instance
+              store_product_id:
                 type: integer
                 example: 101
               product_id:
@@ -991,10 +1010,10 @@ def get_stock_by_store(store_id):
                 type: string
                 nullable: true
                 example: LAP-HP-001
-              unit: # <-- NEW: Unit from Product model
+              unit:
                 type: string
                 example: pcs
-              price: # <-- NEW: Price from StoreProduct
+              price:
                 type: number
                 format: float
                 example: 1200.50
@@ -1009,39 +1028,67 @@ def get_stock_by_store(store_id):
                 format: date-time
                 nullable: true
                 example: 2024-07-18T12:00:00Z
+      404:
+        description: Store not found.
     """
-    # Optional: Check if the store_id actually exists
     store = Store.query.get(store_id)
     if not store:
         return jsonify({"message": "Store not found"}), 404
 
-    # Use joinedload to efficiently fetch related Product data
-    query = StoreProduct.query.options(joinedload(StoreProduct.product)).filter_by(store_id=store_id, is_deleted=False)
+    # Start with a base query that includes joined product details
+    query = db.session.query(StoreProduct, Product).join(Product).filter(
+        StoreProduct.store_id == store_id,
+        StoreProduct.is_deleted == False
+    )
 
-    # Add search functionality based on product name or SKU
+    # 1. Add search functionality based on product name or SKU
     search_term = request.args.get('search')
     if search_term:
         search_pattern = f"%{search_term}%"
-        query = query.join(Product).filter(
+        query = query.filter(
             (Product.name.ilike(search_pattern)) |
             (Product.sku.ilike(search_pattern))
         )
 
-    store_products = query.all()
+    # 2. Add category filtering
+    category_id_str = request.args.get('category_id')
+    if category_id_str and category_id_str.lower() != 'all':
+        try:
+            category_id = int(category_id_str)
+            query = query.filter(Product.category_id == category_id)
+        except ValueError:
+            # Optionally, return an error or ignore invalid category_id
+            logger.warning(f"Invalid category_id received: {category_id_str}")
+            # For robustness, we'll just ignore it, but you could return a 400 error
+            pass 
+
+    # 3. Add sorting functionality
+    sort_order = request.args.get('sort_order', 'asc').lower() # Default to 'asc'
+    
+    # Define how to sort. You can expand this to sort by other fields if needed.
+    if sort_order == 'desc':
+        query = query.order_by(Product.name.desc()) # Sort by product name descending
+    else:
+        query = query.order_by(Product.name.asc()) # Sort by product name ascending
+
+    # Execute the query
+    store_products_with_products = query.all()
 
     results = []
-    for sp in store_products:
-        if sp.product: # Ensure the joined product exists
-            results.append({
-                'store_product_id': sp.id, # <-- Crucial for frontend keying and sale item payload
-                'product_id': sp.product.id,
-                'product_name': sp.product.name,
-                'sku': sp.product.sku,
-                'unit': sp.product.unit, # Include unit
-                'price': float(sp.price), # Convert Decimal to float for JSON
-                'quantity_in_stock': sp.quantity_in_stock,
-                'low_stock_threshold': sp.low_stock_threshold,
-                'last_updated': sp.last_updated.isoformat() if sp.last_updated else None
-            })
+    for sp, product in store_products_with_products:
+        # sp is the StoreProduct object, product is the joined Product object
+        results.append({
+            'store_product_id': sp.id,
+            'product_id': product.id,
+            'product_name': product.name,
+            'sku': product.sku,
+            'unit': product.unit,
+            'price': float(sp.price), # Convert Decimal to float for JSON
+            'quantity_in_stock': sp.quantity_in_stock,
+            'low_stock_threshold': sp.low_stock_threshold,
+            'last_updated': sp.last_updated.isoformat() if sp.last_updated else None,
+            'category_id': product.category_id, # Include category_id in the response for debugging/frontend
+            'category_name': product.category.name if product.category else None # Include category name
+        })
 
     return jsonify(results), 200

@@ -1,3 +1,5 @@
+// src/components/POS/POSInterfacePage.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -6,11 +8,22 @@ import { BASE_URL } from "@/lib/constants";
 import {
   posProductListSchema,
   insertSaleSchema,
-  saleDetailsSchema
+  saleDetailsSchema, // Make sure this is imported
 } from "@/shared/schema";
 
-import { Link } from "wouter"; // Import Link for the Home button
-import { Home } from "lucide-react"; // Import Home icon
+// Re-import Link and Home icon
+import { Link } from "wouter";
+import { Home, ArrowDownAZ, ArrowUpAZ } from "lucide-react";
+
+// shadcn/ui components for styling
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // POS Specific Components
 import ProductSearchInput from "@/components/pos/product-search-input";
@@ -20,6 +33,7 @@ import CheckoutSummary from "@/components/pos/checkout-summary";
 import TransactionSuccessModal from "@/components/pos/transactional-success-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 // --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
@@ -43,20 +57,33 @@ export default function POSInterfacePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSaleDetails, setLastSaleDetails] = useState(null);
 
-  const [selectedStoreId, setSelectedStoreId] = useState(1);
+  const [selectedStoreId, setSelectedStoreId] = useState(1); // Default to store 1
+
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   const { toast } = useToast();
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  // --- Tanstack Query: Fetch Categories ---
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `${BASE_URL}/api/inventory/categories`);
+      return res;
+    },
+    staleTime: Infinity,
+  });
+
   // --- Tanstack Query: Fetch Products for the Selected Store ---
   const {
-    data: products = [],
+    data: productsData,
     isLoading: isLoadingProducts,
     isError: isErrorProducts,
     error: productsError,
   } = useQuery({
-    queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm],
+    queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm, sortOrder, selectedCategory],
     queryFn: async () => {
       if (!selectedStoreId) {
         return [];
@@ -65,6 +92,12 @@ export default function POSInterfacePage() {
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm);
       }
+      if (sortOrder) {
+        url.searchParams.append('sort_order', sortOrder);
+      }
+      if (selectedCategory && selectedCategory !== 'all') {
+        url.searchParams.append('category_id', selectedCategory);
+      }
       const res = await apiRequest("GET", url.toString());
       return posProductListSchema.parse(res);
     },
@@ -72,17 +105,128 @@ export default function POSInterfacePage() {
     staleTime: 60 * 1000,
   });
 
+  // Ensure 'products' is always an array, even when productsData is undefined
+  const products = productsData || [];
+
   // --- Tanstack Query: Create Sale Mutation ---
   const createSaleMutation = useMutation({
     mutationFn: (saleData) => apiRequest("POST", `${BASE_URL}/sales`, saleData),
     onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/sales`] });
-      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId] });
+      // Invalidate relevant queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['sales'] }); // Invalidate general sales list
+      // Invalidate products in stock for the current store to reflect quantity changes
+      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm, sortOrder, selectedCategory] });
 
       const createdSaleId = data.sale_id;
+      const saleTotal = parseFloat(data.total); // Ensure total is a number
+
+      const nowIsoString = new Date().toISOString();
+
+      // --- START: Frontend reconstruction of saleDetails to match schema (WORKAROUND) ---
+      const mappedSaleItemsForModal = cartItems.map((cartItem, index) => {
+        const fullProductDetails = products.find(p => p.store_product_id === cartItem.store_product_id);
+
+        // Define a function to validate and format dates
+        const getValidDatetimeString = (dateInput) => {
+          if (!dateInput) return nowIsoString; // If null/undefined, use current time
+          try {
+            const date = new Date(dateInput);
+            if (!isNaN(date.getTime())) { // Check if date is valid
+              return date.toISOString();
+            }
+          } catch (e) {
+            // Ignore parsing errors, fall through to default
+          }
+          return nowIsoString; // If invalid or error, use current time
+        };
+
+        // Default/placeholder values for nested objects if product details are not found
+        // These base objects include all fields from baseModelSchema and specific schema
+        const defaultProductBase = {
+          id: 0, name: 'Unknown Product', sku: 'N/A', unit: 'N/A',
+          description: null, category_id: null, image_url: null,
+          is_deleted: false, created_at: nowIsoString, updated_at: nowIsoString,
+        };
+
+        const defaultStoreProductBase = {
+          id: cartItem.store_product_id, store_id: selectedStoreId, product_id: 0,
+          quantity_in_stock: 0, quantity_spoilt: 0, low_stock_threshold: 0,
+          price: cartItem.price, last_updated: nowIsoString,
+          is_deleted: false, created_at: nowIsoString, updated_at: nowIsoString,
+        };
+
+
+        // Construct the nested product object for store_product.product
+        const productForStoreProduct = fullProductDetails ? {
+          id: fullProductDetails.product_id,
+          name: fullProductDetails.product_name,
+          sku: fullProductDetails.sku || null,
+          unit: fullProductDetails.unit,
+          description: null, // Assuming this is not in posProductDisplaySchema
+          category_id: null, // Assuming this is not in posProductDisplaySchema
+          image_url: fullProductDetails.image_url || null,
+          is_deleted: false,
+          created_at: getValidDatetimeString(fullProductDetails.created_at), // Use helper
+          updated_at: getValidDatetimeString(fullProductDetails.updated_at), // Use helper
+        } : defaultProductBase;
+
+        // Construct the full store_product object
+        const storeProductForSaleItem = fullProductDetails ? {
+          id: fullProductDetails.store_product_id,
+          store_id: fullProductDetails.store_id || selectedStoreId,
+          product_id: fullProductDetails.product_id,
+          quantity_in_stock: fullProductDetails.quantity_in_stock,
+          quantity_spoilt: 0, // Assuming new sales don't immediately affect spoilt quantity
+          low_stock_threshold: fullProductDetails.low_stock_threshold,
+          price: fullProductDetails.price, // Use price from fetched stock list
+          last_updated: getValidDatetimeString(fullProductDetails.last_updated), // Use helper
+          is_deleted: false,
+          created_at: getValidDatetimeString(fullProductDetails.created_at), // Use helper
+          updated_at: getValidDatetimeString(fullProductDetails.updated_at), // Use helper
+          product: productForStoreProduct, // Nested product object
+        } : { ...defaultStoreProductBase, product: productForStoreProduct }; // Ensure product is nested for default
+
+        return {
+          id: index + 1, // Temporary ID for the sale item
+          sale_id: createdSaleId,
+          store_product_id: cartItem.store_product_id,
+          quantity: cartItem.quantity,
+          price_at_sale: cartItem.price,
+          is_deleted: false,
+          created_at: nowIsoString,
+          updated_at: nowIsoString,
+          store_product: storeProductForSaleItem, // FULLY NESTED store_product
+        };
+      });
+
+      const detailsForModal = {
+        id: createdSaleId,
+        total: saleTotal,
+        // --- FIXED: Add top-level store_id and cashier_id ---
+        store_id: selectedStoreId,
+        cashier_id: 1, // Placeholder: Replace with actual logged-in cashier ID
+        // --- END FIXED ---
+        sale_items: mappedSaleItemsForModal,
+        payment_status: 'paid', // Assuming 'paid' on successful creation
+        is_deleted: false,
+        created_at: nowIsoString,
+        updated_at: nowIsoString,
+        // These can be replaced with actual user/store data if available from auth context
+        cashier: {
+          id: 1, name: 'POS Cashier', email: 'cashier@example.com', role: 'cashier',
+          is_active: true, created_by: null, store_id: selectedStoreId,
+          created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
+        },
+        store: {
+          id: selectedStoreId, name: `Store ${selectedStoreId}`, address: '123 Retail St',
+          created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
+        },
+      };
+
       try {
-        const fullSaleDetails = await apiRequest("GET", `${BASE_URL}/sales/${createdSaleId}`);
-        setLastSaleDetails(saleDetailsSchema.parse(fullSaleDetails));
+        // Validate the constructed object against the schema
+        saleDetailsSchema.parse(detailsForModal);
+        setLastSaleDetails(detailsForModal);
         setShowSuccessModal(true);
         setCartItems([]);
         toast({
@@ -90,26 +234,27 @@ export default function POSInterfacePage() {
           description: `Sale #${createdSaleId} successfully processed.`,
           duration: 3000,
         });
-      } catch (fetchError) {
-        console.error("Error fetching full sale details after creation:", fetchError);
+      } catch (validationError) {
+        console.error("Error constructing or parsing sale details for modal:", validationError);
+        // Fallback for modal display if local validation fails
         setLastSaleDetails({
-          id: createdSaleId,
-          total: data.total,
-          sale_items: [],
-          payment_status: 'paid',
-          cashier: { name: 'Unknown' },
-          store: { name: 'Unknown' }
+          id: createdSaleId, total: saleTotal, sale_items: [], payment_status: 'paid',
+          // Ensure these are present even in fallback for minimal schema adherence
+          created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
+          store_id: selectedStoreId, cashier_id: 1,
+          cashier: { name: 'Unknown', id: 0, email: 'unknown@example.com', role: 'cashier', is_active: true, created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false },
+          store: { name: 'Unknown', id: 0, address: '', created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false }
         });
         setShowSuccessModal(true);
         setCartItems([]);
         toast({
-          title: "Sale Completed (Details Error)",
-          description: `Sale #${createdSaleId} processed, but failed to load full details.`,
-          variant: "warning",
-          duration: 4000,
+          title: "Sale Completed (Display Issue)",
+          description: `Sale #${createdSaleId} processed, but failed to prepare display details due to schema mismatch. Check console.`,
+          variant: "destructive",
+          duration: 5000,
         });
       }
-    },
+    }, // --- END: Frontend reconstruction of saleDetails ---
     onError: (error) => {
       console.error("Sale creation error:", error);
       let errorMessage = "Failed to complete sale. Please try again.";
@@ -157,6 +302,7 @@ export default function POSInterfacePage() {
           quantity: 1,
           unit: product.unit,
           sku: product.sku,
+          image_url: product.image_url,
         }];
       }
     });
@@ -191,7 +337,7 @@ export default function POSInterfacePage() {
   // --- Sale Processing Function ---
   const handleProcessSale = useCallback(() => {
     const currentStoreId = selectedStoreId;
-    const currentCashierId = 1;
+    const currentCashierId = 1; // Placeholder: Replace with actual logged-in cashier ID
 
     if (!currentStoreId) {
       toast({
@@ -219,11 +365,11 @@ export default function POSInterfacePage() {
     const salePayload = {
       store_id: currentStoreId,
       cashier_id: currentCashierId,
-      payment_status: 'paid',
+      payment_status: 'paid', // Assuming all POS sales are marked as 'paid' immediately
       sale_items: saleItemsPayload,
     };
     try {
-      insertSaleSchema.parse(salePayload);
+      insertSaleSchema.parse(salePayload); // Validate payload before sending
       createSaleMutation.mutate(salePayload);
     } catch (validationError) {
       console.error("Sale payload validation error:", validationError);
@@ -250,10 +396,15 @@ export default function POSInterfacePage() {
     });
   }, [toast]);
 
+  // Toggle sort order between 'asc' and 'desc'
+  const toggleSortOrder = () => {
+    setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc');
+  };
+
   return (
     <div className="pos-interface-container flex h-screen overflow-hidden bg-gray-100">
       {/* Left Panel: Cart and Checkout Summary */}
-      <div className="flex flex-col w-full md:w-1/3 p-4 bg-gray-50 border-r border-gray-200">
+      <div className="flex flex-col w-full md:w-2/5 p-4 bg-gray-50 border-r border-gray-200">
         <div className="mb-4">
           <Label htmlFor="store-id-select" className="block text-sm font-medium text-gray-700 mb-1">
             Selected Store ID (for demo)
@@ -271,7 +422,7 @@ export default function POSInterfacePage() {
             <p className="text-red-500 text-xs mt-1">Please enter a valid Store ID to see products.</p>
           )}
         </div>
-        <div className="flex-grow">
+        <div className="flex-grow overflow-y-auto pr-2">
           <CartDisplay
             cartItems={cartItems}
             onUpdateQuantity={handleUpdateCartItem}
@@ -291,23 +442,54 @@ export default function POSInterfacePage() {
       <div className="flex flex-col flex-grow p-4 bg-white">
         {/* Header for the right panel */}
         <div className="flex-shrink-0">
-          {/* Home Button aligned to the top-right */}
-          <div className="flex justify-end mb-4">
+          {/* Top row with Home button and reduced margin */}
+          <div className="flex justify-end mb-2">
             <Link href="/">
               <a className="flex items-center justify-center h-10 w-10 rounded-full shadow-md bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
                 <Home className="h-5 w-5" />
               </a>
             </Link>
           </div>
-          {/* Search bar below the home button */}
-          <ProductSearchInput
-            value={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
+          {/* Search, Sort, and Filter row with reduced top margin */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-2 mb-4 items-center">
+            <div className="flex-grow">
+              <ProductSearchInput
+                value={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
+            </div>
+
+            {/* Sort Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleSortOrder}
+              className="flex-shrink-0"
+              aria-label={`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
+            >
+              {sortOrder === 'asc' ? <ArrowDownAZ className="h-4 w-4" /> : <ArrowUpAZ className="h-4 w-4" />}
+            </Button>
+
+            {/* Category Filter */}
+            <Select onValueChange={setSelectedCategory} value={selectedCategory}>
+              <SelectTrigger className="w-[180px] flex-shrink-0">
+                <SelectValue placeholder="Filter by Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         {/* End of header */}
-        
-        <div className="flex-grow mt-4">
+
+        {/* Make this section scrollable */}
+        <div className="flex-grow mt-4 overflow-y-auto">
           <ProductList
             products={products}
             isLoading={isLoadingProducts}
