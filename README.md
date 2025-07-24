@@ -16,14 +16,14 @@
   <p align="center">
     Streamlining retail operations with intuitive inventory, POS, and reporting.
     <br />
-    <a href="https://github.com/your_username/MyDuka"><strong>Explore the repo »</strong></a>
+    <a href="https://github.com/Emananii/MyDuka"><strong>Explore the repo »</strong></a>
     <br />
     <br />
-    <a href="https://your_demo_link.netlify.app/">View Demo</a>
+    <a href="https://myduka-backend-jhyi.onrender.com/apidocs/">View Demo</a>
     ·
-    <a href="https://github.com/your_username/MyDuka/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    <a href="https://github.com/Emananii/MyDuka/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
-    <a href="https://github.com/your_username/MyDuka/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+    <a href="https://github.com/Emananii/MyDuka/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
 </div>
 
@@ -175,7 +175,7 @@ To get a local copy up and running, follow these simple steps.
 
 1.  Clone the repository:
     ```sh
-    git clone [https://github.com/your_username/MyDuka.git](https://github.com/your_username/MyDuka.git)
+    git clone [https://github.com/Emananii/MyDuka.git](https://github.com/Emananii/MyDuka.git)
     ```
 2.  Navigate into the `backend` directory:
     ```sh
@@ -364,11 +364,11 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-[contributors-shield]: https://img.shields.io/github/contributors/your_username/MyDuka.svg?style=for-the-badge
-[contributors-url]: https://github.com/your_username/MyDuka/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/your_username/MyDuka.svg?style=for-the-badge
-[forks-url]: https://github.com/your_username/MyDuka/network/members
-[stars-shield]: https://img.shields.io/github/stars/your_username/MyDuka.svg?style=for-the-badge
-[stars-url]: https://github.com/your_username/MyDuka/stargazers
-[license-shield]: https://img.shields.io/github/license/your_username/MyDuka.svg?style=for-the-badge
-[license-url]: https://github.com/your_username/MyDuka/blob/main/LICENSE
+[contributors-shield]: https://img.shields.io/github/contributors/Emananii/MyDuka.svg?style=for-the-badge
+[contributors-url]: https://github.com/Emananii/MyDuka/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Emananii/MyDuka.svg?style=for-the-badge
+[forks-url]: https://github.com/Emananii/MyDuka/network/members
+[stars-shield]: https://img.shields.io/github/stars/Emananii/MyDuka.svg?style=for-the-badge
+[stars-url]: https://github.com/Emananii/MyDuka/stargazers
+[license-shield]: https://img.shields.io/github/license/Emananii/MyDuka.svg?style=for-the-badge
+[license-url]: https://github.com/Emananii/MyDuka/blob/main/LICENSE

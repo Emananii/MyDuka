@@ -1,39 +1,44 @@
 import sys
 import os
 
-# Add the project's root directory (backend) to the Python path
+# Add the project root to the Python path to allow for 'app' module import
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app, db
 from app.models import User, Store
 
-app = create_app()
+def seed_auth():
+    app = create_app()
 
-with app.app_context():
-    print("🔄 Dropping all tables...")
-    db.drop_all()
-    print("✅ Creating all tables...")
-    db.create_all()
+    with app.app_context():
+        print("🔄 Dropping all tables...")
+        db.drop_all()
+        print("✅ Creating all tables...")
+        db.create_all()
 
-    print("🌱 Seeding test data...")
+        print("🌱 Seeding test data...")
 
-    # Create test store
-    store = Store(name="Test Store", address="123 Main St")
-    db.session.add(store)
-    db.session.commit()
+        # Create test store
+        store = Store(name="Test Store", address="123 Main St")
+        db.session.add(store)
+        db.session.commit()
 
-    # Create Merchant user (first user)
-    merchant = User(
-        name="Admin User",
-        email="merchant@example.com",
-        password="adminpass123",  # plain password; User.__init__ hashes it
-        role="merchant",
-        is_active=True,
-        store_id=store.id
-    )
-    db.session.add(merchant)
-    db.session.commit()
+        # Create Merchant user (first user)
+        merchant = User(
+            name="Admin User",
+            email="merchant@example.com",
+            password="adminpass123",  # plain password; User.__init__ hashes it
+            role="merchant",
+            is_active=True,
+            store_id=store.id,
+            last_login_at=None
+        )
+        db.session.add(merchant)
+        db.session.commit()
 
-    print("✅ Seeding complete.")
-    print("📧 Email: merchant@example.com")
-    print("🔑 Password: adminpass123")
+        print("✅ Seeding complete.")
+        print("📧 Email: merchant@example.com")
+        print("🔑 Password: adminpass123")
+
+if __name__ == "__main__":
+    seed_auth()

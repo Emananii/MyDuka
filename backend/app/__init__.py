@@ -1,5 +1,5 @@
 import os
-from flask import Flask, redirect, url_for # Import redirect and url_for
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -18,34 +18,29 @@ migrate = Migrate()
 jwt = JWTManager()
 swagger = Swagger()
 
-# Import the registration function for error handlers
+# Import error handlers
 from app.error_handlers import register_error_handlers
+
 
 def create_app():
     app = Flask(__name__)
 
     # --- Configuration ---
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///default.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
-    app.config["CORS_HEADERS"] = "Content-Type"
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
 
-    # Flasgger configuration
+    # ✅ Flasgger configuration
     app.config['SWAGGER'] = {
-        'title': 'MyDuka API', # Updated title
+        'title': 'MyDuka API',
         'uiversion': 3,
-        'headers': [
-            ('Access-Control-Allow-Origin', '*'),
-            ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-            ('Access-Control-Allow-Credentials', "true"),
-        ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
                 'route': '/apispec_1.json',
-                'rule_filter': lambda rule: True,  # all in
-                'model_filter': lambda tag: True,  # all in
+                'rule_filter': lambda rule: True,
+                'model_filter': lambda tag: True,
             }
         ],
         'static_url_path': '/flasgger_static',
@@ -59,55 +54,55 @@ def create_app():
                 'description': 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
             }
         },
-        'security': [
-            {'Bearer': []}
-        ]
+        'security': [{'Bearer': []}]
     }
 
-
-    # --- Initialize Extensions ---
+    # --- Initialize extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
     swagger.init_app(app)
 
-    # --- Import Models (needed for Flask-Migrate) ---
-    from app import models 
+    # ✅ Proper CORS configuration
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": ["http://localhost:5173"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+                "supports_credentials": True
+            }
+        }
+    )
 
-    # --- Register Blueprints ---
+    # --- Import models ---
+    from app import models
+
+    # --- Register blueprints ---
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
-    from app.routes.report_routes import report_bp  
+    from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
-    app.register_blueprint(report_bp) 
+    app.register_blueprint(report_bp)
     app.register_blueprint(users_bp)
 
-
-    # --- Register Global Error Handlers ---
+    # --- Register global error handlers ---
     register_error_handlers(app)
 
-    # --- NEW: Root Route for Swagger UI ---
+    # --- Root route redirects to Swagger UI ---
     @app.route('/')
     def index():
-        """
-        Redirects to the Swagger UI documentation.
-        ---
-        responses:
-          302:
-            description: Redirect to Swagger UI
-        """
-        return redirect(url_for('flasgger.apidocs')) # 'flasgger.apidocs' is the endpoint for Swagger UI
+        return redirect(url_for('flasgger.apidocs'))
 
-
-    # --- Configure Logging ---
+    # --- Logging setup ---
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')
@@ -117,9 +112,7 @@ def create_app():
         )
         file_handler.setFormatter(formatter)
         file_handler.setLevel(logging.INFO)
-
         app.logger.addHandler(file_handler)
-
         app.logger.setLevel(logging.INFO)
         app.logger.info('Application startup')
 
