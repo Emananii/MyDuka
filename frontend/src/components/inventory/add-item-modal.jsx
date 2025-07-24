@@ -49,18 +49,21 @@ export default function AddItemModal({ isOpen, onClose }) {
 
   const { toast } = useToast();
 
-  const { data: categories = [] } = useQuery({
-    queryKey: [`${BASE_URL}/categories`],
+  const {
+    data: categories = [],
+  } = useQuery({
+    queryKey: ["categories"],
     queryFn: async () => {
       const res = await fetch(`${BASE_URL}/categories`);
-      return await res.json();
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json(); // or res.json().data depending on your backend
     },
   });
 
   const mutation = useMutation({
     mutationFn: (data) => apiRequest("POST", `${BASE_URL}/products`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/products`] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Success", description: "Item added successfully" });
       form.reset();
       onClose();
@@ -79,9 +82,12 @@ export default function AddItemModal({ isOpen, onClose }) {
   });
 
   const onSubmit = (values) => {
-    values.category_id = parseInt(values.categoryId);
-    delete values.categoryId;
-    mutation.mutate(values);
+    const payload = {
+      ...values,
+      category_id: parseInt(values.categoryId),
+    };
+    delete payload.categoryId;
+    mutation.mutate(payload);
   };
 
   return (
@@ -137,7 +143,10 @@ export default function AddItemModal({ isOpen, onClose }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />

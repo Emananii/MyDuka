@@ -42,7 +42,41 @@ with app.app_context():
         db.session.commit()
         print(f"✅ Created {Store.query.count()} initial stores.")
 
-        # --- Create Categories ---
+        # --- Define realistic products and categories ---
+        base_products = [
+            ("Milk", "Dairy", "packet"),
+            ("Yogurt", "Dairy", "cup"),
+            ("Cheese", "Dairy", "block"),
+            ("Bread", "Bakery", "loaf"),
+            ("Cake", "Bakery", "piece"),
+            ("Buns", "Bakery", "pack"),
+            ("Toilet Paper", "Household", "roll"),
+            ("Soap", "Cleaning Supplies", "bar"),
+            ("Detergent", "Cleaning Supplies", "box"),
+            ("Dishwasher", "Cleaning Supplies", "bottle"),
+            ("Soda", "Beverages", "bottle"),
+            ("Juice", "Beverages", "carton"),
+            ("Water", "Beverages", "bottle"),
+            ("Biscuits", "Snacks", "pack"),
+            ("Chips", "Snacks", "packet"),
+            ("Cookies", "Snacks", "pack"),
+            ("Rice", "Grocery", "kg"),
+            ("Flour", "Grocery", "kg"),
+            ("Sugar", "Grocery", "kg"),
+            ("Tomatoes", "Vegetables", "kg"),
+            ("Onions", "Vegetables", "kg"),
+            ("Cabbage", "Vegetables", "head"),
+        ]
+
+        # Generate more by repeating and randomizing names
+        product_list = []
+        while len(product_list) < 50:
+            name, cat, unit = random.choice(base_products)
+            new_name = name + " " + faker.word().capitalize()
+            product_list.append((new_name, cat, unit))
+
+        # Create categories
+        category_names = set([cat for _, cat, _ in product_list])
         categories = []
         # Ensure enough categories for product variety
         for _ in range(10): # Reduced number for more likely product per category
@@ -55,7 +89,7 @@ with app.app_context():
         db.session.commit()
         print(f"✅ Created {Category.query.count()} categories.")
 
-        # --- Create Products ---
+        # Create products
         products = []
         # Create a good number of products, ensuring they are linked to categories
         for _ in range(50): # Increased product count for better testing
@@ -67,10 +101,10 @@ with app.app_context():
 
             product = Product(
                 name=name,
-                sku=sku,
+                sku=faker.unique.bothify(text='???###').upper(),
                 unit=unit,
-                description=description,
-                category_id=category.id
+                description=faker.text(max_nb_chars=40),
+                category_id=category_map[category_name].id
             )
             products.append(product)
 
@@ -101,7 +135,7 @@ with app.app_context():
             notes="First delivery for beverages and snacks"
         )
         db.session.add(purchase1)
-        db.session.flush()  # Needed to get purchase_id
+        db.session.flush()
 
         # --- Create Purchase Items ---
         # Ensure these products exist before referencing them

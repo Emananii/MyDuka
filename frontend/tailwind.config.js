@@ -81,4 +81,9 @@ module.exports = {
     require("tailwindcss-animate"),
     require("@tailwindcss/typography"),
   ],
+  family : {
+    sans: ["Montserrat", "sans-serif"],
+    serif: ["Merriweather", "serif"],
+    mono: ["Menlo", "monospace"],
+  },
 };

@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.models import db, Category, Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
+from app.models import db,Category,Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
 from flask_jwt_extended import jwt_required # Assuming JWT protection will be added later
 from sqlalchemy.orm import joinedload
 
