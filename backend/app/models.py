@@ -46,14 +46,11 @@ class User(BaseModel):
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False, unique=True, index=True)
     # ✅ Changed: Renamed and length set for Argon2
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)
     role = db.Column(db.Enum('merchant', 'admin', 'clerk',
                      'cashier', name='user_roles'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), index=True)
-
-    last_login_at = db.Column(db.DateTime)
-
 
     # ✅ New: Creator tracking
     # Optional: Track who created this user
@@ -254,6 +251,17 @@ class StockTransfer(BaseModel):
     transfer_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
     stock_transfer_items = db.relationship('StockTransferItem', backref='transfer')
+    stock_transfer_items = db.relationship(
+        'StockTransferItem', backref='transfer')
+
+
+class StockTransferStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+    def __str__(self):
+        return self.value
 
 class StockTransferStatus(str, Enum):
     pending = "pending"
