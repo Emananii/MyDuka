@@ -14,7 +14,7 @@ export default function DeleteCategoryModal({ category, isOpen, onClose }) {
   const { toast } = useToast();
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}/categories/${id}`),
+    mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}/api/inventory/categories/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({

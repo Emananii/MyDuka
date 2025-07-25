@@ -111,13 +111,13 @@ with app.app_context():
         # --- Create Purchase Items ---
         product_sample_for_purchase = random.sample(products, 2)
         item1 = PurchaseItem(
-            purchase_id=purchase1.id,
+            purchase_id=purchase.id,
             product_id=product_sample_for_purchase[0].id,
             quantity=100,
             unit_cost=Decimal('25.00')
         )
         item2 = PurchaseItem(
-            purchase_id=purchase1.id,
+            purchase_id=purchase.id,
             product_id=product_sample_for_purchase[1].id,
             quantity=60,
             unit_cost=Decimal('30.00')

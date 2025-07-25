@@ -46,7 +46,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
   const { data } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/categories`);
+      const res = await fetch(`${BASE_URL}api/inventory/categories`);
       if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
@@ -59,8 +59,8 @@ export default function ProductForm({ initialData = null, onSuccess }) {
   const mutation = useMutation({
     mutationFn: async (formData) => {
       const url = initialData
-        ? `${BASE_URL}/products/${initialData.id}`
-        : `${BASE_URL}/products`;
+        ? `${BASE_URL}/api/inventory/products/${initialData.id}`
+        : `${BASE_URL}/api/inventory/products`;
       const method = initialData ? "PATCH" : "POST";
       return apiRequest(method, url, formData);
     },

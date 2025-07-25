@@ -54,14 +54,14 @@ export default function AddItemModal({ isOpen, onClose }) {
   } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/categories`);
+      const res = await fetch(`${BASE_URL}api/inventory/categories`);
       if (!res.ok) throw new Error("Failed to fetch categories");
       return res.json(); // or res.json().data depending on your backend
     },
   });
 
   const mutation = useMutation({
-    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/products`, data),
+    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/api/inventory/products`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Success", description: "Item added successfully" });

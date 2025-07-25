@@ -57,7 +57,7 @@ import POSInterfacePage from "@/pages/POS-interface";
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
-  const [, navigate] = useLocation();
+  // const [, navigate] = useLocation();
 
   // console.log("User object in MainLayout:", user); // For debugging
 
