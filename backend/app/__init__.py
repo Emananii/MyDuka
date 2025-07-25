@@ -29,6 +29,7 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
 
     # Flasgger configuration
     app.config['SWAGGER'] = {
