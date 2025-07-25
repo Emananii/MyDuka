@@ -3,7 +3,7 @@ from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from flask_cors import CORS
+from flask_cors import CORS # Keep this import
 from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
@@ -28,8 +28,8 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
-    # app.config["CORS_HEADERS"] = "Content-Type" # Already commented out, good!
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
 
     # Flasgger configuration
     app.config['SWAGGER'] = {
@@ -70,7 +70,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app) # This should now work correctly without interference
+    # Ensure Flask-CORS is initialized for your app
+
     swagger.init_app(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
@@ -91,7 +92,7 @@ def create_app():
     app.register_blueprint(report_bp) 
     app.register_blueprint(users_bp, url_prefix='/users')
 
-
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
 
