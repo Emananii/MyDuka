@@ -1,10 +1,11 @@
+// frontend/src/pages/stores.jsx
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import AddStoreModal from "@/components/stores/add-store-modal";
 import EditStoreModal from "@/components/stores/edit-store-modal";
 import DeleteStoreModal from "@/components/stores/delete-store-modal";
-
-const BASE_URL = "http://127.0.0.1:8000"; 
+import { apiRequest } from "@/lib/queryClient"; // ✅ IMPORTED apiRequest
+import { BASE_URL } from "@/lib/constants"; // ✅ Ensure BASE_URL is consistent
 
 const Stores = () => {
   const {
@@ -13,17 +14,9 @@ const Stores = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["store_locations"],
+    queryKey: [`${BASE_URL}/api/store/`], // ✅ Match key with the query URL
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/store/`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch store data");
-      }
-
-      return res.json();
+      return await apiRequest("GET", `${BASE_URL}/api/store/`); // ✅ Uses JWT from localStorage
     },
   });
 
