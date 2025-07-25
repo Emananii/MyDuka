@@ -25,7 +25,7 @@ def create_app():
     app = Flask(__name__)
 
     # --- Configuration ---
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI", "sqlite:///default.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
     # app.config["CORS_HEADERS"] = "Content-Type" # Already commented out, good!

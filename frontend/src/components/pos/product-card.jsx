@@ -29,6 +29,10 @@ const formatCurrency = (amount) => {
   }).format(parsed);
 };
 
+// Placeholder for a generic product image if none is available or image fails to load
+const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1731939818071-560a98da89c2?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+
+
 /**
  * ProductCard Component
  * Displays a single product with its name, price, and stock.
@@ -45,6 +49,7 @@ const formatCurrency = (amount) => {
  * - `unit`: string
  * - `low_stock_threshold`: number
  * - `last_updated`: string | null
+ * - `image_url`: string | null (NEWLY ADDED PROPERTY)
  * @param {function(object): void} props.onAddToCart - Callback to add the product to the cart.
  */
 export default function ProductCard({ product, onAddToCart }) {
@@ -62,11 +67,25 @@ export default function ProductCard({ product, onAddToCart }) {
             isLowStock && "border-yellow-400 ring-1 ring-yellow-400" // Highlight if low stock
           )}
         >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold leading-tight">
+          {/* Image Section - ADDED THIS BLOCK */}
+          <div className="relative w-full h-36 bg-gray-100 flex items-center justify-center overflow-hidden rounded-t-lg">
+            <img
+              src={product.image_url || DEFAULT_PRODUCT_IMAGE}
+              alt={product.product_name || "Product Image"}
+              className="w-full h-full object-cover" // Ensure image fills the space without distortion
+              onError={(e) => {
+                e.currentTarget.onerror = null; // Prevents infinite loop on error
+                e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; // Fallback image on error
+              }}
+            />
+          </div>
+          {/* END Image Section */}
+
+          <CardHeader className="pb-2 pt-3"> {/* Adjusted padding-top slightly after image */}
+            <CardTitle className="text-lg font-semibold leading-tight line-clamp-2"> {/* line-clamp for multiline titles */}
               {product.product_name}
             </CardTitle>
-            <CardDescription className="text-sm text-gray-500">
+            <CardDescription className="text-sm text-gray-500 line-clamp-1"> {/* line-clamp for SKU */}
               {product.sku || "No SKU"}
             </CardDescription>
           </CardHeader>
@@ -92,7 +111,7 @@ export default function ProductCard({ product, onAddToCart }) {
           </div>
 
           {/* Info icon for HoverCard trigger, positioned absolutely */}
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 z-10"> {/* Added z-10 to ensure it's above the image */}
             <Info className="h-4 w-4 text-gray-400 hover:text-gray-600" />
           </div>
         </Card>

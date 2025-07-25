@@ -1,16 +1,33 @@
-// src/lib/schema.js
+// src/shared/schema.js
 import { z } from "zod";
+
+// Helper function to transform date strings reliably
+// This will attempt to parse the string into a Date object.
+// If parsing fails (e.g., invalid format), it will return Zod's NEVER type,
+// which will propagate the error appropriately.
+const dateStringTransform = z.string().transform((str, ctx) => {
+  const date = new Date(str);
+  if (isNaN(date.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Invalid date string",
+    });
+    return z.NEVER; // Indicate that transformation failed
+  }
+  return date;
+});
 
 // --- Base Schemas (Reusable for all models inheriting BaseModel) ---
 export const baseModelSchema = z.object({
   id: z.number().int().positive(),
-  is_deleted: z.boolean().default(false), // Assuming backend always returns this, or defaults if not present
-  created_at: z.string().datetime(), // ISO 8601 string
-  updated_at: z.string().datetime(), // ISO 8601 string
+  is_deleted: z.boolean().default(false),
+  created_at: dateStringTransform, // Use the custom transform for datetime strings
+  updated_at: dateStringTransform, // Use the custom transform for datetime strings
 });
 
 // --- Enums from your Models ---
-export const userRoleEnum = z.enum(['merchant', 'admin', 'clerk', 'cashier']);
+// Make sure this enum includes all possible roles returned by your backend
+export const userRoleEnum = z.enum(['merchant', 'admin', 'clerk', 'cashier', 'user']);
 export const paymentStatusEnum = z.enum(['paid', 'unpaid']);
 export const supplyRequestStatusEnum = z.enum(['pending', 'approved', 'declined']);
 export const stockTransferStatusEnum = z.enum(['pending', 'approved', 'rejected']);
@@ -22,35 +39,37 @@ export const storeSchema = baseModelSchema.extend({
   name: z.string(),
   address: z.string().nullable(),
   // Relationships are typically not directly in the schema unless explicitly nested by backend serializer
-  // users: z.array(userSchema).optional(), // Example if backend nests all users for a store
+  // users: z.array(z.lazy(() => userSchema)).optional(), // Example if backend nests all users for a store
 });
 
 export const userSchema = baseModelSchema.extend({
   name: z.string(),
   email: z.string().email(),
   // password_hash is sensitive and should never be exposed to frontend
-  role: userRoleEnum,
+  role: userRoleEnum, // Using the enum directly
   is_active: z.boolean(),
   store_id: z.number().int().positive().nullable(), // Nullable for Merchant role
-  created_by: z.number().int().positive().nullable(),
-  // creator: userSchema.optional(), // If backend nests creator details
+  created_by: z.number().int().positive().nullable(), // Nullable as per your backend response
+  // creator: z.lazy(() => userSchema.optional()), // If backend nests creator details, use z.lazy for self-referencing
 });
 
 export const categorySchema = baseModelSchema.extend({
   name: z.string(),
   description: z.string().nullable(),
-  // products: z.array(productSchema).optional(), // If backend nests products
+  // products: z.array(z.lazy(() => productSchema)).optional(), // If backend nests products
 });
 
+// --- UPDATED: productSchema to include image_url as per your model and frontend needs ---
 export const productSchema = baseModelSchema.extend({
   name: z.string(),
   sku: z.string().nullable(), // Unique=True in DB, but nullable
   unit: z.string(),
   description: z.string().nullable(),
   category_id: z.number().int().positive().nullable(),
-  // category: categorySchema.optional(), // If backend nests category
+  image_url: z.string().url().nullable().optional(), // URL for the product image, optional since it can be null
 });
 
+// --- UPDATED: storeProductSchema to nest productSchema ---
 export const storeProductSchema = baseModelSchema.extend({
   store_id: z.number().int().positive().nullable(),
   product_id: z.number().int().positive().nullable(),
@@ -58,9 +77,9 @@ export const storeProductSchema = baseModelSchema.extend({
   quantity_spoilt: z.number().int().nonnegative(),
   low_stock_threshold: z.number().int().nonnegative(),
   price: z.number(), // db.Numeric(10, 2) maps to number
-  last_updated: z.string().datetime(),
-  // product: productSchema.optional(), // If your backend nests the base product details
-  // store: storeSchema.optional(), // If your backend nests the store details
+  last_updated: dateStringTransform.nullable(), // Use the custom transform for datetime strings
+  product: productSchema, // This should be required if your backend always nests the base product details with StoreProduct
+  // store: z.lazy(() => storeSchema).optional(), // If your backend nests the store details
 });
 
 export const supplierSchema = baseModelSchema.extend({
@@ -91,8 +110,8 @@ export const insertSaleSchema = z.object({
   // `total` is a hybrid_property, calculated by backend, not sent by frontend for creation
 });
 
-// For fetching products for POS search (GET /api/products)
-// This schema assumes your backend joins Product and StoreProduct data.
+// For fetching products for POS search (GET /api/inventory/stock)
+// This schema assumes your backend joins Product and StoreProduct data into a FLAT structure.
 export const posProductDisplaySchema = z.object({
   store_product_id: z.number().int().positive(), // The ID of the StoreProduct instance
   product_id: z.number().int().positive(), // The ID of the base Product
@@ -102,19 +121,26 @@ export const posProductDisplaySchema = z.object({
   price: z.number().nonnegative(), // From StoreProduct.price
   quantity_in_stock: z.number().int().nonnegative(), // From StoreProduct.quantity_in_stock
   low_stock_threshold: z.number().int().nonnegative(), // From StoreProduct.low_stock_threshold
-  last_updated: z.string().nullable(), // From StoreProduct.last_updated
+  last_updated: dateStringTransform.nullable(), // From StoreProduct.last_updated, use transform
+  image_url: z.string().url().nullable().optional(), // From Product.image_url
+  // Additional fields from BaseModel if your backend sends them for these flat objects
+  created_at: dateStringTransform.optional(),
+  updated_at: dateStringTransform.optional(),
+  is_deleted: z.boolean().optional(),
 });
 export const posProductListSchema = z.array(posProductDisplaySchema);
 
 
-// For Sale details or individual sale items fetched from backend
+// --- UPDATED: For Sale details or individual sale items fetched from backend ---
+// This now correctly nests store_product using the full storeProductSchema
 export const saleItemFetchedSchema = baseModelSchema.extend({
   sale_id: z.number().int().positive(),
   store_product_id: z.number().int().positive(),
   quantity: z.number().int().nonnegative(),
   price_at_sale: z.number(),
-  // If backend nests the full StoreProduct with its Product details
-  store_product: posProductDisplaySchema.optional(),
+  // --- IMPORTANT CHANGE HERE ---
+  // If backend nests the full StoreProduct with its Product details, this should be required
+  store_product: storeProductSchema, // This now expects a full nested StoreProduct object
 });
 
 // For Sale history list (GET /api/sales)
@@ -129,7 +155,8 @@ export const saleHistoryItemSchema = baseModelSchema.extend({
 });
 export const saleHistoryListSchema = z.array(saleHistoryItemSchema);
 
-// For full Sale details (GET /api/sales/<id>)
+// --- UPDATED: For full Sale details (GET /api/sales/<id>) ---
+// This schema now relies on the correctly nested saleItemFetchedSchema
 export const saleDetailsSchema = baseModelSchema.extend({
   store_id: z.number().int().positive().nullable(),
   cashier_id: z.number().int().positive().nullable(),
@@ -138,9 +165,7 @@ export const saleDetailsSchema = baseModelSchema.extend({
   notes: z.string().nullable().optional(), // Assuming a `notes` field might be added to Sale model
   cashier: userSchema.pick({ id: true, name: true, email: true, role: true }).optional(),
   store: storeSchema.pick({ id: true, name: true, address: true }).optional(),
-  sale_items: z.array(saleItemFetchedSchema.extend({
-    store_product: posProductDisplaySchema, // Should have full product details here
-  })).min(1), // A sale must have at least one item
+  sale_items: z.array(saleItemFetchedSchema).min(1), // Now uses the updated saleItemFetchedSchema
 });
 
 
@@ -157,7 +182,7 @@ export const insertUserSchema = z.object({
   created_by: z.coerce.number().int().positive("Creator ID is required.").nullable(), // Only for backend logic, not frontend input
 });
 export const editUserSchema = insertUserSchema.extend({
-    password: z.string().min(8, "Password must be at least 8 characters.").optional().or(z.literal("")), // Optional for edit, can be empty
+    password: z.string().min(8, "Password must be at least 8 characters.").or(z.literal("")).optional(), // Optional for edit, can be empty
     // Password hash is handled by backend, so we send the plain password if updated
 });
 
@@ -165,14 +190,11 @@ export const editUserSchema = insertUserSchema.extend({
 export const insertStoreSchema = z.object({
   name: z.string().min(2, "Store name must be at least 2 characters."),
   address: z.string().min(5, "Address must be at least 5 characters.").nullable(), // Nullable based on model
-  contact_person: z.string().optional(), // Not in model, remove or add to model
-  phone: z.string().optional(), // Not in model, remove or add to model
-  notes: z.string().optional(), // Not in model, remove or add to model
-  is_active: z.boolean().default(true), // Not in model, remove or add to model
+  // Removed non-model fields: contact_person, phone, notes, is_active unless you add them to your Store model
 });
 export const editStoreSchema = insertStoreSchema.extend({});
 
-// Category Form Validation
+// Category Form Validation (Uses the single categorySchema as base for consistency)
 export const insertCategorySchema = z.object({
   name: z.string().min(2, "Category name must be at least 2 characters."),
   description: z.string().nullable().optional(), // Nullable in model
@@ -186,6 +208,7 @@ export const insertProductSchema = z.object({
   unit: z.string().min(1, "Unit is required."),
   description: z.string().nullable().optional(),
   category_id: z.coerce.number().int().positive("Category is required.").nullable(), // Nullable in model
+  image_url: z.string().url().nullable().optional(), // Added here for consistency
 });
 export const editProductSchema = insertProductSchema.extend({});
 
@@ -216,7 +239,7 @@ export const editSupplierSchema = insertSupplierSchema.extend({});
 export const insertPurchaseSchema = z.object({
   supplier_id: z.coerce.number().int().positive("Supplier is required.").nullable(),
   store_id: z.coerce.number().int().positive("Store is required."),
-  date: z.string().datetime().optional(), // ISO string from frontend, backend converts to Date
+  date: dateStringTransform.optional(), // Use the transformed date
   reference_number: z.string().nullable().optional(),
   is_paid: z.boolean().default(false),
   notes: z.string().nullable().optional(),
@@ -259,7 +282,7 @@ export const insertStockTransferSchema = z.object({
   initiated_by: z.coerce.number().int().positive("Initiator is required."),
   approved_by: z.coerce.number().int().positive().nullable(),
   status: stockTransferStatusEnum.default('pending'),
-  transfer_date: z.string().datetime().optional(), // Optional: can be set by backend
+  transfer_date: dateStringTransform.optional(), // Use the transformed date
   notes: z.string().nullable().optional(),
   // The items array might be sent as part of the main transfer payload
   items: z.array(
