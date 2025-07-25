@@ -88,7 +88,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
-    app.register_blueprint(inventory_bp, url_prefix='/api')
+    app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp) 
     app.register_blueprint(users_bp, url_prefix='/users')
 

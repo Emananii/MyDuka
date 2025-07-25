@@ -52,7 +52,7 @@ export default function Inventory() {
     // although using the full URL as key technically works.
     queryKey: ["products", API_PREFIX], // Example: ["products", "/api/inventory"]
     queryFn: async () => {
-      // Corrected fetch URL: BASE_URL + API_PREFIX + /products
+      // Fetch from the correct endpoint by combining BASE_URL, API_PREFIX, and the resource path
       const res = await fetch(`${BASE_URL}${API_PREFIX}/products`);
       if (!res.ok) {
         const errorData = await res.json();
@@ -66,7 +66,7 @@ export default function Inventory() {
   const { data: categories = [] } = useQuery({
     queryKey: ["categories", API_PREFIX], // Example: ["categories", "/api/inventory"]
     queryFn: async () => {
-      // Corrected fetch URL: BASE_URL + API_PREFIX + /categories
+      // Fetch from the correct endpoint
       const res = await fetch(`${BASE_URL}${API_PREFIX}/categories`);
       if (!res.ok) {
         const errorData = await res.json();
@@ -145,7 +145,7 @@ export default function Inventory() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-800">Inventory Management</h1>
+        <h1 className="text-2xl font-semibold text-gray-800">Merchant Inventory</h1>
         <Button onClick={() => setIsAddModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Add Item
         </Button>
@@ -176,6 +176,7 @@ export default function Inventory() {
                   ))}
                 </SelectContent>
               </Select>
+              
 
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-40">
