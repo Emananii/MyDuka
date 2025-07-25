@@ -39,7 +39,7 @@ export default function AddCategoryModal({ isOpen, onClose }) {
   });
 
   const addCategoryMutation = useMutation({
-    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/categories`, data),
+    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/api/inventory/categories`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({ title: "Success", description: "Category added successfully!" });
