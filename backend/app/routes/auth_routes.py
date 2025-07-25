@@ -10,8 +10,9 @@ from sqlalchemy import func
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from app.models import User
-from app import db
+from app.models import User # Ensure User model is imported
+from app import db # Ensure db is imported
+from datetime import datetime # Import datetime for isoformat()
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -103,13 +104,20 @@ def login():
 
     token = create_access_token(identity=str(user.id))
 
+    # ✅ FIX: Include all required fields from userSchema in the response
     return jsonify(
         access_token=token,
         user={
             "id": user.id,
             "email": user.email,
-            "role": user.role,
+            "role": user.role, # Assuming role.value if it's an Enum
             "store_id": user.store_id,
+            "name": user.name, # Added
+            "is_active": user.is_active, # Added
+            "created_by": user.created_by, # Added
+            "created_at": user.created_at.isoformat() if user.created_at else None, # Added, formatted to ISO
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None, # Added, formatted to ISO
+            "is_deleted": user.is_deleted # Added if part of userSchema's baseModelSchema
         },
     ), 200
 
@@ -134,11 +142,18 @@ def who_am_i():
     user_id = get_jwt_identity()
     user = User.query.get_or_404(int(user_id))
 
+    # ✅ FIX: Include all required fields from userSchema in the response
     return jsonify(
         id=user.id,
         email=user.email,
-        role=user.role,
+        role=user.role, # Assuming role.value if it's an Enum
         store_id=user.store_id,
+        name=user.name, # Added
+        is_active=user.is_active, # Added
+        created_by=user.created_by, # Added
+        created_at=user.created_at.isoformat() if user.created_at else None, # Added, formatted to ISO
+        updated_at=user.updated_at.isoformat() if user.updated_at else None, # Added, formatted to ISO
+        is_deleted=user.is_deleted # Added if part of userSchema's baseModelSchema
     ), 200
 
 
@@ -185,8 +200,14 @@ def register():
     email = data.get("email")
     password = data.get("password")
     name = data.get("name")
-    role = data.get("role", "user")
+    role = data.get("role", "user") # Consider default 'cashier' or 'customer' for public registration
     store_id = data.get("store_id")
+
+    # IMPORTANT SECURITY: Do not allow roles like 'merchant'/'admin' to be set directly by client on registration
+    if role not in ['cashier', 'clerk', 'user']: # Adjust allowed default roles
+        role = 'user' # Fallback to a safe default
+        # Or, if registration is only for a specific default role, hardcode it:
+        # role = "cashier"
 
     if not email or not password or not name:
         return jsonify({"error": "Email, password, and name are required"}), 400
@@ -201,8 +222,8 @@ def register():
         email=email,
         name=name,
         password=password,
-        role=role,
-        store_id=store_id
+        role=role, # Use the potentially overridden role
+        store_id=store_id # Consider removing this if store assignment is post-registration
     )
 
     db.session.add(user)
