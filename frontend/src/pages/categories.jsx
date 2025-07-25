@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
 
+import { apiRequest } from "@/lib/queryClient"; // ✅ IMPORTED apiRequest
 import AddCategoryModal from "@/components/categories/add-category-modal";
 import EditCategoryModal from "@/components/categories/edit-category-modal";
 import DeleteCategoryModal from "@/components/categories/delete-category-modal";
@@ -33,9 +34,10 @@ export default function Categories() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => apiRequest("GET", `${BASE_URL}/api/inventory/categories`),
-
+    queryKey:[`categories`],
+    queryFn: async () =>{
+      return await apiRequest("GET", `${BASE_URL}/api/inventory/categories`);
+    },
   });
 
   const filteredCategories = categories.filter((category) =>

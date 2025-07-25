@@ -1,3 +1,5 @@
+
+// src/lib/queryClient.js
 import { QueryClient } from "@tanstack/react-query";
 import { BASE_URL } from "./constants"; // Make sure BASE_URL is correctly defined here
 
