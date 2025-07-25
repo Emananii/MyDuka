@@ -24,7 +24,6 @@ import ProtectedRoute from "@/components/auth/protected-route"; // <--- NEW IMPO
 
 // Main app pages
 import Dashboard from "@/pages/dashboard";
-import Inventory from "@/pages/inventory";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -42,6 +41,9 @@ import CashierProfile from "@/pages/cashier-profile";
 import CashierSalesPage from "@/pages/sales/cashier-sales-page"; // <--- NEW
 import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page"; // <--- NEW
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page"; // <--- NEW
+
+// inventory 
+import MerchantInventory from "@/pages/inventory/merchant-inventory";
 
 import NotFound from "@/pages/not-found";
 
@@ -179,7 +181,7 @@ function AppRoutes() {
 
       {/* Admin-specific routes */}
       <Route path="/inventory">
-        <ProtectedRoute component={Inventory} allowedRoles={["admin", "merchant"]} />
+        <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
