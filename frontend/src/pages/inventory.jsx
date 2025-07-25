@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,9 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
 
+// Define the API prefix based on your Flask blueprint
+const API_PREFIX = "/api/inventory"; // This should match your Flask blueprint's url_prefix
+
 export default function Inventory() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -43,27 +47,43 @@ export default function Inventory() {
   const { toast } = useToast();
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: [`${BASE_URL}/products`],
+    // Use a more specific query key, avoiding the full URL string directly
+    // This allows react-query to better manage cache based on relevant data,
+    // although using the full URL as key technically works.
+    queryKey: ["products", API_PREFIX], // Example: ["products", "/api/inventory"]
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/products`);
+      // Corrected fetch URL: BASE_URL + API_PREFIX + /products
+      const res = await fetch(`${BASE_URL}${API_PREFIX}/products`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Failed to fetch products: ${res.statusText}`);
+      }
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: [`${BASE_URL}/categories`],
+    queryKey: ["categories", API_PREFIX], // Example: ["categories", "/api/inventory"]
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/categories`);
+      // Corrected fetch URL: BASE_URL + API_PREFIX + /categories
+      const res = await fetch(`${BASE_URL}${API_PREFIX}/categories`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Failed to fetch categories: ${res.statusText}`);
+      }
       const data = await res.json();
+      // Ensure data structure matches what your backend returns for categories
+      // It looks like your backend returns an array directly, so Array.isArray check is good.
       return Array.isArray(data) ? data : data.categories || [];
     },
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: async (id) => apiRequest("DELETE", `${BASE_URL}/products/${id}`),
+    mutationFn: async (id) => apiRequest("DELETE", `${BASE_URL}${API_PREFIX}/products/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/products`] });
+      // Invalidate using the same key as the products query
+      queryClient.invalidateQueries({ queryKey: ["products", API_PREFIX] });
       toast({ title: "Success", description: "Item deleted successfully" });
     },
     onError: (error) => {
@@ -151,6 +171,7 @@ export default function Inventory() {
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
+                    // Ensure cat.id is converted to string for SelectItem value
                     <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -200,7 +221,16 @@ export default function Inventory() {
                 filteredAndSortedItems.map((item) => (
                   <TableRow key={item.id} className="hover:bg-gray-50">
                     <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.name}</TableCell>
+                    <TableCell className="flex items-center gap-3">
+                      <a href={item.image_url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={item.image_url || "/placeholder.png"}
+                          alt={item.name}
+                          className="w-10 h-10 rounded object-cover border"
+                        />
+                      </a>
+                      {item.name}
+                    </TableCell>
                     <TableCell>{item.category?.name}</TableCell>
                     <TableCell>{item.stock_level} {item.unit}</TableCell>
                     <TableCell>{getStockBadge(getStockStatus(item))}</TableCell>

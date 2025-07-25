@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
+import { useEffect, useState } from "react";
 
 export default function ProductForm({ initialData = null, onSuccess }) {
   const { toast } = useToast();
@@ -29,14 +30,23 @@ export default function ProductForm({ initialData = null, onSuccess }) {
       unit: "",
       description: "",
       category_id: "",
+      image_url: "",
     },
   });
 
-  // Fetch categories
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      setPreviewUrl(values.image_url);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const { data } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/categories`);
+      const res = await fetch(`${BASE_URL}api/inventory/categories`);
       if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
@@ -44,13 +54,13 @@ export default function ProductForm({ initialData = null, onSuccess }) {
 
   const categories = Array.isArray(data)
     ? data
-    : data?.categories || []; // fallback
+    : data?.categories || [];
 
   const mutation = useMutation({
     mutationFn: async (formData) => {
       const url = initialData
-        ? `${BASE_URL}/products/${initialData.id}`
-        : `${BASE_URL}/products`;
+        ? `${BASE_URL}/api/inventory/products/${initialData.id}`
+        : `${BASE_URL}/api/inventory/products`;
       const method = initialData ? "PATCH" : "POST";
       return apiRequest(method, url, formData);
     },
@@ -62,6 +72,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
       });
       onSuccess?.();
       form.reset();
+      setPreviewUrl("");
     },
     onError: (error) => {
       toast({
@@ -77,6 +88,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Name */}
         <FormField
           control={form.control}
           name="name"
@@ -91,6 +103,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
           )}
         />
 
+        {/* SKU */}
         <FormField
           control={form.control}
           name="sku"
@@ -105,6 +118,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
           )}
         />
 
+        {/* Unit */}
         <FormField
           control={form.control}
           name="unit"
@@ -119,6 +133,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
           )}
         />
 
+        {/* Description */}
         <FormField
           control={form.control}
           name="description"
@@ -133,6 +148,7 @@ export default function ProductForm({ initialData = null, onSuccess }) {
           )}
         />
 
+        {/* Category */}
         <FormField
           control={form.control}
           name="category_id"
@@ -152,6 +168,34 @@ export default function ProductForm({ initialData = null, onSuccess }) {
                 </Select>
               </FormControl>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Image URL */}
+        <FormField
+          control={form.control}
+          name="image_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Image URL</FormLabel>
+              <FormControl>
+                <Input placeholder="https://example.com/image.jpg" {...field} />
+              </FormControl>
+              <FormMessage />
+              {previewUrl && (
+                <div className="mt-2 border rounded-lg p-2 w-40 h-40 flex items-center justify-center">
+                  {/* Display only if valid URL */}
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
             </FormItem>
           )}
         />

@@ -45,7 +45,7 @@ export default function EditCategoryModal({ isOpen, onClose, category }) {
 
   const editCategoryMutation = useMutation({
     mutationFn: (data) =>
-      apiRequest("PUT", `${BASE_URL}/categories/${category.id}`, data),
+      apiRequest("PUT", `${BASE_URL}/api/inventory/categories/${category.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({ title: "Success", description: "Category updated successfully." });
