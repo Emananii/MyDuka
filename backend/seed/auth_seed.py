@@ -31,7 +31,7 @@ def seed_auth():
             role="merchant",
             is_active=True,
             store_id=store.id,
-            last_login_at=None
+            # ✅ FIX: Removed 'last_login_at=None' here as it's not a constructor argument
         )
         db.session.add(merchant)
         db.session.commit()
