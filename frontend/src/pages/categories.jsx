@@ -34,14 +34,8 @@ export default function Categories() {
     refetch,
   } = useQuery({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/api/inventory/categories`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Failed to fetch categories: ${text}`);
-      }
-      return await res.json();
-    },
+    queryFn: () => apiRequest("GET", `${BASE_URL}/api/inventory/categories`),
+
   });
 
   const filteredCategories = categories.filter((category) =>
@@ -69,12 +63,11 @@ export default function Categories() {
     }
 
     try {
-      const res = await fetch(
-        `${BASE_URL}/api/inventory/categories/${selectedCategory.id}`,
-        {
-          method: "DELETE",
-        }
+      const res = await apiRequest(
+        "DELETE",
+        `${BASE_URL}/api/inventory/categories/${selectedCategory.id}`
       );
+    
       const text = await res.text();
       if (!res.ok) throw new Error(text);
 

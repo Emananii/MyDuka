@@ -1,4 +1,4 @@
-// Login.jsx
+// login-form.jsx
 import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useUser } from "@/context/UserContext";
@@ -20,7 +20,13 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      // ⬇️ Try logging in
+      const data = await login(email, password);
+
+      // ✅ Store token in localStorage
+      if (data?.token) {
+        localStorage.setItem("jwt_token", data.token);
+      }
 
       setSuccess("Login successful!");
       navigate("/");
@@ -28,20 +34,12 @@ const Login = () => {
       console.error("Login failed:", err); 
       let displayErrorMessage = "Login failed. Please check your credentials.";
 
-      // ✅ FIX: Parse the error message from the thrown Error object
       if (err.message) {
-        // Our custom errors are like "STATUS: MESSAGE" (e.g., "401: Invalid credentials")
-        const parts = err.message.split(': ', 2); // Split at the first ": "
-        if (parts.length > 1) {
-          // If it has "STATUS: MESSAGE", take the MESSAGE part
-          displayErrorMessage = parts[1];
-        } else {
-          // If it's just a general error message without a status prefix
-          displayErrorMessage = err.message;
-        }
+        const parts = err.message.split(': ', 2);
+        displayErrorMessage = parts.length > 1 ? parts[1] : err.message;
       }
-      
-      setError(displayErrorMessage); // Set the parsed error message
+
+      setError(displayErrorMessage);
     } finally {
       setIsSubmitting(false);
     }

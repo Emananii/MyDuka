@@ -15,6 +15,7 @@ import AddPurchaseModal from "@/components/purchases/add-purchase-modal";
 import ViewPurchaseModal from "@/components/purchases/view-purchase-modal";
 import PrintPurchaseModal from "@/components/purchases/print-purchase-modal";
 import { BASE_URL } from "@/lib/constants";
+import { apiRequest } from "@/lib/queryClient"; // ✅ FIXED: Import apiRequest
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 
@@ -46,11 +47,9 @@ export default function Purchases() {
     isError: errorPurchases,
     error: purchasesError,
   } = useQuery({
-    queryKey: [`${BASE_URL}/purchases`],
+    queryKey: [`${BASE_URL}/api/purchases`],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/purchases`);
-      if (!res.ok) throw new Error("Failed to fetch purchases");
-      return res.json();
+      return await apiRequest("GET", `${BASE_URL}/api/purchases`); // ✅ FIXED
     },
   });
 
@@ -61,9 +60,7 @@ export default function Purchases() {
   } = useQuery({
     queryKey: [`${BASE_URL}/suppliers`],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/suppliers`);
-      if (!res.ok) throw new Error("Failed to fetch suppliers");
-      return res.json();
+      return await apiRequest("GET", `${BASE_URL}/suppliers`); // ✅ FIXED
     },
   });
 
@@ -71,9 +68,7 @@ export default function Purchases() {
     setViewingLoading(true);
     setCurrentlyViewingId(purchaseId);
     try {
-      const res = await fetch(`${BASE_URL}/purchases/${purchaseId}`);
-      if (!res.ok) throw new Error("Failed to fetch purchase details");
-      const data = await res.json();
+      const data = await apiRequest("GET", `${BASE_URL}/api/purchases/${purchaseId}`); // ✅ FIXED
       setViewingPurchase(data);
     } catch (err) {
       console.error("Error fetching purchase details:", err);
