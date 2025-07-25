@@ -1,43 +1,49 @@
+// Login.jsx
 import React, { useState } from "react";
 import { useLocation } from "wouter";
+import { useUser } from "@/context/UserContext";
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [, navigate] = useLocation();
-
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const { login } = useUser();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      await login(email, password);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess("Login successful!");
-        onLogin && onLogin(data.user);
-
-        // Redirect to dashboard
-        setTimeout(() => {
-          navigate("/"); // ✅ correct route
-        }, 1500);
-      } else {
-        setError(data.error || "Login failed");
-      }
+      setSuccess("Login successful!");
+      navigate("/");
     } catch (err) {
-      setError("Network error");
+      console.error("Login failed:", err); 
+      let displayErrorMessage = "Login failed. Please check your credentials.";
+
+      // ✅ FIX: Parse the error message from the thrown Error object
+      if (err.message) {
+        // Our custom errors are like "STATUS: MESSAGE" (e.g., "401: Invalid credentials")
+        const parts = err.message.split(': ', 2); // Split at the first ": "
+        if (parts.length > 1) {
+          // If it has "STATUS: MESSAGE", take the MESSAGE part
+          displayErrorMessage = parts[1];
+        } else {
+          // If it's just a general error message without a status prefix
+          displayErrorMessage = err.message;
+        }
+      }
+      
+      setError(displayErrorMessage); // Set the parsed error message
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -77,9 +83,10 @@ const Login = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="bg-indigo-800 text-white text-xs px-12 py-2 border border-transparent rounded-lg font-semibold tracking-wider uppercase mt-4 cursor-pointer transition hover:bg-indigo-700"
+            disabled={isSubmitting}
+            className="bg-indigo-800 text-white text-xs px-12 py-2 border border-transparent rounded-lg font-semibold tracking-wider uppercase mt-4 cursor-pointer transition hover:bg-indigo-700 disabled:opacity-50"
           >
-            Login
+            {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
