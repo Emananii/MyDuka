@@ -33,9 +33,9 @@ export default function EditItemModal({ isOpen, onClose, item }) {
   const { toast } = useToast();
 
   const { data: categories = [] } = useQuery({
-    queryKey: [`${BASE_URL}/categories`],
+    queryKey: [`${BASE_URL}/api/inventory/categories`],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/categories`);
+      const res = await fetch(`${BASE_URL}/api/inventory/categories`);
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },
@@ -57,15 +57,15 @@ export default function EditItemModal({ isOpen, onClose, item }) {
         name: item.name,
         sku: item.sku,
         unit: item.unit,
-        category_id: item.category?.id || undefined,
+        category_id: item.category_id || undefined,
       });
     }
-  }, [item]);
+  }, [item, form]);
 
   const onSubmit = async (data) => {
     try {
-      await apiRequest("PUT", `${BASE_URL}/products/${item.id}`, data);
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/products`] });
+      await apiRequest("PATCH", `${BASE_URL}/api/inventory/products/${item.id}`, data);
+      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/api/inventory/products`] });
       toast({ title: "Success", description: "Item updated successfully." });
       onClose();
     } catch (error) {

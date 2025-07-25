@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from app.models import db, Category, Product, Purchase, PurchaseItem, StoreProduct, Supplier, Store
 from flask_jwt_extended import jwt_required # Assuming JWT protection will be added later
 from sqlalchemy.orm import joinedload
+from datetime import datetime
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError # Import these for better error handling in create_supplier (good practice)
 import logging # Import logging to use it for errors
 
@@ -356,11 +357,21 @@ def create_product():
         description=data.get('description'),
         category_id=category_id,
         unit=unit,
-        sku=data.get('sku')
+        sku=data.get('sku'),
+        image_url=data.get('image_url')
     )
-    db.session.add(product)
-    db.session.commit()
-    return jsonify(product.to_dict()), 201
+    try:
+        db.session.add(product)
+        db.session.commit()
+        return jsonify(product.to_dict()), 201
+    except IntegrityError:
+        db.session.rollback()
+        logger.error(f"Integrity error creating product: SKU {data.get('sku')} may be a duplicate.")
+        return jsonify({"message": "Product with this SKU might already exist."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.error(f"Database error creating product: {e}")
+        return jsonify({"message": "A database error occurred while creating the product."}), 500
 
 @inventory_bp.route('/products/<int:id>', methods=['PATCH'])
 # @jwt_required() # Uncomment if you want to protect this route
@@ -451,8 +462,18 @@ def update_product(id):
     product.category_id = data.get('category_id', product.category_id)
     product.unit = data.get('unit', product.unit)
     product.sku = data.get('sku', product.sku)
-    db.session.commit()
-    return jsonify(product.to_dict()), 200
+    product.image_url = data.get('image_url', product.image_url)
+    try:
+        db.session.commit()
+        return jsonify(product.to_dict()), 200
+    except IntegrityError:
+        db.session.rollback()
+        logger.error(f"Integrity error updating product {id}: SKU {data.get('sku')} may be a duplicate.")
+        return jsonify({"message": "Another product with this SKU might already exist."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        logger.error(f"Database error updating product {id}: {e}")
+        return jsonify({"message": "A database error occurred while updating the product."}), 500
 
 @inventory_bp.route('/products/<int:id>', methods=['DELETE'])
 # @jwt_required() # Uncomment if you want to protect this route
@@ -940,15 +961,19 @@ def filter_purchases():
     """
     supplier_id = request.args.get('supplier_id', type=int)
     store_id = request.args.get('store_id', type=int)
-    date = request.args.get('date') # Keep as string for direct comparison with date field
+    date_str = request.args.get('date')
 
     query = Purchase.query
     if supplier_id:
         query = query.filter_by(supplier_id=supplier_id)
     if store_id:
         query = query.filter_by(store_id=store_id)
-    if date:
-        query = query.filter_by(date=date) # Assumes date in DB is string or auto-converted
+    if date_str:
+        try:
+            filter_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            query = query.filter(Purchase.date == filter_date)
+        except ValueError:
+            return jsonify({"message": "Invalid date format. Please use YYYY-MM-DD."}), 400
 
     purchases = query.all()
     return jsonify([p.to_dict() for p in purchases]), 200

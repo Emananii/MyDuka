@@ -103,11 +103,7 @@ class Product(BaseModel):
     unit = db.Column(db.String, nullable=False)
     description = db.Column(db.Text)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    # --- ADDED THIS LINE ---
     image_url = db.Column(db.String, nullable=True) # URL for the product image
-    # -----------------------
-
-    image_url = db.Column(db.String, nullable=True)
 
     store_products = db.relationship('StoreProduct', backref='product')
     purchase_items = db.relationship('PurchaseItem', backref='product')
@@ -123,6 +119,7 @@ class Product(BaseModel):
             "description": self.description,
             "image_url": self.image_url,
             "category": self.category.name if self.category else None,
+            "category_id": self.category_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -13,17 +13,17 @@ export default function ProductListPage() {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: [`${BASE_URL}/products`],
+    queryKey: [`${BASE_URL}/api/inventory/products`],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/products`);
+      const res = await fetch(`${BASE_URL}/api/inventory/products`);
       return await res.json();
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}/products/${id}`),
+    mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}/api/inventory/products/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/products`] });
+      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/api/inventory/products`] });
       toast({ title: "Success", description: "Item deleted successfully." });
     },
     onError: (error) => {

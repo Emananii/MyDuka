@@ -48,7 +48,10 @@ import NotFound from "@/pages/not-found";
 import { UserProvider, UserContext } from "@/context/UserContext";
 
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
-import POSInterfacePage from "@/pages/pos-interface";
+import POSInterfacePage from "@/pages/POS-interface";
+// The duplicate import below has been removed:
+// import { Menu, Bell, User } from "lucide-react"; 
+// import { Button } from "@/components/ui/button"; // This Button import was also duplicated.
 
 // MainLayout (unchanged, as it wraps the common layout elements)
 function MainLayout({ children }) {
