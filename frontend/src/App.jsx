@@ -49,15 +49,12 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import POSInterfacePage from "@/pages/POS-interface";
-// The duplicate import below has been removed:
-// import { Menu, Bell, User } from "lucide-react"; 
-// import { Button } from "@/components/ui/button"; // This Button import was also duplicated.
 
 // MainLayout (unchanged, as it wraps the common layout elements)
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
-  // const [, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   // console.log("User object in MainLayout:", user); // For debugging
 
