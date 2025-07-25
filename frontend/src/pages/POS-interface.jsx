@@ -335,7 +335,7 @@ export default function POSInterfacePage() {
   }, []);
 
   // --- Sale Processing Function ---
-  const handleProcessSale = useCallback((paymentMethod) => {
+  const handleProcessSale = useCallback(() => {
     const currentStoreId = selectedStoreId;
     const currentCashierId = 1; // Placeholder: Replace with actual logged-in cashier ID
 

@@ -10,8 +10,8 @@ venv/
 ENV/
 
 # Environment variables
-#.env
-#.env.*
+.env
+.env.*
 
 # Editor-specific
 .vscode/
@@ -23,6 +23,7 @@ ENV/
 migrations/
 migrations/__pycache__/
 migrations/versions/*.pyc
+instance
 
 # Logs
 *.log

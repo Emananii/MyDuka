@@ -1,3 +1,5 @@
+# seed.py
+
 import sys
 import os
 from datetime import datetime
@@ -5,7 +7,7 @@ from faker import Faker
 import random
 from decimal import Decimal
 
-# Add the project root to the Python path
+# Setup Flask app context
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import create_app, db
@@ -30,7 +32,7 @@ with app.app_context():
         print("✅ create_all() successful")
 
     except Exception as e:
-        print(" Error during schema reset:", e)
+        print("❌ Error during schema reset:", e)
         raise
 
     try:
@@ -82,40 +84,40 @@ with app.app_context():
         print(f"✅ Created {Product.query.count()} products.")
 
 
-        # --- Create Supplier ---
-        supplier1 = Supplier(
+        # --- Supplier ---
+        supplier = Supplier(
             name="ABC Distributors",
             contact_person="Jane Doe",
             phone="0700123456",
             email="abc@distributors.com",
             address="Industrial Area, Nairobi"
         )
-        db.session.add(supplier1)
+        db.session.add(supplier)
         db.session.commit()
         print(f"✅ Created {Supplier.query.count()} supplier.")
 
-        # --- Create Purchase ---
-        purchase1 = Purchase(
-            supplier_id=supplier1.id,
+        # --- Purchase ---
+        purchase = Purchase(
+            supplier_id=supplier.id,
             store_id=store1.id,
             date=datetime(2025, 7, 15),
             reference_number="PO-1001",
             is_paid=True,
-            notes="First delivery for beverages and snacks"
+            notes="Initial stock delivery"
         )
-        db.session.add(purchase1)
-        db.session.flush()
+        db.session.add(purchase)
+        db.session.flush()  # So we can reference purchase.id
 
         # --- Create Purchase Items ---
         product_sample_for_purchase = random.sample(products, 2)
         item1 = PurchaseItem(
-            purchase_id=purchase1.id,
+            purchase_id=purchase.id,
             product_id=product_sample_for_purchase[0].id,
             quantity=100,
             unit_cost=Decimal('25.00')
         )
         item2 = PurchaseItem(
-            purchase_id=purchase1.id,
+            purchase_id=purchase.id,
             product_id=product_sample_for_purchase[1].id,
             quantity=60,
             unit_cost=Decimal('30.00')

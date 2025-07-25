@@ -45,5 +45,5 @@ export default function ProtectedRoute({ component: Component, allowedRoles }) {
   }
 
   // If user is logged in and has the required role (or no roles specified), render the component
-  return <Component />;
+  return Component ? <Component /> : null;
 }
