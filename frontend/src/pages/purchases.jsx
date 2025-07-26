@@ -15,9 +15,12 @@ import AddPurchaseModal from "@/components/purchases/add-purchase-modal";
 import ViewPurchaseModal from "@/components/purchases/view-purchase-modal";
 import PrintPurchaseModal from "@/components/purchases/print-purchase-modal";
 import { BASE_URL } from "@/lib/constants";
-import { apiRequest } from "@/lib/queryClient"; // ✅ FIXED: Import apiRequest
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
+
+// ✅ Fetch token from localStorage
+const token = localStorage.getItem("token");
 
 export default function Purchases() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -41,16 +44,18 @@ export default function Purchases() {
     removeAfterPrint: true,
   });
 
+  // ✅ Protect this query with token
   const {
     data: purchases = [],
     isLoading: loadingPurchases,
     isError: errorPurchases,
     error: purchasesError,
   } = useQuery({
-    queryKey: [`${BASE_URL}/api/purchases`],
+    queryKey: [`${BASE_URL}/api/purchases/list`],
     queryFn: async () => {
-      return await apiRequest("GET", `${BASE_URL}/api/purchases`); // ✅ FIXED
+      return await apiRequest("GET", `${BASE_URL}/api/purchases/list`);
     },
+    enabled: !!token, // ✅ Don't run if token is missing
   });
 
   const {
@@ -58,9 +63,9 @@ export default function Purchases() {
     isLoading: suppliersLoading,
     isError: suppliersError,
   } = useQuery({
-    queryKey: [`${BASE_URL}/suppliers`],
+    queryKey: [`${BASE_URL}/api/supply-requests/`],
     queryFn: async () => {
-      return await apiRequest("GET", `${BASE_URL}/suppliers`); // ✅ FIXED
+      return await apiRequest("GET", `${BASE_URL}/api/supply-requests/`);
     },
   });
 
@@ -68,7 +73,7 @@ export default function Purchases() {
     setViewingLoading(true);
     setCurrentlyViewingId(purchaseId);
     try {
-      const data = await apiRequest("GET", `${BASE_URL}/api/purchases/${purchaseId}`); // ✅ FIXED
+      const data = await apiRequest("GET", `${BASE_URL}/api/purchases/list${purchaseId}`);
       setViewingPurchase(data);
     } catch (err) {
       console.error("Error fetching purchase details:", err);
@@ -151,6 +156,17 @@ export default function Purchases() {
       ? valueA > valueB ? 1 : valueA < valueB ? -1 : 0
       : valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
   });
+
+  // ✅ Block rendering if not authenticated
+  if (!token) {
+    return (
+      <Card>
+        <CardContent className="text-red-600 font-semibold p-6">
+          ⚠️ You must be logged in to view purchases.
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loadingPurchases) {
     return (

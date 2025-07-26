@@ -220,6 +220,7 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
+      <Route path="/reports" element={<Reports />} />
 
       {/* Fallback for any unmatched routes */}
       <Route component={NotFound} />

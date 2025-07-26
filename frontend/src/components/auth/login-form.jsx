@@ -25,7 +25,7 @@ const Login = () => {
 
       // ✅ Store token in localStorage
       if (data?.token) {
-        localStorage.setItem("jwt_token", data.token);
+        localStorage.setItem("token", data.token);
       }
 
       setSuccess("Login successful!");

@@ -41,7 +41,7 @@ export function UserProvider({ children }) {
 
       // Store the access token if successful
       if (res.access_token) {
-        localStorage.setItem('jwt_token', res.access_token); // Store the JWT
+        localStorage.setItem('token', res.access_token); // Store the JWT
       }
 
       // Parse and set the user from the login response (res.user should contain user data)
@@ -52,7 +52,7 @@ export function UserProvider({ children }) {
     } catch (error) {
       console.error("Login failed:", error);
       setUser(null); // Clear user if login fails
-      localStorage.removeItem('jwt_token'); // Clear any stored token on failure
+      localStorage.removeItem('token'); // Clear any stored token on failure
       throw error; // Re-throw to allow the login form to handle the error (e.g., display message)
     } finally {
       setIsLoading(false); // Ensure loading is set to false
@@ -69,7 +69,7 @@ export function UserProvider({ children }) {
       // Even if server logout fails, we must clear client-side state
     } finally {
       setUser(null);
-      localStorage.removeItem('jwt_token'); // Always clear the JWT from localStorage on logout
+      localStorage.removeItem('token'); // Always clear the JWT from localStorage on logout
     }
   }, []);
 
