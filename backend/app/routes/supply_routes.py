@@ -2,13 +2,15 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import desc
 from app.models import SupplyRequest, User, Store, Product
-from app.extensions import db
+from app import db
+from flask_cors import cross_origin
 
-supply_bp = Blueprint('supply_bp', __name__, url_prefix='/api/supply-requests')
+supply_bp = Blueprint('supply_requestts', __name__, url_prefix='/api/supply-requests')
 
 # Get supply requests (with filtering & pagination)
-@supply_bp.route('/', methods=['GET'])
+@supply_bp.route('/', methods=['GET', 'OPTIONS'])
 @jwt_required()
+@cross_origin(origins=["http://localhost:5173"], supports_credentials=True)
 def get_requests():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 10))
@@ -44,7 +46,7 @@ def get_requests():
     }), 200
 
 # Create a new supply request
-@supply_bp.route('/', methods=['POST'])
+@supply_bp.route('/', methods=['POST', 'OPTIONS'])
 @jwt_required()
 def create_request():
     data = request.get_json()

@@ -1,206 +1,75 @@
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from services.reporting_services import (
-    get_daily_summary,
-    get_weekly_summary,
-    get_monthly_summary,
-    get_top_products
-)
+from app.models import Purchase, Store, User
+from app.routes.auth_routes import role_required
+from sqlalchemy import func
+from datetime import datetime
 
-report_bp = Blueprint("report_bp", __name__, url_prefix="/reports")
+report_bp = Blueprint("report", __name__, url_prefix="/api/report")
 
-
-@report_bp.route('/daily/<int:store_id>', methods=['GET'])
+# Report 1: Total purchases per store (Merchant only)
+@report_bp.route("/purchases/total-by-store", methods=["GET"])
 @jwt_required()
-def daily_summary(store_id):
-    """
-    Get daily sales summary for a specific store.
-    ---
-    tags:
-      - Reports
-    security:
-      - Bearer: []
-    parameters:
-      - name: store_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the store.
-        example: 1
-    responses:
-      200:
-        description: Daily sales summary successfully retrieved.
-        schema:
-          type: object
-          properties:
-            date:
-              type: string
-              format: date
-              example: 2024-07-17
-            total_sales:
-              type: number
-              format: float
-              example: 1500.75
-            total_items_sold:
-              type: integer
-              example: 50
-            # Add other relevant fields for your daily summary
-      401:
-        description: Unauthorized - Missing or invalid token.
-        schema:
-          type: object
-          properties:
-            msg:
-              type: string
-              example: Missing Authorization Header
-      404:
-        description: Store not found or no data for the day.
-    """
-    summary = get_daily_summary(store_id)
-    return jsonify(summary), 200
+@role_required("merchant")
+def report_total_purchases_by_store():
+    user_id = get_jwt_identity()
+    stores = Store.query.filter_by(merchant_id=user_id, is_active=True).all()
 
+    result = []
+    for store in stores:
+        purchases = Purchase.query.filter_by(store_id=store.id).all()
+        total = sum([sum([item.quantity * item.unit_cost for item in p.purchase_items]) for p in purchases])
+        paid = sum([sum([item.quantity * item.unit_cost for item in p.purchase_items]) for p in purchases if p.is_paid])
+        unpaid = total - paid
+        result.append({
+            "store_name": store.name,
+            "store_id": store.id,
+            "total_amount": total,
+            "paid": paid,
+            "unpaid": unpaid
+        })
+    return jsonify(result), 200
 
-@report_bp.route('/weekly/<int:store_id>', methods=['GET'])
+# Report 2: Monthly purchase trends (Merchant/Admin)
+@report_bp.route("/purchases/monthly-trend", methods=["GET"])
 @jwt_required()
-def weekly_summary(store_id):
-    """
-    Get weekly sales summary for a specific store.
-    ---
-    tags:
-      - Reports
-    security:
-      - Bearer: []
-    parameters:
-      - name: store_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the store.
-        example: 1
-    responses:
-      200:
-        description: Weekly sales summary successfully retrieved.
-        schema:
-          type: object
-          properties:
-            start_date:
-              type: string
-              format: date
-              example: 2024-07-14
-            end_date:
-              type: string
-              format: date
-              example: 2024-07-20
-            total_sales:
-              type: number
-              format: float
-              example: 7500.50
-            total_items_sold:
-              type: integer
-              example: 250
-            # Add other relevant fields for your weekly summary
-      401:
-        description: Unauthorized - Missing or invalid token.
-      404:
-        description: Store not found or no data for the week.
-    """
-    summary = get_weekly_summary(store_id)
-    return jsonify(summary), 200
+@role_required(["merchant", "admin"])
+def report_monthly_trends():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    query = Purchase.query
+    if user.role == 'admin':
+        query = query.filter_by(store_id=user.store_id)
+    elif user.role == 'merchant':
+        store_ids = [s.id for s in Store.query.filter_by(merchant_id=user.id)]
+        query = query.filter(Purchase.store_id.in_(store_ids))
 
+    monthly_data = {}
+    for p in query.all():
+        month = p.date.strftime('%Y-%m') if p.date else 'unknown'
+        total = sum([item.quantity * item.unit_cost for item in p.purchase_items])
+        if month not in monthly_data:
+            monthly_data[month] = 0
+        monthly_data[month] += total
 
-@report_bp.route('/monthly/<int:store_id>', methods=['GET'])
+    # Chart-ready format
+    chart_data = [{"month": m, "total": total} for m, total in sorted(monthly_data.items())]
+    return jsonify(chart_data), 200
+
+# Report 3: Unpaid purchases summary (Admin only)
+@report_bp.route("/purchases/unpaid-summary", methods=["GET"])
 @jwt_required()
-def monthly_summary(store_id):
-    """
-    Get monthly sales summary for a specific store.
-    ---
-    tags:
-      - Reports
-    security:
-      - Bearer: []
-    parameters:
-      - name: store_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the store.
-        example: 1
-    responses:
-      200:
-        description: Monthly sales summary successfully retrieved.
-        schema:
-          type: object
-          properties:
-            month:
-              type: string
-              example: "July 2024"
-            total_sales:
-              type: number
-              format: float
-              example: 30000.00
-            total_items_sold:
-              type: integer
-              example: 1000
-            # Add other relevant fields for your monthly summary
-      401:
-        description: Unauthorized - Missing or invalid token.
-      404:
-        description: Store not found or no data for the month.
-    """
-    summary = get_monthly_summary(store_id)
-    return jsonify(summary), 200
+@role_required("admin")
+def report_unpaid_summary():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
 
+    purchases = Purchase.query.filter_by(store_id=user.store_id, is_paid=False).all()
+    total_unpaid = sum([sum([item.quantity * item.unit_cost for item in p.purchase_items]) for p in purchases])
 
-@report_bp.route('/top-products/<int:store_id>', methods=['GET'])
-@jwt_required()
-def top_products(store_id):
-    """
-    Get a list of top-selling products for a specific store.
-    ---
-    tags:
-      - Reports
-    security:
-      - Bearer: []
-    parameters:
-      - name: store_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the store.
-        example: 1
-      - name: limit
-        in: query
-        type: integer
-        required: false
-        default: 5
-        description: The maximum number of top products to return.
-        example: 10
-    responses:
-      200:
-        description: Top products list successfully retrieved.
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              product_id:
-                type: integer
-                example: 101
-              product_name:
-                type: string
-                example: "Laptop X"
-              total_quantity_sold:
-                type: integer
-                example: 150
-              total_sales_amount:
-                type: number
-                format: float
-                example: 75000.00
-      401:
-        description: Unauthorized - Missing or invalid token.
-      404:
-        description: Store not found or no product data.
-    """
-    limit = request.args.get('limit', default=5, type=int)
-    results = get_top_products(store_id, limit=limit)
-    return jsonify(results), 200
+    return jsonify({
+        "store": user.store.name,
+        "total_unpaid": total_unpaid,
+        "count": len(purchases)
+    }), 200

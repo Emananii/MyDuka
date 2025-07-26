@@ -9,9 +9,9 @@ venv/
 #env/
 ENV/
 
-# Environment variables
-#.env
-#.env.*
+ Environment variables
+.env
+.env.*
 
 # Editor-specific
 .vscode/

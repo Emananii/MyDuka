@@ -35,9 +35,8 @@ def role_required(*allowed_roles):
         @jwt_required()
         def wrapper(*args, **kwargs):
             user_id = get_jwt_identity()
-            user = User.query.get(int(user_id))
-
-            if user is None or not user.is_active or user.role not in allowed_roles:
+            user = User.query.get(user_id)
+            if not user or not user.is_active or user.role not in allowed_roles:
                 return jsonify({"error": "Forbidden"}), 403
 
             return fn(*args, **kwargs)
@@ -102,7 +101,11 @@ def login():
     if not user.is_active:
         return jsonify({"error": "This account has been deactivated"}), 403
 
-    token = create_access_token(identity=str(user.id))
+    token = create_access_token(
+    identity=str(user.id),
+    additional_claims={"role": user.role}
+)
+
 
     # ✅ FIX: Include all required fields from userSchema in the response
     return jsonify(

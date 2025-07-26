@@ -23,6 +23,12 @@ from app.error_handlers import register_error_handlers
 
 def create_app():
     app = Flask(__name__)
+    
+    # CORS FIX: Full CORS setup for preflight and credentials
+    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}},
+         supports_credentials=True,
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"])
 
     # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
@@ -84,15 +90,19 @@ def create_app():
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp  
     from app.users.routes import users_bp
+    from app.routes.purchase_routes import purchase_bp
+    from app.routes.supply_routes import supply_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
-    app.register_blueprint(inventory_bp, url_prefix='/api')
+    app.register_blueprint(supply_bp)
+    app.register_blueprint(inventory_bp, url_prefix='/api/inventory')
     app.register_blueprint(report_bp) 
     app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(purchase_bp)
 
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
 
