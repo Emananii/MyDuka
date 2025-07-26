@@ -1,32 +1,23 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
+  MonthlyPurchaseChart,
+  ClerkPerformanceChart,
+  PaymentStatusPieChart,
+} from "@/components/dashboard/AdminCharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Package,
-  AlertTriangle,
-  DollarSign,
-  TrendingUp,
-  HandCoins,
-  Boxes,
-  Truck,
-  History
+  Package, AlertTriangle, DollarSign, TrendingUp,
+  HandCoins, Boxes, Truck, History
 } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
+import { useUser } from "@/context/UserContext";
 
 export default function Dashboard() {
+  const { user } = useUser();
+
   const { data: stats = {}, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: () => fetch(`${BASE_URL}/dashboard/summary`).then((r) => r.json())
@@ -37,23 +28,45 @@ export default function Dashboard() {
     queryFn: () => fetch(`${BASE_URL}/dashboard/movements`).then((r) => r.json())
   });
 
+  // 🔹 Admin Report Queries
+  const token = localStorage.getItem("token");
+
+  const { data: monthlyTrend = [] } = useQuery({
+    queryKey: ["monthly-trend"],
+    enabled: user?.role === "admin",
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/report/purchases/monthly-trend`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.json()),
+  });
+
+  const { data: clerkPerformance = [] } = useQuery({
+    queryKey: ["clerk-performance"],
+    enabled: user?.role === "admin",
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/report/clerk-performance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.json()),
+  });
+
+  const { data: paymentStatus = [] } = useQuery({
+    queryKey: ["payment-status-summary"],
+    enabled: user?.role === "admin",
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/report/payment-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((res) => res.json()),
+  });
+
   const isLoading = statsLoading || movLoading;
   if (isLoading) return <p>Loading...</p>;
   if (statsError) return <p className="text-red-600">Error: {statsError.message}</p>;
 
   const {
-    total_items,
-    total_stock,
-    low_stock_count,
-    out_of_stock_count,
-    low_stock_items = [],
-    out_of_stock_items = [],
-    in_stock_items = [],
-    recent_purchases = [],
-    recent_transfers = [],
-    inventory_value,
-    total_purchase_value,
-    supplier_spending_trends = []
+    total_items, total_stock, low_stock_count, out_of_stock_count,
+    low_stock_items = [], out_of_stock_items = [], in_stock_items = [],
+    recent_purchases = [], recent_transfers = [],
+    inventory_value, total_purchase_value, supplier_spending_trends = []
   } = stats;
 
   const formatCurrency = (amt) =>
@@ -61,9 +74,7 @@ export default function Dashboard() {
 
   const formatDate = (date) =>
     new Intl.DateTimeFormat("en-KE", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
+      year: "numeric", month: "short", day: "numeric"
     }).format(new Date(date));
 
   const formatTimeAgo = (date) => {
@@ -71,7 +82,6 @@ export default function Dashboard() {
     const then = new Date(date);
     const diffMs = now.getTime() - then.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-
     if (diffHours < 1) return "Just now";
     if (diffHours < 24) return `${diffHours} hours ago`;
     return `${Math.floor(diffHours / 24)} days ago`;
@@ -82,18 +92,14 @@ export default function Dashboard() {
 
   const getBadge = (status) => {
     if (status === "out-of-stock") return <Badge variant="destructive">Out of Stock</Badge>;
-    if (status === "low-stock")
-      return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
+    if (status === "low-stock") return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
     return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
   };
 
   const allMovements = Array.isArray(movements) ? movements : [];
 
   const SummaryCard = ({ label, value, icon, color, isCurrency = false, wide = false }) => {
-    const formattedValue = isCurrency
-      ? formatCurrency(value)
-      : value;
-
+    const formattedValue = isCurrency ? formatCurrency(value) : value;
     const cardClass = wide ? "xl:col-span-2" : "";
 
     return (
@@ -104,12 +110,7 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500">{label}</p>
               <p
                 className="font-bold text-gray-900 leading-tight break-words"
-                style={{
-                  fontSize: "clamp(1rem, 2vw, 1.5rem)",
-                  lineHeight: "1.2",
-                  wordBreak: "break-word"
-                }}
-                title={formattedValue}
+                style={{ fontSize: "clamp(1rem, 2vw, 1.5rem)", lineHeight: "1.2" }}
               >
                 {formattedValue}
               </p>
@@ -189,7 +190,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Movements and Recent Activity */}
+      {/* Recent Movements */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -214,12 +215,8 @@ export default function Dashboard() {
                     <TableCell>{formatDate(m.date)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{m.type}</Badge></TableCell>
                     <TableCell>{m.quantity}</TableCell>
-                    <TableCell className="text-sm text-gray-700">
-                      {m.source_or_destination || "-"}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {m.notes || "—"}
-                    </TableCell>
+                    <TableCell>{m.source_or_destination || "-"}</TableCell>
+                    <TableCell>{m.notes || "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -264,7 +261,16 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Supplier Spending Trends */}
+      {/* 📊 Admin-only Chart Section */}
+      {user?.role === "admin" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          <MonthlyPurchaseChart data={monthlyTrend} />
+          <ClerkPerformanceChart data={clerkPerformance} />
+          <PaymentStatusPieChart data={paymentStatus} />
+        </div>
+      )}
+
+      {/* Supplier Spending */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
