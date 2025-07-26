@@ -1,5 +1,4 @@
-// src/App.jsx
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
 import { Menu, Bell, User } from "lucide-react";
 
@@ -19,11 +18,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 // Auth pages
 import Login from "@/components/auth/login-form";
 import Register from "@/components/auth/register-form";
-// New: ProtectedRoute component for access control
-import ProtectedRoute from "@/components/auth/protected-route"; // <--- NEW IMPORT
 
 // Main app pages
 import Dashboard from "@/pages/dashboard";
+//import Inventory from "@/pages/inventory";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -31,34 +29,30 @@ import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
 import Suppliers from "@/pages/suppliers";
 
-// Profile Pages
+// Profile pages
 import AdminProfile from "@/pages/admin-profile";
 import MerchantProfile from "@/pages/merchant-profile";
 import ClerksProfile from "@/pages/clerks-profile";
 import CashierProfile from "@/pages/cashier-profile";
 
-// Sales Pages (NEW)
-import CashierSalesPage from "@/pages/sales/cashier-sales-page"; // <--- NEW
-import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page"; // <--- NEW
-import MerchantSalesPage from "@/pages/sales/merchant-sales-page"; // <--- NEW
+// Sales pages
+import CashierSalesPage from "@/pages/sales/cashier-sales-page";
+import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
+import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
 // inventory 
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 
 import NotFound from "@/pages/not-found";
-
-import { UserProvider, UserContext } from "@/context/UserContext";
-
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import POSInterfacePage from "@/pages/POS-interface";
 
-// MainLayout (unchanged, as it wraps the common layout elements)
+import { UserProvider, UserContext } from "@/context/UserContext";
+
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
   const [, navigate] = useLocation();
-
-  // console.log("User object in MainLayout:", user); // For debugging
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -75,9 +69,7 @@ function MainLayout({ children }) {
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
       />
-
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center">
@@ -91,13 +83,10 @@ function MainLayout({ children }) {
               </Button>
               <h2 className="text-2xl font-semibold text-gray-800">MyDuka</h2>
             </div>
-
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
               </Button>
-
-              {/* Avatar / Login Button */}
               {user && profilePath ? (
                 <Link href={profilePath} title="View Profile">
                   <Avatar>
@@ -118,14 +107,40 @@ function MainLayout({ children }) {
             </div>
           </div>
         </header>
-
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
 }
 
-// AuthRoutes (unchanged - handles login/register outside of main app routes)
+function ProtectedRoute({ component: Component, allowedRoles = [], ...rest }) {
+  const { user } = useContext(UserContext);
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login", { replace: true });
+    } else if (rest.path === "/") {
+      const redirectMap = {
+        merchant: "/merchant-dashboard",
+        admin: "/admin-profile",
+        clerk: "/clerks-profile",
+        cashier: "/cashier-profile",
+      };
+      const targetPath = redirectMap[user.role] || "/unauthorized";
+      navigate(targetPath, { replace: true });
+    } else if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      navigate("/unauthorized", { replace: true });
+    }
+  }, [user, navigate, rest.path, allowedRoles]);
+
+  if (!user || rest.path === "/") {
+    return null;
+  }
+
+  return <Route {...rest} component={Component} />;
+}
+
 function AuthRoutes() {
   return (
     <Switch>
@@ -134,15 +149,11 @@ function AuthRoutes() {
           <Login />
         </AuthenticatedLayout>
       </Route>
-
       <Route path="/register">
         <AuthenticatedLayout>
           <Register />
         </AuthenticatedLayout>
       </Route>
-
-      {/* This is the fallback route for any path not matching /login or /register
-          It renders MainLayout which then contains the AppRoutes (protected ones) */}
       <Route>
         <MainLayout>
           <AppRoutes />
@@ -235,7 +246,7 @@ function App() {
       <TooltipProvider>
         <UserProvider>
           <Router>
-            <AuthRoutes /> {/* AuthRoutes handles whether to show login/register or the MainLayout */}
+            <AuthRoutes />
             <Toaster />
           </Router>
         </UserProvider>

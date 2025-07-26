@@ -18,7 +18,7 @@ import { Loader2 } from 'lucide-react';
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: [ "admin","merchant", "clerk","cashier"] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant", "admin"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant", "admin"] },
   { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
