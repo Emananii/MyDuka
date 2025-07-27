@@ -11,7 +11,7 @@ const ProductPerformance = () => {
       .then((res) => res.json())
       .then((d) => setData(d.performance || []))
       .catch(() => toast.error("Failed to load performance data"));
-  }, []);
+  }, [BASE]);
 
   return (
     <div>

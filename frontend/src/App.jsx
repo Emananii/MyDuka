@@ -43,7 +43,9 @@ import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
+import SupplyRequestListPage from "@/pages/inventory/supply-request-list-page";
 import AdminInventory from "./pages/inventory/admin-inventory";
+
 
 import NotFound from "@/pages/not-found";
 
@@ -60,7 +62,6 @@ function MainLayout({ children }) {
   useLocation();
 
   const profilePathMap = {
-    // Corrected 'store_admin' to 'admin' to match backend role definitions
     admin: "/admin-profile",
     merchant: "/merchant-profile",
     clerk: "/clerks-profile",
@@ -126,6 +127,29 @@ function MainLayout({ children }) {
 function AuthRoutes() {
   return (
     <Switch>
+      {/* 🔐 Separate login pages for each role */}
+      <Route path="/login/admin">
+        <AuthenticatedLayout>
+          <Login role="admin" />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/login/merchant">
+        <AuthenticatedLayout>
+          <Login role="merchant" />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/login/clerk">
+        <AuthenticatedLayout>
+          <Login role="clerk" />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/login/cashier">
+        <AuthenticatedLayout>
+          <Login role="cashier" />
+        </AuthenticatedLayout>
+      </Route>
+
+      {/* 🔁 Fallback login */}
       <Route path="/login">
         <AuthenticatedLayout>
           <Login />
@@ -161,7 +185,7 @@ function AppRoutes() {
       {/* Universal route */}
       <Route path="/" component={Dashboard} />
 
-      {/* Cashier-specific */}
+      {/* Cashier */}
       <Route path="/pos">
         <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} />
       </Route>
@@ -172,7 +196,7 @@ function AppRoutes() {
         <ProtectedRoute component={() => <CashierProfile onLogout={handleLogout} />} allowedRoles={["cashier"]} />
       </Route>
 
-      {/* Store Admin-specific */}
+      {/* Inventory Routes */}
       <Route path="/inventory">
         <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -182,20 +206,23 @@ function AppRoutes() {
       <Route path="/inventory/admin">
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
+      <Route path="/inventory/supply-requests">
+         <ProtectedRoute component={SupplyRequestListPage} allowedRoles={["admin", "clerk"]} />
+      </Route>
+
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
-      <Route path="/purchases/:id">
-        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "merchant"]} />
+      <Route path="/inventory/supply-requests/:id">
+        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
       </Route>
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/suppliers">
-        {/* ADDED PROTECTION: Only merchants and admins can access suppliers page */}
         <ProtectedRoute component={Suppliers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/reports">
@@ -214,7 +241,7 @@ function AppRoutes() {
         <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
       </Route>
 
-      {/* Merchant-specific */}
+      {/* Merchant */}
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -227,6 +254,7 @@ function AppRoutes() {
       <Route path="/merchant-user-management">
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
       </Route>
+
       {/* Fallback */}
       <Route component={NotFound} />
     </Switch>

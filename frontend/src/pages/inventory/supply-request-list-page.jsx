@@ -1,5 +1,3 @@
-// pages/inventory/SupplyRequestListPage.jsx
-
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
@@ -7,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import RespondToSupplyRequestModal from "@/components/inventory/RespondToSupplyRequestModal";
+import RespondToSupplyRequestModal from "@/components/inventory/response-to-supply-request";
 import { Link } from "wouter";
 
 export default function SupplyRequestListPage() {
@@ -47,9 +45,9 @@ export default function SupplyRequestListPage() {
         {requests.map((req) => (
           <Card key={req.id}>
             <CardContent className="p-4 space-y-1">
-              <div><strong>Store:</strong> {req.store.name}</div>
-              <div><strong>Product:</strong> {req.product.name}</div>
-              <div><strong>Quantity:</strong> {req.requested_quantity}</div>
+              <div><strong>Store:</strong> {req.store?.name || "—"}</div>
+              <div><strong>Product:</strong> {req.product?.name || "—"}</div>
+              <div><strong>Quantity:</strong> {req.quantity}</div>
               <div><strong>Status:</strong> <span className="capitalize">{req.status}</span></div>
 
               {req.status !== "pending" && (
@@ -83,7 +81,7 @@ export default function SupplyRequestListPage() {
             id: selectedRequest.id,
             store_name: selectedRequest.store.name,
             product_name: selectedRequest.product.name,
-            requested_quantity: selectedRequest.requested_quantity,
+            requested_quantity: selectedRequest.quantity, // ✅ Match backend
           }}
         />
       )}
