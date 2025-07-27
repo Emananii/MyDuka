@@ -32,7 +32,7 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
   // Fetch list of products when the modal opens
   useEffect(() => {
     if (isOpen) {
-      axios.get('/api/products') // Adjust this endpoint if clerks should only see certain products
+      axios.get('/api/inventory/products') // Adjust this endpoint if clerks should only see certain products
         .then(response => {
           setProducts(response.data);
         })

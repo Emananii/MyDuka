@@ -15,6 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 import axios from "@/utils/axios"; // Your configured axios instance
 import { useUser } from "@/context/UserContext"; // To filter requests by clerk_id
 import { Badge } from "@/components/ui/badge"; // For status badge
+import { // Imported Select components for the status filter
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 // Import the modals we created
 import { AddSupplyRequest } from "@/components/supply-request/add-supply-request";
@@ -49,7 +57,7 @@ export default function ClerkSupplyRequest() {
   // Filter states
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState(""); // For filtering by status
+  const [selectedStatus, setSelectedStatus] = useState("all"); // Changed default to "all" to match SelectItem
 
   // Sorting states
   const [sortKey, setSortKey] = useState("created_at"); // default sort
@@ -67,13 +75,12 @@ export default function ClerkSupplyRequest() {
     queryFn: async () => {
       if (!user?.id) return []; // Don't fetch if user ID isn't available
 
-      // Assuming your backend /api/supply-requests endpoint automatically filters by clerk_id
-      // if a clerk token is provided. If not, you might need to adjust the query:
+      // Fetch requests, assuming backend filters by clerk_id if a clerk token is provided
       const response = await axios.get('/api/supply-requests');
 
-      // Filter by current clerk's ID on the frontend if the backend doesn't do it automatically
-      // for the /api/supply-requests endpoint and you only want *this clerk's* requests.
-      const filteredByUser = response.data.filter(req => req.clerk_id === user.id);
+      // Corrected: Access the 'data' array from the response object
+      // Then filter by current clerk's ID on the frontend if the backend doesn't do it automatically
+      const filteredByUser = response.data.data.filter(req => req.clerk_id === user.id);
       return filteredByUser;
     },
     enabled: !!user?.id, // Only run this query if user.id exists
@@ -98,7 +105,15 @@ export default function ClerkSupplyRequest() {
   };
 
   const getSortedAndFilteredRequests = useMemo(() => {
-    let filtered = supplyRequests.filter((request) => {
+    let filtered = supplyRequests; // Start with the data from useQuery
+
+    // Filter by status, excluding "all" which means no status filter
+    if (selectedStatus && selectedStatus !== "all") {
+      filtered = filtered.filter(request => request.status === selectedStatus);
+    }
+
+    // Filter by date range
+    filtered = filtered.filter((request) => {
       const requestDate = new Date(request.created_at);
       const from = startDate ? new Date(startDate) : null;
       const to = endDate ? new Date(endDate) : null;
@@ -106,10 +121,7 @@ export default function ClerkSupplyRequest() {
       const matchesDateRange =
         (!from || requestDate >= from) && (!to || requestDate <= to);
 
-      const matchesStatus =
-        !selectedStatus || request.status === selectedStatus;
-
-      return matchesDateRange && matchesStatus;
+      return matchesDateRange;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -170,6 +182,7 @@ export default function ClerkSupplyRequest() {
     setIsEditModalOpen(false);
     setViewingRequest(null);
     setEditingRequest(null);
+    setSelectedStatus("all"); // Reset status filter after action
   };
 
   // --- Render Logic ---
@@ -228,18 +241,18 @@ export default function ClerkSupplyRequest() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="statusFilter" className="text-sm text-gray-600">Status</label>
-              <select
-                id="statusFilter"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="declined">Declined</option>
-              </select>
+              <label htmlFor="statusFilter" className="text-sm text-gray-600 sr-only">Status</label>
+              <Select onValueChange={setSelectedStatus} value={selectedStatus}>
+                <SelectTrigger id="statusFilter">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem> {/* Changed value from "" to "all" */}
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="declined">Declined</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -343,7 +356,7 @@ export default function ClerkSupplyRequest() {
       {viewingRequest && (
         <ViewSupplyRequest
           isOpen={!!viewingRequest}
-          onClose={() => setViewingRequest(null)}
+          onClose={() => setIsViewModalOpen(false)} // Set setIsViewModalOpen to false to close
           request={viewingRequest}
           // The ViewSupplyRequest component has its own internal logic for edit/delete
           // which will trigger handleRequestActionSuccess indirectly via queryClient.invalidateQueries
