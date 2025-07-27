@@ -80,8 +80,6 @@ def create_app():
     # ✅ FIX: Import YOUR API user routes blueprint (now named users_api_bp)
     from app.routes.user_routes import users_api_bp 
 
-    # ✅ FIX: Import your TEAMMATE'S user routes blueprint and give it an alias
-    # This assumes the blueprint in app/users/routes.py is named 'users_bp' internally.
     from app.users.routes import users_bp as teammate_users_bp 
 
     app.register_blueprint(auth_bp)

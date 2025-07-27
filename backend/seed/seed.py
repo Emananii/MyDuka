@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, UTC
 from faker import Faker
 import random
 from decimal import Decimal
@@ -35,7 +35,7 @@ def seed_all():
             print("✅ create_all() successful")
 
         except Exception as e:
-            print("❌ Error during schema reset:", e)
+            print(f"❌ Error during schema reset: {e}")
             raise
 
         print("\n--- Seeding Test Data ---")
@@ -44,31 +44,27 @@ def seed_all():
             print("🏢 Creating Stores...")
             store_main = Store(name="Main Branch (CBD)", address="Tom Mboya Street, Nairobi")
             store_westlands = Store(name="Westlands Branch", address="Westlands Rd, Nairobi")
-            store_uptown = Store(name="Uptown Branch", address="Kimathi Street, Nairobi") # From your store seed
-            store_duka_moja = Store(name="Duka Moja", address="Nairobi CBD") # From your sales seed
+            store_uptown = Store(name="Uptown Branch", address="Kimathi Street, Nairobi")
+            store_duka_moja = Store(name="Duka Moja", address="Nairobi CBD")
 
-            # Use a list to ensure all are added and committed together
             all_initial_stores = [store_main, store_westlands, store_uptown, store_duka_moja]
             db.session.add_all(all_initial_stores)
             db.session.flush() # Flush to get IDs for users/products
-
             print(f"✅ Created {Store.query.count()} stores.")
 
             # --- 2. Create Users ---
             print("👤 Creating Users...")
-            # Merchant (from auth seed, but email adjusted for unique identity)
             merchant_admin = User(
                 name="Merchant Admin User",
-                email="merchant@example.com", # Keeping this for initial login
+                email="merchant@example.com",
                 password="adminpass123",
                 role="merchant",
                 is_active=True,
                 store_id=store_main.id,
             )
-            # Other users (from inventory and store seeds)
             merchant_victor = User(
                 name="Victor Merchant",
-                email="victor.merchant@myduka.com", # Unique email
+                email="victor.merchant@myduka.com",
                 password="merchant123",
                 role="merchant",
                 store_id=store_main.id
@@ -78,67 +74,86 @@ def seed_all():
                 email="admin@myduka.com",
                 password="admin123",
                 role="admin",
-                store_id=None # Admins can be global initially
+                store_id=store_main.id # Assign admin to a store
             )
             cashier_bob = User(
                 name="Bob Cashier",
-                email="cashier@myduka.com", # Keeping this for consistency
+                email="bob.cashier@myduka.com", # Made email unique
                 password="cashier123",
                 role="cashier",
                 store_id=store_main.id
             )
-            clerk_carol = User(
-                name="Carol Clerk",
-                email="clerk@myduka.com",
-                password="clerk123",
-                role="clerk",
-                store_id=store_westlands.id # Assuming store_westlands maps to "Uptown Branch" idea
+            cashier_jane = User(
+                name="Jane Cashier",
+                email="jane.cashier@myduka.com",
+                password="cashier123",
+                role="cashier",
+                store_id=store_main.id # Main Branch
             )
-            cashier_wambugu = User( # From sales seed
+            cashier_wambugu = User(
                 name="Wambugu Cashier",
-                email="wambugu.cashier@myduka.com", # Unique email
+                email="wambugu.cashier@myduka.com",
                 password="safe-password",
                 role="cashier",
                 store_id=store_duka_moja.id
             )
-            jane_cashier = User( # From store seed
-                name="Jane Cashier",
-                email="jane.cashier@myduka.com", # Unique email
+            cashier_fatuma = User( # Added another cashier for Westlands
+                name="Fatuma Cashier",
+                email="fatuma.cashier@myduka.com",
                 password="cashier123",
                 role="cashier",
-                store_id=store_main.id # Assuming Downtown Store is now Main Branch (CBD)
+                store_id=store_westlands.id
             )
-            peter_clerk = User( # From store seed
+
+            clerk_carol = User(
+                name="Carol Clerk",
+                email="carol.clerk@myduka.com", # Made email unique
+                password="clerk123",
+                role="clerk",
+                store_id=store_westlands.id
+            )
+            clerk_peter = User(
                 name="Peter Clerk",
-                email="peter.clerk@myduka.com", # Unique email
+                email="peter.clerk@myduka.com",
                 password="clerk123",
                 role="clerk",
                 store_id=store_uptown.id
             )
-
+            
             all_users = [
                 merchant_admin, merchant_victor, admin_alice,
-                cashier_bob, clerk_carol, cashier_wambugu,
-                jane_cashier, peter_clerk
+                cashier_bob, cashier_jane, cashier_wambugu, cashier_fatuma,
+                clerk_carol, clerk_peter
             ]
             db.session.add_all(all_users)
-            db.session.flush() # Flush to get user IDs for created_by
+            db.session.flush() # Flush to get user IDs for created_by and relationships
 
-            # Set created_by relations (from store seed)
+            # Assign created_by relations (optional, but good for completeness)
             merchant_admin.created_by = admin_alice.id # Just an example if you want to set this
             merchant_victor.created_by = admin_alice.id
+            admin_alice.created_by = merchant_admin.id # An admin could be created by a merchant
             cashier_bob.created_by = merchant_victor.id
-            clerk_carol.created_by = admin_alice.id
+            cashier_jane.created_by = merchant_victor.id
             cashier_wambugu.created_by = merchant_admin.id
-            jane_cashier.created_by = merchant_victor.id
-            peter_clerk.created_by = admin_alice.id
+            cashier_fatuma.created_by = admin_alice.id
+            clerk_carol.created_by = admin_alice.id
+            clerk_peter.created_by = admin_alice.id
             
-            db.session.add_all([
-                merchant_admin, merchant_victor, cashier_bob, clerk_carol,
-                cashier_wambugu, jane_cashier, peter_clerk
-            ])
             db.session.commit() # Commit users to ensure they are in DB for next steps
             print(f"✅ Created {User.query.count()} users with various roles.")
+
+            # --- Store cashiers for easier access in sales seeding ---
+            cashiers_main_branch = User.query.filter_by(store_id=store_main.id, role='cashier').all()
+            cashiers_duka_moja = User.query.filter_by(store_id=store_duka_moja.id, role='cashier').all()
+            cashiers_westlands = User.query.filter_by(store_id=store_westlands.id, role='cashier').all()
+            cashiers_uptown = User.query.filter_by(store_id=store_uptown.id, role='clerk').all() # Assuming clerks can also be cashiers in Uptown
+            
+            # Fallback in case no cashiers were created for a store
+            if not cashiers_main_branch: cashiers_main_branch = [cashier_bob] # Add a default
+            if not cashiers_duka_moja: cashiers_duka_moja = [cashier_wambugu] # Add a default
+            if not cashiers_westlands: cashiers_westlands = [cashier_fatuma]
+            if not cashiers_uptown: cashiers_uptown = [clerk_peter] # If no cashiers, use a clerk if they handle sales
+
 
             # --- 3. Create Categories ---
             print("🛒 Creating Categories...")
@@ -197,12 +212,12 @@ def seed_all():
             print("📊 Creating StoreProduct records (inventory stock)...")
             store_products_to_seed = []
             all_stores = Store.query.all()
-            all_products = Product.query.all() # Get all newly created products
+            all_products_db = Product.query.all() # Get all newly created products from DB for safety
 
             # Random stock for all stores and a subset of products
             for store in all_stores:
-                num_products_per_store = random.randint(min(10, len(all_products)), min(25, len(all_products)))
-                products_for_store = random.sample(all_products, num_products_per_store)
+                num_products_per_store = random.randint(min(10, len(all_products_db)), min(25, len(all_products_db)))
+                products_for_store = random.sample(all_products_db, num_products_per_store)
 
                 for product in products_for_store:
                     quantity_in_stock = random.randint(0, 200)
@@ -222,41 +237,84 @@ def seed_all():
 
             # Specific StoreProducts from store and sales seeds - ensure unique product-store pairs
             # StoreProduct from store seed
-            sp_d_apples = StoreProduct(store=store_main, product=prod_apples, quantity_in_stock=100, price=Decimal("150.00"), low_stock_threshold=20)
-            sp_d_oranges = StoreProduct(store=store_main, product=prod_oranges, quantity_in_stock=75, price=Decimal("180.00"), low_stock_threshold=15)
-            sp_d_milk = StoreProduct(store=store_main, product=prod_milk, quantity_in_stock=50, price=Decimal("70.00"), low_stock_threshold=10)
+            # Use query to get existing StoreProduct by store and product, or create new
+            sp_d_apples = StoreProduct.query.filter_by(store=store_main, product=prod_apples).first()
+            if not sp_d_apples:
+                sp_d_apples = StoreProduct(store=store_main, product=prod_apples, quantity_in_stock=100, price=Decimal("150.00"), low_stock_threshold=20)
+                store_products_to_seed.append(sp_d_apples)
+            else:
+                sp_d_apples.quantity_in_stock = 100 # Update existing
+                sp_d_apples.price = Decimal("150.00")
+                sp_d_apples.low_stock_threshold = 20
+                
+            sp_d_oranges = StoreProduct.query.filter_by(store=store_main, product=prod_oranges).first()
+            if not sp_d_oranges:
+                sp_d_oranges = StoreProduct(store=store_main, product=prod_oranges, quantity_in_stock=75, price=Decimal("180.00"), low_stock_threshold=15)
+                store_products_to_seed.append(sp_d_oranges)
+            else:
+                sp_d_oranges.quantity_in_stock = 75
+                sp_d_oranges.price = Decimal("180.00")
+                sp_d_oranges.low_stock_threshold = 15
+
+            sp_d_milk = StoreProduct.query.filter_by(store=store_main, product=prod_milk).first()
+            if not sp_d_milk:
+                sp_d_milk = StoreProduct(store=store_main, product=prod_milk, quantity_in_stock=50, price=Decimal("70.00"), low_stock_threshold=10)
+                store_products_to_seed.append(sp_d_milk)
+            else:
+                sp_d_milk.quantity_in_stock = 50
+                sp_d_milk.price = Decimal("70.00")
+                sp_d_milk.low_stock_threshold = 10
             
-            sp_u_apples = StoreProduct(store=store_uptown, product=prod_apples, quantity_in_stock=80, price=Decimal("160.00"), low_stock_threshold=25)
-            sp_u_carrots = StoreProduct(store=store_uptown, product=prod_carrots, quantity_in_stock=60, price=Decimal("90.00"), low_stock_threshold=10)
+            sp_u_apples = StoreProduct.query.filter_by(store=store_uptown, product=prod_apples).first()
+            if not sp_u_apples:
+                sp_u_apples = StoreProduct(store=store_uptown, product=prod_apples, quantity_in_stock=80, price=Decimal("160.00"), low_stock_threshold=25)
+                store_products_to_seed.append(sp_u_apples)
+            else:
+                sp_u_apples.quantity_in_stock = 80
+                sp_u_apples.price = Decimal("160.00")
+                sp_u_apples.low_stock_threshold = 25
+
+            sp_u_carrots = StoreProduct.query.filter_by(store=store_uptown, product=prod_carrots).first()
+            if not sp_u_carrots:
+                sp_u_carrots = StoreProduct(store=store_uptown, product=prod_carrots, quantity_in_stock=60, price=Decimal("90.00"), low_stock_threshold=10)
+                store_products_to_seed.append(sp_u_carrots)
+            else:
+                sp_u_carrots.quantity_in_stock = 60
+                sp_u_carrots.price = Decimal("90.00")
+                sp_u_carrots.low_stock_threshold = 10
 
             # StoreProducts from sales seed (map to store_duka_moja and specific products)
-            sp_wm = StoreProduct(store=store_duka_moja, product=prod_wireless_mouse, price=Decimal("1200.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
-            sp_kb = StoreProduct(store=store_duka_moja, product=prod_keyboard, price=Decimal("2500.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
-            sp_hdmi = StoreProduct(store=store_duka_moja, product=prod_hdmi_cable, price=Decimal("800.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
-            sp_usb = StoreProduct(store=store_duka_moja, product=prod_usb_hub, price=Decimal("1500.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
+            sp_wm = StoreProduct.query.filter_by(store=store_duka_moja, product=prod_wireless_mouse).first()
+            if not sp_wm:
+                sp_wm = StoreProduct(store=store_duka_moja, product=prod_wireless_mouse, price=Decimal("1200.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
+                store_products_to_seed.append(sp_wm)
+            
+            sp_kb = StoreProduct.query.filter_by(store=store_duka_moja, product=prod_keyboard).first()
+            if not sp_kb:
+                sp_kb = StoreProduct(store=store_duka_moja, product=prod_keyboard, price=Decimal("2500.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
+                store_products_to_seed.append(sp_kb)
+            
+            sp_hdmi = StoreProduct.query.filter_by(store=store_duka_moja, product=prod_hdmi_cable).first()
+            if not sp_hdmi:
+                sp_hdmi = StoreProduct(store=store_duka_moja, product=prod_hdmi_cable, price=Decimal("800.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
+                store_products_to_seed.append(sp_hdmi)
 
+            sp_usb = StoreProduct.query.filter_by(store=store_duka_moja, product=prod_usb_hub).first()
+            if not sp_usb:
+                sp_usb = StoreProduct(store=store_duka_moja, product=prod_usb_hub, price=Decimal("1500.00"), quantity_in_stock=random.randint(10, 100), low_stock_threshold=5)
+                store_products_to_seed.append(sp_usb)
 
-            # Use a dictionary to de-duplicate StoreProduct entries (store_id, product_id)
-            unique_store_products = {}
-            for sp in store_products_to_seed:
-                unique_store_products[(sp.store_id, sp.product_id)] = sp
+            # Ensure all relevant specific_sale_store_products are in the list for sales seeding
+            specific_sale_store_products = [
+                sp_wm, sp_kb, sp_hdmi, sp_usb,
+                sp_d_apples, sp_d_oranges, sp_d_milk,
+                sp_u_apples, sp_u_carrots
+            ]
 
-            # Add specific ones, overriding random ones if they clash
-            unique_store_products[(sp_d_apples.store_id, sp_d_apples.product_id)] = sp_d_apples
-            unique_store_products[(sp_d_oranges.store_id, sp_d_oranges.product_id)] = sp_d_oranges
-            unique_store_products[(sp_d_milk.store_id, sp_d_milk.product_id)] = sp_d_milk
-            unique_store_products[(sp_u_apples.store_id, sp_u_apples.product_id)] = sp_u_apples
-            unique_store_products[(sp_u_carrots.store_id, sp_u_carrots.product_id)] = sp_u_carrots
-            unique_store_products[(sp_wm.store_id, sp_wm.product_id)] = sp_wm
-            unique_store_products[(sp_kb.store_id, sp_kb.product_id)] = sp_kb
-            unique_store_products[(sp_hdmi.store_id, sp_hdmi.product_id)] = sp_hdmi
-            unique_store_products[(sp_usb.store_id, sp_usb.product_id)] = sp_usb
-
-            # Store products that will be used specifically for sales
-            # This list will be passed to sales seeding.
-            specific_sale_store_products = [sp_wm, sp_kb, sp_hdmi, sp_usb]
-
-            db.session.add_all(unique_store_products.values())
+            # Use a set for efficient de-duplication before adding to session
+            final_store_products_to_add = list({(sp.store_id, sp.product_id): sp for sp in store_products_to_seed}.values())
+            
+            db.session.add_all(final_store_products_to_add)
             db.session.flush() # Flush to get StoreProduct IDs
             print(f"✅ Created {StoreProduct.query.count()} StoreProduct records (inventory stock) with prices.")
 
@@ -279,7 +337,7 @@ def seed_all():
 
             # --- 7. Create Purchases ---
             print("📃 Creating Purchases...")
-            purchase1_inv = Purchase( # From inventory seed
+            purchase1_inv = Purchase(
                 supplier=supplier_abc,
                 store=store_main,
                 date=datetime(2025, 7, 15),
@@ -287,7 +345,7 @@ def seed_all():
                 is_paid=True,
                 notes="Initial stock delivery (Inventory Seed)"
             )
-            purchase1_store = Purchase( # From store seed
+            purchase1_store = Purchase(
                 supplier=supplier_fresh,
                 store=store_main,
                 date=date.today() - timedelta(days=7),
@@ -295,7 +353,7 @@ def seed_all():
                 is_paid=True,
                 notes="Weekly fruit order (Store Seed)"
             )
-            purchase2_store = Purchase( # From store seed
+            purchase2_store = Purchase(
                 supplier=supplier_dairy,
                 store=store_main,
                 date=date.today() - timedelta(days=3),
@@ -315,13 +373,13 @@ def seed_all():
             # Purchase items from inventory seed
             purchase_items_to_seed.append(PurchaseItem(
                 purchase=purchase1_inv,
-                product=random.choice(products), # Use a random product that exists in inventory
+                product=random.choice(all_products_db), # Use a random product from all_products_db
                 quantity=100,
                 unit_cost=Decimal('25.00')
             ))
             purchase_items_to_seed.append(PurchaseItem(
                 purchase=purchase1_inv,
-                product=random.choice(products), # Use another random product
+                product=random.choice(all_products_db), # Use another random product
                 quantity=60,
                 unit_cost=Decimal('30.00')
             ))
@@ -340,44 +398,102 @@ def seed_all():
             print("💰 Creating Sales...")
             sales_to_seed = []
             
-            # Sales from sales seed
-            for i in range(3):  # Create 3 sales
-                sales_to_seed.append(Sale(
-                    store=store_duka_moja,
-                    cashier=cashier_wambugu,
-                    payment_status="paid",
-                    created_at=datetime.utcnow() - timedelta(days=random.randint(0, 30)) # Distribute dates
-                ))
+            # Helper to get a random cashier for a given store
+            def get_random_cashier(store_id):
+                if store_id == store_main.id and cashiers_main_branch:
+                    return random.choice(cashiers_main_branch)
+                elif store_id == store_duka_moja.id and cashiers_duka_moja:
+                    return random.choice(cashiers_duka_moja)
+                elif store_id == store_westlands.id and cashiers_westlands:
+                    return random.choice(cashiers_westlands)
+                elif store_id == store_uptown.id and cashiers_uptown:
+                    # If clerks can be cashiers for sales, use them
+                    return random.choice(cashiers_uptown)
+                # Fallback: if no specific cashier for store, pick a random cashier from all or assign to a default
+                all_cashiers_db = User.query.filter_by(role='cashier').all()
+                if all_cashiers_db:
+                    return random.choice(all_cashiers_db)
+                print(f"⚠️ No cashiers found for store_id {store_id}. Sale will be without cashier.")
+                return None # Or raise an error if sales MUST have a cashier
+
+            # Allowed payment statuses based on your database ENUM (assuming "paid" and "unpaid")
+            ALLOWED_PAYMENT_STATUSES = ["paid", "unpaid"]
+
+            # Sales for Duka Moja
+            for _ in range(5): # Create more sales for Duka Moja to test filtering
+                cashier_for_sale = get_random_cashier(store_duka_moja.id)
+                if cashier_for_sale:
+                    sales_to_seed.append(Sale(
+                        store=store_duka_moja,
+                        cashier=cashier_for_sale, # Connect via relationship
+                        payment_status=random.choice(ALLOWED_PAYMENT_STATUSES), # ⭐ FIX: Only choose from allowed statuses ⭐
+                        created_at=datetime.now(UTC) - timedelta(days=random.randint(0, 30), hours=random.randint(0, 23), minutes=random.randint(0, 59))
+                    ))
             
-            # Sales from store seed
-            sales_to_seed.append(Sale(store=store_main, cashier=jane_cashier, payment_status="paid", created_at=datetime.utcnow()))
-            sales_to_seed.append(Sale(store=store_main, cashier=jane_cashier, payment_status="unpaid", created_at=datetime.utcnow() - timedelta(hours=5)))
-            sales_to_seed.append(Sale(store=store_uptown, cashier=peter_clerk, payment_status="paid", created_at=datetime.utcnow() - timedelta(days=1)))
+            # Sales for Main Branch (CBD)
+            for _ in range(10): # Create more sales for Main Branch
+                cashier_for_sale = get_random_cashier(store_main.id)
+                if cashier_for_sale:
+                    sales_to_seed.append(Sale(
+                        store=store_main,
+                        cashier=cashier_for_sale, # Connect via relationship
+                        payment_status=random.choice(ALLOWED_PAYMENT_STATUSES), # ⭐ FIX: Only choose from allowed statuses ⭐
+                        created_at=datetime.now(UTC) - timedelta(days=random.randint(0, 60), hours=random.randint(0, 23), minutes=random.randint(0, 59))
+                    ))
             
+            # Sales for Westlands Branch
+            for _ in range(7):
+                cashier_for_sale = get_random_cashier(store_westlands.id)
+                if cashier_for_sale:
+                    sales_to_seed.append(Sale(
+                        store=store_westlands,
+                        cashier=cashier_for_sale,
+                        payment_status=random.choice(ALLOWED_PAYMENT_STATUSES), # ⭐ FIX: Only choose from allowed statuses ⭐
+                        created_at=datetime.now(UTC) - timedelta(days=random.randint(0, 45), hours=random.randint(0, 23), minutes=random.randint(0, 59))
+                    ))
+
+            # Sales for Uptown Branch (using clerks if no cashiers explicitly defined)
+            for _ in range(3):
+                cashier_for_sale = get_random_cashier(store_uptown.id)
+                if cashier_for_sale:
+                    sales_to_seed.append(Sale(
+                        store=store_uptown,
+                        cashier=cashier_for_sale,
+                        payment_status=random.choice(ALLOWED_PAYMENT_STATUSES), # ⭐ FIX: Only choose from allowed statuses ⭐
+                        created_at=datetime.now(UTC) - timedelta(days=random.randint(0, 90), hours=random.randint(0, 23), minutes=random.randint(0, 59))
+                    ))
+
             db.session.add_all(sales_to_seed)
-            db.session.flush()
+            db.session.flush() # Flush to get sale IDs before creating sale items
             print(f"✅ Created {len(sales_to_seed)} sales.")
 
             # --- 10. Create Sale Items ---
             print("📦 Creating Sale Items...")
             sale_items_to_seed = []
 
-            # Sale items from sales seed (linking to specific_sale_store_products)
-            for sale in [s for s in sales_to_seed if s.store == store_duka_moja]: # Only target sales made at Duka Moja
-                selected_store_products = random.sample(specific_sale_store_products, k=random.randint(1, min(3, len(specific_sale_store_products))))
-                for store_product in selected_store_products:
-                    sale_items_to_seed.append(SaleItem(
-                        sale=sale,
-                        store_product=store_product,
-                        quantity=random.randint(1, 5),
-                        price_at_sale=store_product.price
-                    ))
-            
-            # Sale items from store seed (linking to specific store products for downtown/uptown)
-            sale_items_to_seed.append(SaleItem(sale=sales_to_seed[-3], store_product=sp_d_apples, quantity=5, price_at_sale=sp_d_apples.price)) # Assuming last 3 sales are from store seed
-            sale_items_to_seed.append(SaleItem(sale=sales_to_seed[-3], store_product=sp_d_oranges, quantity=3, price_at_sale=sp_d_oranges.price))
-            sale_items_to_seed.append(SaleItem(sale=sales_to_seed[-2], store_product=sp_d_milk, quantity=2, price_at_sale=sp_d_milk.price))
-            sale_items_to_seed.append(SaleItem(sale=sales_to_seed[-1], store_product=sp_u_apples, quantity=4, price_at_sale=sp_u_apples.price))
+            for sale in sales_to_seed:
+                # Get store products specific to this sale's store
+                available_store_products = StoreProduct.query.filter_by(store_id=sale.store_id).all()
+                if not available_store_products:
+                    print(f"⚠️ No StoreProducts found for store_id {sale.store_id} associated with sale {sale.id}. Skipping sale items.")
+                    continue
+
+                # Select a random number of items for each sale
+                num_items_in_sale = random.randint(1, min(5, len(available_store_products)))
+                selected_store_products_for_sale = random.sample(available_store_products, num_items_in_sale)
+
+                for store_product in selected_store_products_for_sale:
+                    quantity_sold = random.randint(1, min(store_product.quantity_in_stock, 10)) # Sell max 10 or current stock
+                    if quantity_sold > 0:
+                        sale_items_to_seed.append(SaleItem(
+                            sale=sale,
+                            store_product=store_product,
+                            quantity=quantity_sold,
+                            price_at_sale=store_product.price # Use the price from StoreProduct
+                        ))
+                        # Optionally update quantity_in_stock for realism
+                        store_product.quantity_in_stock -= quantity_sold
+                        db.session.add(store_product) # Mark for update
 
             db.session.add_all(sale_items_to_seed)
             db.session.commit() # Final commit
@@ -402,10 +518,11 @@ def seed_all():
             print("\nOther Users:")
             print("  Email: victor.merchant@myduka.com, Password: merchant123")
             print("  Email: admin@myduka.com, Password: admin123")
-            print("  Email: cashier@myduka.com, Password: cashier123")
-            print("  Email: clerk@myduka.com, Password: clerk123")
-            print("  Email: wambugu.cashier@myduka.com, Password: safe-password")
+            print("  Email: bob.cashier@myduka.com, Password: cashier123")
             print("  Email: jane.cashier@myduka.com, Password: cashier123")
+            print("  Email: wambugu.cashier@myduka.com, Password: safe-password")
+            print("  Email: fatuma.cashier@myduka.com, Password: cashier123")
+            print("  Email: carol.clerk@myduka.com, Password: clerk123")
             print("  Email: peter.clerk@myduka.com, Password: clerk123")
 
         except Exception as e:

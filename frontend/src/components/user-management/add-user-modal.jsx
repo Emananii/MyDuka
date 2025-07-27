@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -30,22 +30,24 @@ import { X, Loader2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
-import { useUser } from "@/context/UserContext";
+import { userRoleEnum } from "@/shared/schema";
+
 
 // --- Zod Schema for Add User Form ---
 const addUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
   password: z.string().min(8, "Password must be at least 8 characters long"),
-  role: z.enum(["admin", "clerk", "cashier", "user"], {
-    errorMap: () => ({ message: "Please select a role" }),
-  }),
-  store_id: z.union([z.number().int().positive(), z.literal(null)]).optional(),
+  role: userRoleEnum.refine( // Use shared enum and refine for AddUserModal scope
+    // ⭐ FIX: Removed 'user' from allowed creation roles for Store Admin/Clerk ⭐
+    (role) => ["admin", "clerk", "cashier"].includes(role), // 'admin' is for Merchant to create. 'clerk','cashier' for Admin/Clerk
+    { message: "Invalid role selected for creation." }
+  ),
+  store_id: z.union([z.number().int().positive(), z.literal(null)]).nullable().optional(), 
 });
 
-export default function AddUserModal({ isOpen, onClose }) {
+export default function AddUserModal({ isOpen, onClose, createUserMutation, currentUser }) {
   const { toast } = useToast();
-  const { user: currentUser } = useUser();
 
   const form = useForm({
     resolver: zodResolver(addUserSchema),
@@ -60,17 +62,26 @@ export default function AddUserModal({ isOpen, onClose }) {
     },
   });
 
-  // Fetch list of stores if the current user is a merchant.
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+        store_id: currentUser?.role === "admin" || currentUser?.role === "clerk" 
+                    ? currentUser?.store_id || null 
+                    : null,
+      });
+    }
+  }, [isOpen, form, currentUser]);
+
+
   const { data: stores = [], isLoading: isLoadingStores } = useQuery({
-    // ✅ FIX: Use a standardized queryKey. "store-list" or just "stores" is fine.
     queryKey: ["stores-list"], 
     queryFn: async () => {
       try {
-        // ✅ FIX: Explicitly using /api/store/ (singular) as per your route
         const response = await apiRequest("GET", `${BASE_URL}/api/store/`); 
-        
-        // --- FIX APPLIED HERE: Handle direct array response ---
-        // Your backend returns a direct array, so we return the response as-is.
         return Array.isArray(response) ? response : []; 
       } catch (error) {
         console.error("Failed to fetch stores:", error);
@@ -79,51 +90,36 @@ export default function AddUserModal({ isOpen, onClose }) {
           description: error.message || "Could not load store list.",
           variant: "destructive",
         });
-        return []; // Crucial: Return an empty array on error to prevent 'undefined' data
+        return []; 
       }
     },
     enabled: currentUser?.role === "merchant" && isOpen, 
   });
 
-  const createUserMutation = useMutation({
-    mutationFn: async (data) => {
-      const payload = {
-        ...data,
-        store_id: data.store_id === "null" ? null : parseInt(data.store_id, 10),
-      };
-      return apiRequest("POST", `${BASE_URL}/api/users/create`, payload); 
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] }); 
-      toast({
-        title: "Success",
-        description: "User added successfully",
-      });
-      form.reset();
-      onClose();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add user",
-        variant: "destructive",
-      });
-    },
-  });
 
   const onSubmit = (data) => {
-    createUserMutation.mutate(data);
+    const payload = {
+      ...data,
+      store_id: currentUser?.role === "admin" || currentUser?.role === "clerk"
+                  ? currentUser.store_id 
+                  : (data.store_id === "null" ? null : parseInt(data.store_id, 10)),
+      password: data.password || undefined,
+    };
+    createUserMutation.mutate(payload); 
   };
 
   const getAllowedRoles = () => {
     if (!currentUser) return [];
     switch (currentUser.role) {
       case "merchant":
-        return ["admin", "clerk", "cashier", "user"];
-      case "admin":
-        return ["clerk", "cashier", "user"];
-      case "clerk":
-        return ["cashier", "user"];
+        // ⭐ FIX: Removed 'user' from allowed creation roles for merchant ⭐
+        return ["admin", "clerk", "cashier"];
+      case "admin": 
+        // ⭐ FIX: Removed 'user' from allowed creation roles for admin ⭐
+        return ["clerk", "cashier"];
+      case "clerk": 
+        // ⭐ FIX: Removed 'user' from allowed creation roles for clerk ⭐
+        return ["cashier"];
       default:
         return [];
     }
@@ -132,13 +128,10 @@ export default function AddUserModal({ isOpen, onClose }) {
   const allowedRoles = getAllowedRoles();
   const selectedRole = form.watch("role"); 
 
-  const showStoreSelect =
-    (currentUser?.role === "merchant" && selectedRole !== "") || 
-    ((currentUser?.role === "admin" || currentUser?.role === "clerk") && currentUser?.store_id);
+  const showStoreSelect = currentUser?.role === "merchant";
 
-  const isStoreSelectDisabled =
-    isLoadingStores ||
-    ((currentUser?.role === "admin" || currentUser?.role === "clerk") && currentUser?.store_id);
+  const isStoreSelectDisabled = isLoadingStores || currentUser?.role === "admin" || currentUser?.role === "clerk";
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -240,7 +233,7 @@ export default function AddUserModal({ isOpen, onClose }) {
               )}
             />
 
-            {/* Store ID selection (Conditional for Merchant, or pre-filled for Admin/Clerk) */}
+            {/* Store ID selection (Conditional for Merchant, hidden for Admin/Clerk) */}
             {showStoreSelect && (
               <FormField
                 control={form.control}
@@ -267,7 +260,8 @@ export default function AddUserModal({ isOpen, onClose }) {
                           </SelectItem>
                         ) : stores && stores.length > 0 ? (
                           <>
-                            {currentUser?.role === "merchant" && selectedRole !== "admin" && (
+                            {/* Option to unassign store only for Merchant */}
+                            {currentUser?.role === "merchant" && (
                               <SelectItem value="null">No Store Assigned</SelectItem>
                             )}
                             {stores.map((store) => (

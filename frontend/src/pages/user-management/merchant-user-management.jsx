@@ -20,30 +20,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Edit, Trash2, ArrowUpDown } from "lucide-react";
+import { Search, Plus, Edit, Trash2, ArrowUpDown, Eye } from "lucide-react"; // Added Eye icon for view button
 
 import AddUserModal from "@/components/user-management/add-user-modal";
 import EditUserModal from "@/components/user-management/edit-user-modal";
 import { ConfirmUserDeleteDialog } from "@/components/user-management/confirm-user-delete-dialog";
 import { ConfirmUserDeactivateDialog } from "@/components/user-management/confirm-user-deactivate-dialog";
-// ⭐ NEW IMPORT: ViewUserModal ⭐
 import ViewUserModal from "@/components/user-management/view-user-modal";
 
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
+import { useUser } from "@/context/UserContext"; // Import useUser
 
 // Define the base API prefix for user operations (no trailing slash here)
 const API_PREFIX = "/api/users";
 
 export default function MerchantUserManagement() {
+  const { user: currentUser } = useUser(); // Get current user for permissions
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // ⭐ NEW STATE FOR VIEW MODAL ⭐
+  const [selectedUser, setSelectedUser] = useState(null); // For Edit Modal
+
+  // State for View User Modal
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedUserForView, setSelectedUserForView] = useState(null);
 
-  const [selectedUser, setSelectedUser] = useState(null); // For Edit Modal
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,7 +58,8 @@ export default function MerchantUserManagement() {
     queryKey: ["users"],
     queryFn: async () => {
       const res = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/`);
-      return res;
+      // Frontend filtering for `is_deleted` users (backend should also filter or provide options)
+      return res.filter(user => !user.is_deleted);
     },
   });
 
@@ -67,8 +70,8 @@ export default function MerchantUserManagement() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "User deleted successfully" });
       setConfirmDeleteId(null);
-      setIsViewModalOpen(false); // ⭐ Close view modal after delete ⭐
-      setSelectedUserForView(null); // ⭐ Clear selected user for view ⭐
+      setSelectedUser(null); // Clear selected user after action
+      setSelectedUserForView(null); // Clear selected user for view modal
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message || "Failed to delete user", variant: "destructive" });
@@ -82,8 +85,8 @@ export default function MerchantUserManagement() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "User deactivated successfully" });
       setConfirmDeactivateId(null);
-      setIsViewModalOpen(false); // ⭐ Close view modal after deactivate ⭐
-      setSelectedUserForView(null); // ⭐ Clear selected user for view ⭐
+      setSelectedUser(null); // Clear selected user after action
+      setSelectedUserForView(null); // Clear selected user for view modal
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message || "Failed to deactivate user", variant: "destructive" });
@@ -106,27 +109,24 @@ export default function MerchantUserManagement() {
   const userBeingDeactivated = users.find((u) => u.id === confirmDeactivateId);
   const userBeingDeleted = users.find((u) => u.id === confirmDeleteId);
 
-  // ⭐ HANDLERS FOR ACTIONS FROM VIEW MODAL ⭐
-  const handleEditFromView = () => {
-    if (selectedUserForView) {
-      setSelectedUser(selectedUserForView); // Set user for Edit Modal
-      setIsEditModalOpen(true); // Open Edit Modal
-      setIsViewModalOpen(false); // Close View Modal
-    }
-  };
+  // Helper function to determine if the current user can perform actions on target user
+  const canPerformActions = (targetUser) => {
+    if (!currentUser || !targetUser) return false;
+    if (currentUser.id === targetUser.id) return false; // Cannot modify self
 
-  const handleDeactivateFromView = () => {
-    if (selectedUserForView) {
-      setConfirmDeactivateId(selectedUserForView.id); // Set ID for Deactivate Dialog
-      setIsViewModalOpen(false); // Close View Modal
+    if (currentUser.role === "merchant") {
+      // Merchant can manage any user except other merchants
+      return targetUser.role !== "merchant";
     }
-  };
-
-  const handleDeleteFromView = () => {
-    if (selectedUserForView) {
-      setConfirmDeleteId(selectedUserForView.id); // Set ID for Delete Dialog
-      setIsViewModalOpen(false); // Close View Modal
+    if (currentUser.role === "admin") {
+      // Admin can manage cashier, clerk, user within their own store, but not other admins or merchants
+      return (
+        targetUser.role !== "admin" &&
+        targetUser.role !== "merchant" &&
+        currentUser.store_id === targetUser.store_id
+      );
     }
+    return false;
   };
 
 
@@ -157,7 +157,6 @@ export default function MerchantUserManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                {/* ⭐ MODIFIED: Display "Store Admin" instead of "Admin" ⭐ */}
                 <SelectItem value="admin">Store Admin</SelectItem>
                 <SelectItem value="cashier">Cashier</SelectItem>
                 <SelectItem value="clerk">Clerk</SelectItem>
@@ -173,7 +172,7 @@ export default function MerchantUserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead> {/* Actions column */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -191,14 +190,14 @@ export default function MerchantUserManagement() {
                 </TableRow>
               ) : (
                 filteredUsers.map((user) => (
-                  // ⭐ MODIFIED: onClick for the whole row to open ViewUserModal ⭐
                   <TableRow
                     key={user.id}
+                    // ⭐ Keep row click to open ViewUserModal ⭐
                     onClick={() => {
                       setSelectedUserForView(user);
                       setIsViewModalOpen(true);
                     }}
-                    className="cursor-pointer hover:bg-gray-50" // Add styling for clickable row
+                    className="cursor-pointer hover:bg-gray-50"
                   >
                     <TableCell>{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -210,10 +209,64 @@ export default function MerchantUserManagement() {
                         <Badge variant="destructive">Inactive</Badge>
                       )}
                     </TableCell>
-                    {/* ⭐ REMOVED individual action buttons from table row ⭐ */}
-                    {/* They will now be inside the ViewUserModal */}
-                    <TableCell className="text-right">
-                      <span className="text-gray-500 text-sm">Click to view actions</span>
+                    {/* ⭐ RE-ADDED individual action buttons to table row ⭐ */}
+                    <TableCell className="text-right space-x-2">
+                        {/* View Button (optional, as row click already does this) */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { // Stop propagation for button click
+                                e.stopPropagation();
+                                setSelectedUserForView(user);
+                                setIsViewModalOpen(true);
+                            }}
+                            title="View Details"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </Button>
+
+                        {/* Edit Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { // Stop propagation for button click
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setIsEditModalOpen(true);
+                            }}
+                            disabled={!canPerformActions(user)} // Disable based on permission
+                            title={canPerformActions(user) ? "Edit User" : "Unauthorized to edit"}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+
+                        {/* Deactivate Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { // Stop propagation for button click
+                                e.stopPropagation();
+                                setConfirmDeactivateId(user.id);
+                            }}
+                            disabled={!user.is_active || !canPerformActions(user)} // Disable if inactive or unauthorized
+                            title={!user.is_active ? "Already inactive" : (canPerformActions(user) ? "Deactivate User" : "Unauthorized to deactivate")}
+                        >
+                            <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => { // Stop propagation for button click
+                                e.stopPropagation();
+                                setConfirmDeleteId(user.id);
+                            }}
+                            disabled={user.is_deleted || !canPerformActions(user)} // Disable if deleted or unauthorized
+                            title={user.is_deleted ? "Already deleted" : (canPerformActions(user) ? "Delete User" : "Unauthorized to delete")}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -235,7 +288,7 @@ export default function MerchantUserManagement() {
         user={selectedUser}
       />
 
-      {/* ⭐ NEW: View User Modal ⭐ */}
+      {/* View User Modal: Still exists, opened by row click */}
       <ViewUserModal
         user={selectedUserForView}
         isOpen={isViewModalOpen}
@@ -243,9 +296,7 @@ export default function MerchantUserManagement() {
           setIsViewModalOpen(false);
           setSelectedUserForView(null);
         }}
-        onEdit={handleEditFromView}
-        onDeactivate={handleDeactivateFromView}
-        onDelete={handleDeleteFromView}
+        // Removed onEdit/onDeactivate/onDelete props from here, as actions are now on table row
       />
 
       <ConfirmUserDeleteDialog

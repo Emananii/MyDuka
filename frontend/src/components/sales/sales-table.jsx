@@ -76,9 +76,13 @@ export default function SalesTable({ sales, isLoading, isError, error, onRowClic
               className="cursor-pointer hover:bg-gray-50 transition-colors"
             >
               <TableCell className="font-medium">#{sale.id}</TableCell>
-              <TableCell>{format(new Date(sale.created_at), 'PPP p')}</TableCell> {/* e.g., Jan 1, 2023, 10:30 AM */}
+              {/* ⭐ FIX: Conditionally format created_at to prevent Invalid Date error ⭐ */}
+              <TableCell>
+                {sale.created_at
+                  ? format(new Date(sale.created_at), 'PPP p') // e.g., Jan 1, 2023, 10:30 AM
+                  : 'N/A'} 
+              </TableCell>
               <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
-              {/* Ensure sale.cashier and sale.store objects exist and have a name property */}
               <TableCell>{sale.cashier?.name || 'N/A'}</TableCell>
               <TableCell>{sale.store?.name || 'N/A'}</TableCell>
             </TableRow>
