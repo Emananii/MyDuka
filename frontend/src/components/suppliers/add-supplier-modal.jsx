@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
-import { insertSupplierSchema } from "@/shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
+import { insertSupplierSchema } from "@/shared/schema"; // This schema will need to be updated by you
 import {
   Dialog,
   DialogContent,
@@ -19,36 +19,48 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient"; // Removed queryClient from here as it's a separate import
 import { useToast } from "@/hooks/use-toast";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL } from "@/lib/constants"; // Assuming BASE_URL is "http://127.0.0.1:8000"
 
 export default function AddSupplierModal({ isOpen, onClose }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient(); // Initialize useQueryClient
 
+  // Update defaultValues to match backend Supplier model
   const form = useForm({
-    resolver: zodResolver(insertSupplierSchema),
+    resolver: zodResolver(insertSupplierSchema), // You'll need to update this schema
     defaultValues: {
       name: "",
-      contact: "",
+      contact_person: "", // New field
+      phone: "",           // New field
+      email: "",           // New field
       address: "",
+      notes: "",           // New field
     },
   });
 
   const createSupplierMutation = useMutation({
     mutationFn: async (data) => {
-      return apiRequest("POST", `${BASE_URL}/suppliers`, data); // ✅ Updated endpoint
+      // Manually prepend /api/ since BASE_URL doesn't include it based on your description
+      return apiRequest("POST", `${BASE_URL}/api/suppliers/`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/suppliers`] }); // ✅ Ensure this matches useQuery key
+      // Manually prepend /api/ for invalidation as well
+      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/api/suppliers/`] });
       toast({
         title: "Success",
         description: "Supplier added successfully",
       });
       form.reset();
       onClose();
+      // Re-added setTimeout redirect as requested
+      setTimeout(() => {
+        window.location.href = "/suppliers"; // Redirect to suppliers list after update
+      }, 1200);
     },
     onError: (error) => {
+      console.error("Failed to add supplier:", error); // Log error for debugging
       toast({
         title: "Error",
         description: error.message || "Failed to add supplier",
@@ -92,16 +104,55 @@ export default function AddSupplierModal({ isOpen, onClose }) {
               )}
             />
 
-            {/* Contact */}
+            {/* Contact Person */}
             <FormField
               control={form.control}
-              name="contact"
+              name="contact_person"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contact Info</FormLabel>
+                  <FormLabel>Contact Person</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Email, phone, or contact name"
+                      placeholder="e.g., John Doe"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Phone */}
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., +254712345678"
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Email */}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="e.g., supplier@example.com"
                       {...field}
                       value={field.value || ""}
                     />
@@ -123,6 +174,26 @@ export default function AddSupplierModal({ isOpen, onClose }) {
                       placeholder="Enter supplier address"
                       {...field}
                       value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <textarea
+                      placeholder="Any additional notes about the supplier"
+                      {...field}
+                      value={field.value || ""}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" // Tailwind classes for textarea
                     />
                   </FormControl>
                   <FormMessage />
