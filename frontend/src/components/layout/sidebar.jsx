@@ -10,47 +10,71 @@ import {
   Warehouse, // Stores Icon
   Factory, // Suppliers Icon
   Calculator, // POS Icon
-  DollarSign, // Sales Icon (Adding a new icon for Sales)
+  DollarSign, // Sales Icon
+  UserRound, // For Manage Clerks & Cashiers
+  UserCog, // For Manage Store Admins
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/UserContext";
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "lucide-react";
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant", "admin"] },
-  { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant", "admin"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+  { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
+  // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
   { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
+  // ⭐ UPDATED: Admin can manage Stock Transfers (stock approvals) ⭐
   { name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
-  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
+  // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
+  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
+  // ⭐ UPDATED: Admin can view Suppliers for payment statuses ⭐
   { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
-  { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier", "admin"] },
+  { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
+  // ⭐ UPDATED: Admin can view Reports ⭐
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
+
+  // NEW USER MANAGEMENT PAGES
+  {
+    name: "Manage Users (Store)",
+    href: "/user-management/store",
+    icon: UserRound,
+    roles: ["admin"],
+  },
+  {
+    name: "Manage Users (Merchant)",
+    href: "/merchant-user-management",
+    icon: UserCog,
+    roles: ["merchant"],
+  },
+  // ⭐ NEW: Supply Requests for Admin approval/decline ⭐
+  {
+    name: "Supply Requests",
+    href: "/supply-requests", // Assuming this is your supply requests route
+    icon: Truck, // Or another relevant icon like Inbox/ClipboardList
+    roles: ["admin"],
+  },
 ];
 
 export default function Sidebar() {
   const [location] = useLocation();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
 
-  // --- ADD THESE CONSOLE.LOGS ---
   console.log("Sidebar Rendered:");
   console.log("  Current location:", location);
   console.log("  isLoadingUser:", isLoadingUser);
   console.log("  currentUser:", currentUser);
   console.log("  currentUser role:", currentUser?.role);
-  // --- END CONSOLE.LOGS ---
 
-  // If we are on the POS page, return null to render nothing at all.
   if (location === "/pos") {
     console.log("Sidebar: Location is /pos, rendering null.");
     return null;
   }
 
-  // Show a loading spinner if user data is still being fetched
   if (isLoadingUser) {
     console.log("Sidebar: isLoadingUser is true, showing loading spinner.");
     return (
@@ -65,28 +89,20 @@ export default function Sidebar() {
     );
   }
 
-  // If no user is logged in or user data failed to load, render an empty sidebar or a minimal one.
   if (!currentUser) {
     console.log("Sidebar: currentUser is null, rendering null.");
     return null;
   }
 
-  // Filter navigation items based on the current user's role
   const visibleNavigation = navigationConfig.filter(item => {
     const isVisible = item.roles.includes(currentUser.role);
-    // --- ADD THIS CONSOLE.LOG ---
-    // console.log(`  Item: ${item.name}, Required roles: [${item.roles.join(', ')}], User role: ${currentUser.role}, Visible: ${isVisible}`);
-    // --- END CONSOLE.LOG ---
     return isVisible;
   });
 
-  // --- ADD THIS CONSOLE.LOG ---
   console.log("Sidebar: Visible navigation items count:", visibleNavigation.length);
   if (visibleNavigation.length === 0) {
-      console.warn("Sidebar: No navigation items are visible for this role! Check navigationConfig roles.");
+    console.warn("Sidebar: No navigation items are visible for this role! Check navigationConfig roles.");
   }
-  // --- END CONSOLE.LOG ---
-
 
   return (
     <div className="hidden md:flex md:flex-shrink-0">

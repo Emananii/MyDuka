@@ -1,9 +1,11 @@
+# app.py
+
 import os
 from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from flask_cors import CORS # Keep this import
+from flask_cors import CORS
 from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
@@ -35,12 +37,6 @@ def create_app():
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
-        # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
-        # 'headers': [
-        #     ('Access-Control-Allow-Origin', '*'),
-        #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-        #     ('Access-Control-Allow-Credentials', "true"),
-        # ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
@@ -65,13 +61,10 @@ def create_app():
         ]
     }
 
-
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    # Ensure Flask-CORS is initialized for your app
-
     swagger.init_app(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
@@ -79,20 +72,35 @@ def create_app():
 
     # --- Register Blueprints ---
     from app.routes.auth_routes import auth_bp
-    from app.routes.store_routes import store_bp
+    from app.routes.store_routes import store_bp # Assuming this is still 'store_bp' as per your last app.py
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp  
-    from app.users.routes import users_bp
+
+    # ✅ FIX: Import YOUR API user routes blueprint (now named users_api_bp)
+    from app.routes.user_routes import users_api_bp 
+
+    # ✅ FIX: Import your TEAMMATE'S user routes blueprint and give it an alias
+    # This assumes the blueprint in app/users/routes.py is named 'users_bp' internally.
+    from app.users.routes import users_bp as teammate_users_bp 
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp) 
-    app.register_blueprint(users_bp, url_prefix='/users')
 
+    # ✅ FIX: Register YOUR API user routes blueprint without an additional url_prefix
+    # because it already has /api/users defined within itself.
+    app.register_blueprint(users_api_bp)
+
+    # ✅ FIX: Register your TEAMMATE'S user routes blueprint with its intended url_prefix
+    # This will make its routes accessible under /users/
+    app.register_blueprint(teammate_users_bp, url_prefix='/users')
+
+    # CORS configuration should be after blueprint registration
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
 
