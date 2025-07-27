@@ -23,7 +23,6 @@ import ProtectedRoute from "@/components/auth/protected-route";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
-import Inventory from "@/pages/inventory";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -39,6 +38,9 @@ import CashierProfile from "@/pages/cashier-profile";
 import CashierSalesPage from "@/pages/sales/cashier-sales-page";
 import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
+
+// inventory 
+import MerchantInventory from "@/pages/inventory/merchant-inventory";
 
 import NotFound from "@/pages/not-found";
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
@@ -171,7 +173,7 @@ function AppRoutes() {
       {/* Store Admin-specific */}
       <Route path="/inventory">
         {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
-        <ProtectedRoute component={Inventory} allowedRoles={["admin", "merchant"]} />
+        <ProtectedRoute component={Inventory} allowedRoles={["admin", "merchant"]} />      
       </Route>
       <Route path="/categories">
         {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
