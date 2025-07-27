@@ -1,7 +1,10 @@
 // Login.jsx
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "@/context/UserContext"; 
+import { Button } from "@/components/ui/button"; 
+import { Input } from "@/components/ui/input";   
+// Removed Card, CardContent, CardHeader, CardTitle imports as we're using divs now
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -21,82 +24,91 @@ const Login = () => {
 
     try {
       await login(email, password);
-
       setSuccess("Login successful!");
-      navigate("/");
+      navigate("/"); // Navigate to dashboard or home page after successful login
     } catch (err) {
       console.error("Login failed:", err); 
       let displayErrorMessage = "Login failed. Please check your credentials.";
 
-      // ✅ FIX: Parse the error message from the thrown Error object
       if (err.message) {
-        // Our custom errors are like "STATUS: MESSAGE" (e.g., "401: Invalid credentials")
-        const parts = err.message.split(': ', 2); // Split at the first ": "
+        const parts = err.message.split(': ', 2); 
         if (parts.length > 1) {
-          // If it has "STATUS: MESSAGE", take the MESSAGE part
           displayErrorMessage = parts[1];
         } else {
-          // If it's just a general error message without a status prefix
           displayErrorMessage = err.message;
         }
       }
       
-      setError(displayErrorMessage); // Set the parsed error message
+      setError(displayErrorMessage); 
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-gray-200 to-indigo-100 font-[Montserrat]">
-      <div className="bg-white rounded-[30px] shadow-lg w-[768px] max-w-full min-h-[480px] flex flex-col items-center justify-center">
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col items-center justify-center px-10 py-6 w-full"
-        >
-          <h2 className="text-2xl font-semibold mb-2">Login</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 font-sans">
+      {/* Main container for the form, replacing the Card component */}
+      <div className="w-full max-w-xl bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-md overflow-hidden"> 
+        
+        {/* Header section, replacing CardHeader */}
+        <div className="bg-indigo-600 p-8 text-white text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            MyDuka
+          </h1>
+          <p className="text-indigo-200 text-lg mt-2">Inventory & Sales Management</p>
+        </div>
 
-          {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-          {success && <div className="text-green-600 text-sm mb-2">{success}</div>}
+        {/* Content section, replacing CardContent */}
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h2>
 
-          <div className="w-full">
-            <label className="block text-sm mb-1">Email:</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            />
-          </div>
+            {error && (
+              <div className="text-red-700 bg-red-100 p-3 rounded-lg text-sm text-center border border-red-200">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="text-green-700 bg-green-100 p-3 rounded-lg text-sm text-center border border-green-200">
+                {success}
+              </div>
+            )}
 
-          <div className="w-full">
-            <label className="block text-sm mb-1">Password:</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            />
-          </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-base focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-indigo-800 text-white text-xs px-12 py-2 border border-transparent rounded-lg font-semibold tracking-wider uppercase mt-4 cursor-pointer transition hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-base focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            </div>
 
-        <p className="text-sm my-4">
-          Don&apos;t have an account?{" "}
-          <a href="/register" className="text-indigo-800 hover:underline">
-            Register here
-          </a>
-          .
-        </p>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 px-4 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-lg transition-all"
+            >
+              {isSubmitting ? 'Logging in...' : 'Login'}
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
