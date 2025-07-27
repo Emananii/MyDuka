@@ -37,7 +37,7 @@ export function StoreSelect({
     error,
   } = useQuery({
     queryKey: ["storesList"], // Unique query key for caching store data
-    queryFn: () => apiRequest("GET", `${BASE_URL}/stores`), // Assuming /api/stores endpoint exists
+    queryFn: () => apiRequest("GET", `${BASE_URL}/api/store/`), // Assuming /api/stores endpoint exists
     staleTime: 10 * 60 * 1000, // Stores list doesn't change often, keep fresh for 10 min
   });
 

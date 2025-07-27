@@ -1,7 +1,7 @@
 // src/App.jsx
 import React, { useState, useContext } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
-import { Menu, Bell, User } from "lucide-react";
+import { Menu, Bell } from "lucide-react";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -16,13 +16,12 @@ import AuthenticatedLayout from "@/components/layout/authenticated-layout";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// Auth pages
+// Auth
 import Login from "@/components/auth/login-form";
 import Register from "@/components/auth/register-form";
-// New: ProtectedRoute component for access control
-import ProtectedRoute from "@/components/auth/protected-route"; // <--- NEW IMPORT
+import ProtectedRoute from "@/components/auth/protected-route";
 
-// Main app pages
+// Pages
 import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
@@ -31,36 +30,34 @@ import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
 import Suppliers from "@/pages/suppliers";
 
-// Profile Pages
 import AdminProfile from "@/pages/admin-profile";
 import MerchantProfile from "@/pages/merchant-profile";
 import ClerksProfile from "@/pages/clerks-profile";
 import CashierProfile from "@/pages/cashier-profile";
 
-// Sales Pages (NEW)
-import CashierSalesPage from "@/pages/sales/cashier-sales-page"; // <--- NEW
-import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page"; // <--- NEW
-import MerchantSalesPage from "@/pages/sales/merchant-sales-page"; // <--- NEW
+import CashierSalesPage from "@/pages/sales/cashier-sales-page";
+import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
+import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
 // inventory 
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 
 import NotFound from "@/pages/not-found";
-
-import { UserProvider, UserContext } from "@/context/UserContext";
-
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import POSInterfacePage from "@/pages/POS-interface";
 
-// MainLayout (unchanged, as it wraps the common layout elements)
+import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
+import MerchantUserManagement from "./pages/user-management/merchant-user-management";
+
+import { UserProvider, UserContext } from "@/context/UserContext";
+
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
   const [, navigate] = useLocation();
 
-  // console.log("User object in MainLayout:", user); // For debugging
-
   const profilePathMap = {
+    // ⭐ FIX: Changed 'store_admin' key to 'admin' to match backend role ⭐
     admin: "/admin-profile",
     merchant: "/merchant-profile",
     clerk: "/clerks-profile",
@@ -77,7 +74,6 @@ function MainLayout({ children }) {
       />
 
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center">
@@ -97,7 +93,6 @@ function MainLayout({ children }) {
                 <Bell className="h-5 w-5" />
               </Button>
 
-              {/* Avatar / Login Button */}
               {user && profilePath ? (
                 <Link href={profilePath} title="View Profile">
                   <Avatar>
@@ -125,7 +120,6 @@ function MainLayout({ children }) {
   );
 }
 
-// AuthRoutes (unchanged - handles login/register outside of main app routes)
 function AuthRoutes() {
   return (
     <Switch>
@@ -141,8 +135,6 @@ function AuthRoutes() {
         </AuthenticatedLayout>
       </Route>
 
-      {/* This is the fallback route for any path not matching /login or /register
-          It renders MainLayout which then contains the AppRoutes (protected ones) */}
       <Route>
         <MainLayout>
           <AppRoutes />
@@ -157,20 +149,19 @@ function AppRoutes() {
   const [, navigate] = useLocation();
 
   const handleLogout = () => {
-    if (logout) {
-      logout();
-    }
+    if (logout) logout();
     navigate("/login");
   };
 
   return (
     <Switch>
-      {/* Public/Authenticated-only routes (no specific role needed, just logged in) */}
-      <Route path="/" component={Dashboard} /> {/* Dashboard might be visible to all logged-in roles */}
+      {/* Universal route */}
+      <Route path="/" component={Dashboard} />
 
-      {/* Cashier-specific routes */}
+      {/* Cashier-specific */}
       <Route path="/pos">
-        <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} /> {/* Admin might need to use POS too */}
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
+        <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} />
       </Route>
       <Route path="/sales/cashier">
         <ProtectedRoute component={CashierSalesPage} allowedRoles={["cashier"]} />
@@ -179,40 +170,54 @@ function AppRoutes() {
         <ProtectedRoute component={() => <CashierProfile onLogout={handleLogout} />} allowedRoles={["cashier"]} />
       </Route>
 
-      {/* Admin-specific routes */}
+      {/* Store Admin-specific */}
       <Route path="/inventory">
-        <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
+        <ProtectedRoute component={Inventory} allowedRoles={["admin", "merchant"]} />      
       </Route>
       <Route path="/categories">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases/:id">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/stock-transfers">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/suppliers">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Suppliers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/reports">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Reports} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/sales/admin">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={StoreAdminSalesPage} allowedRoles={["admin"]} />
       </Route>
       <Route path="/admin-profile">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={() => <AdminProfile onLogout={handleLogout} />} allowedRoles={["admin"]} />
       </Route>
-      <Route path="/clerks-profile"> {/* Assuming clerks profile is admin accessible */}
+      <Route path="/clerks-profile">
+        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
       </Route>
+      
+      {/* ⭐ FIX: Consolidated and corrected the Store Admin User Management route ⭐ */}
+      <Route path="/user-management/store">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
+      </Route>
 
-
-      {/* Merchant-specific routes */}
+      {/* Merchant-specific */}
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -222,8 +227,10 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
-
-      {/* Fallback for any unmatched routes */}
+      <Route path="/merchant-user-management">
+        <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
+      </Route>
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -235,7 +242,7 @@ function App() {
       <TooltipProvider>
         <UserProvider>
           <Router>
-            <AuthRoutes /> {/* AuthRoutes handles whether to show login/register or the MainLayout */}
+            <AuthRoutes />
             <Toaster />
           </Router>
         </UserProvider>

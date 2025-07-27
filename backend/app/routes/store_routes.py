@@ -177,7 +177,7 @@ def delete_store(store_id):
 # List all stores
 @store_bp.route("/", methods=["GET"])
 @jwt_required()
-@role_required("merchant", "admin")
+@role_required("merchant")
 def list_stores():
     """
     Lists all active (not soft-deleted) stores.

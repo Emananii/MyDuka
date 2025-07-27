@@ -46,7 +46,7 @@ export function CashierSelect({
         params.append('store_id', String(storeId));
       }
       const queryString = params.toString();
-      const res = await apiRequest("GET", `${BASE_URL}/users?${queryString}`);
+      const res = await apiRequest("GET", `${BASE_URL}/api/users/`);
       // Assuming your /users endpoint returns a list of users directly.
       // It's recommended to filter this list more rigorously on the backend by role for security.
       return res; // `res` is expected to be the array of cashiers
