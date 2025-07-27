@@ -37,7 +37,7 @@ export default function SupplyRequestForm() {
 
   const mutation = useMutation({
     mutationFn: (data) =>
-      apiRequest("POST", `${BASE_URL}/api/stores/${user.store_id}/supply-requests`, data),
+      apiRequest("POST", `${BASE_URL}/api/supply-requests`, data),
     onSuccess: () => {
       toast({ title: "Supply request submitted." });
       queryClient.invalidateQueries(["supply-requests"]);
@@ -52,6 +52,7 @@ export default function SupplyRequestForm() {
     mutation.mutate({
       product_id: parseInt(values.product_id),
       requested_quantity: values.requested_quantity,
+      store_id: user?.store_id, // ✅ pass store ID
     });
   };
 
