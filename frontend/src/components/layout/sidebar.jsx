@@ -37,6 +37,7 @@ const navigationConfig = [
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
   // ⭐ UPDATED: Admin can view Reports ⭐
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
+  
 
   // NEW USER MANAGEMENT PAGES
   {

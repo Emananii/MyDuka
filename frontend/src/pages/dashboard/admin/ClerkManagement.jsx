@@ -14,7 +14,7 @@ const ClerkManagement = () => {
   const [clerks, setClerks] = useState([]);
   const BASE = import.meta.env.VITE_BACKEND_URL;
 
-  const fetchClerks = async () => {
+  const fetchClerks = React.useCallback(async () => {
     try {
       const res = await fetch(`${BASE}/api/admin/clerks`);
       const data = await res.json();
@@ -22,11 +22,11 @@ const ClerkManagement = () => {
     } catch {
       toast.error("Failed to load clerks");
     }
-  };
+  }, [BASE]);
 
   useEffect(() => {
     fetchClerks();
-  }, []);
+  }, [fetchClerks]);
 
   const toggle = async (id, action) => {
     try {
