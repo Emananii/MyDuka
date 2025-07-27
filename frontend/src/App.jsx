@@ -40,10 +40,16 @@ import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
 // inventory 
-import MerchantInventory from "@/pages/inventory/merchant-inventory"; // This is the actual import name
+import MerchantInventory from "@/pages/inventory/merchant-inventory";
+import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory"; // <--- NEW
+import SupplyRequestDetailsPage from "@/pages/supply-request-details-page"; // <--- NEW
+import AdminInventory from "./pages/inventory/admin-inventory";
 
 import NotFound from "@/pages/not-found";
-import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
+
+// import { UserProvider, UserContext } from "@/context/UserContext";
+
+
 import POSInterfacePage from "@/pages/POS-interface";
 
 import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
@@ -54,7 +60,8 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
-  const [, navigate] = useLocation();
+  // Removed unnecessary empty array destructuring from useLocation
+  useLocation();
 
   const profilePathMap = {
     // ⭐ FIX: Changed 'store_admin' key to 'admin' to match backend role ⭐
@@ -172,8 +179,13 @@ function AppRoutes() {
 
       {/* Store Admin-specific */}
       <Route path="/inventory">
-        {/* ⭐ FIX: The error "Inventory is not defined" here. Changed 'Inventory' to 'MerchantInventory' ⭐ */}
-        <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />      
+        <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
+        </Route>
+      <Route path="/inventory/clerk">
+        <ProtectedRoute component={ClerkInventoryDashboard} allowedRoles={["clerk"]} />
+      </Route>
+      <Route path="/inventory/admin">
+        <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
       <Route path="/categories">
         {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
@@ -211,10 +223,8 @@ function AppRoutes() {
         {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
       </Route>
-      
-      {/* ⭐ FIX: Consolidated and corrected the Store Admin User Management route ⭐ */}
-      <Route path="/user-management/store">
-        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
+      <Route path="/inventory/supply-requests">
+        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
       </Route>
 
       {/* Merchant-specific */}
