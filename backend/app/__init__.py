@@ -68,39 +68,34 @@ def create_app():
     swagger.init_app(app)
 
     # --- Import Models (needed for Flask-Migrate) ---
-    from app import models 
+    from app import models
 
     # --- Register Blueprints ---
     from app.routes.auth_routes import auth_bp
-    from app.routes.store_routes import store_bp # Assuming this is still 'store_bp' as per your last app.py
+    from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
     from app.routes.inventory_routes import inventory_bp
-    from app.routes.report_routes import report_bp  
+    from app.routes.report_routes import report_bp
+    from app.routes.user_routes import users_api_bp
+    from app.users.routes import users_bp as teammate_users_bp
 
-    # ✅ FIX: Import YOUR API user routes blueprint (now named users_api_bp)
-    from app.routes.user_routes import users_api_bp 
-
-    # ✅ FIX: Import your TEAMMATE'S user routes blueprint and give it an alias
-    # This assumes the blueprint in app/users/routes.py is named 'users_bp' internally.
-    from app.users.routes import users_bp as teammate_users_bp 
+    # NEW: Import your suppliers blueprint
+    from app.routes.supplier_routes import suppliers_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(inventory_bp)
-    app.register_blueprint(report_bp) 
-
-    # ✅ FIX: Register YOUR API user routes blueprint without an additional url_prefix
-    # because it already has /api/users defined within itself.
+    app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
+    #app.register_blueprint(teammate_users_bp, url_prefix='/users')
 
-    # ✅ FIX: Register your TEAMMATE'S user routes blueprint with its intended url_prefix
-    # This will make its routes accessible under /users/
-    app.register_blueprint(teammate_users_bp, url_prefix='/users')
+    # NEW: Register your suppliers blueprint under the /api prefix
+    app.register_blueprint(suppliers_bp)
 
     # CORS configuration should be after blueprint registration
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
-    
+
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
 
@@ -115,6 +110,10 @@ def create_app():
             description: Redirect to Swagger UI
         """
         return redirect(url_for('flasgger.apidocs'))
+
+    @app.route('/test_connection')
+    def test_connection():
+        return "Connection successful from Flask backend!"
 
 
     # --- Configure Logging ---

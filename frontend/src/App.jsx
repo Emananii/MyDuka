@@ -28,7 +28,7 @@ import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
 import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
-import Suppliers from "@/pages/suppliers";
+import Suppliers from "@/pages/suppliers"; // Import the Suppliers page
 
 import AdminProfile from "@/pages/admin-profile";
 import MerchantProfile from "@/pages/merchant-profile";
@@ -39,16 +39,13 @@ import CashierSalesPage from "@/pages/sales/cashier-sales-page";
 import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
-// inventory 
+// inventory
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
-import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory"; // <--- NEW
-import SupplyRequestDetailsPage from "@/pages/supply-request-details-page"; // <--- NEW
+import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
+import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
 import NotFound from "@/pages/not-found";
-
-// import { UserProvider, UserContext } from "@/context/UserContext";
-
 
 import POSInterfacePage from "@/pages/POS-interface";
 
@@ -60,11 +57,10 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
-  // Removed unnecessary empty array destructuring from useLocation
   useLocation();
 
   const profilePathMap = {
-    // ⭐ FIX: Changed 'store_admin' key to 'admin' to match backend role ⭐
+    // Corrected 'store_admin' to 'admin' to match backend role definitions
     admin: "/admin-profile",
     merchant: "/merchant-profile",
     clerk: "/clerks-profile",
@@ -167,7 +163,6 @@ function AppRoutes() {
 
       {/* Cashier-specific */}
       <Route path="/pos">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} />
       </Route>
       <Route path="/sales/cashier">
@@ -180,7 +175,7 @@ function AppRoutes() {
       {/* Store Admin-specific */}
       <Route path="/inventory">
         <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
-        </Route>
+      </Route>
       <Route path="/inventory/clerk">
         <ProtectedRoute component={ClerkInventoryDashboard} allowedRoles={["clerk"]} />
       </Route>
@@ -188,39 +183,31 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
       <Route path="/categories">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases/:id">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/stock-transfers">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/suppliers">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
+        {/* ADDED PROTECTION: Only merchants and admins can access suppliers page */}
         <ProtectedRoute component={Suppliers} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/reports">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={Reports} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/sales/admin">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={StoreAdminSalesPage} allowedRoles={["admin"]} />
       </Route>
       <Route path="/admin-profile">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={() => <AdminProfile onLogout={handleLogout} />} allowedRoles={["admin"]} />
       </Route>
       <Route path="/clerks-profile">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/inventory/supply-requests">

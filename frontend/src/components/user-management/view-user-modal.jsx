@@ -10,42 +10,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Edit, Trash2, ArrowUpDown } from "lucide-react";
-import { useUser } from "@/context/UserContext"; // Assuming you have a UserContext for current user info
+import { useUser } from "@/context/UserContext";
 
 export default function ViewUserModal({
-  user, // The user object to display
-  isOpen, // Controls modal visibility
-  onClose, // Callback to close the modal
-  onEdit, // Callback to trigger edit modal (from parent)
-  onDeactivate, // Callback to trigger deactivate dialog (from parent)
-  onDelete, // Callback to trigger delete dialog (from parent)
-  // isLoadingEdit, // Optional: if you want to show loading state for edit button
-  // isLoadingDeactivate, // Optional: if you want to show loading state for deactivate button
-  // isLoadingDelete, // Optional: if you want to show loading state for delete button
+  user,
+  isOpen,
+  onClose,
+  onEdit,
+  onDeactivate,
+  onDelete,
 }) {
-  const { user: currentUser } = useUser(); // Get the currently logged-in user
+  const { user: currentUser } = useUser();
 
   if (!user) {
-    return null; // Don't render if no user data is provided
+    return null;
   }
 
-  // Determine if the current user can perform actions on the target user
-  // These conditions should mirror the backend authorization logic for consistency
-  const canEdit = 
+  const canEdit =
     (currentUser?.role === "merchant" && user.role !== "merchant") ||
     (currentUser?.role === "admin" && user.role !== "admin" && user.role !== "merchant");
 
-  const canDeactivate = 
-    user.is_active && // Can only deactivate if active
-    currentUser?.id !== user.id && // Cannot deactivate self
-    user.role !== "merchant" && // Merchants cannot be deactivated via this flow
-    (currentUser?.role === "merchant" || currentUser?.role === "admin"); // Only merchant/admin can deactivate
+  const canDeactivate =
+    user.is_active &&
+    currentUser?.id !== user.id &&
+    user.role !== "merchant" &&
+    (currentUser?.role === "merchant" || currentUser?.role === "admin");
 
-  const canDelete = 
-    currentUser?.id !== user.id && // Cannot delete self
-    user.role !== "merchant" && // Merchants cannot be deleted via this flow
-    (currentUser?.role === "merchant" || currentUser?.role === "admin"); // Only merchant/admin can delete
-
+  const canDelete =
+    currentUser?.id !== user.id &&
+    user.role !== "merchant" &&
+    (currentUser?.role === "merchant" || currentUser?.role === "admin");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -55,9 +49,6 @@ export default function ViewUserModal({
             <DialogTitle className="text-lg font-semibold text-gray-800">
               User Details: {user.name}
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
           </div>
           <DialogDescription>
             Detailed information about the user.
@@ -87,15 +78,15 @@ export default function ViewUserModal({
               )}
             </span>
           </div>
-          {user.store_id && (
-            <div className="flex justify-between items-center border-b pb-2">
-              <span className="font-medium text-gray-700">Store ID:</span>
-              <span>{user.store_id}</span> {/* You might want to display store name here */}
-            </div>
-          )}
+          {/* ⭐ MODIFIED: Display store name using user.store_name ⭐ */}
+          <div className="flex justify-between items-center border-b pb-2">
+            <span className="font-medium text-gray-700">Store:</span>
+            <span>{user.store_name || 'No Store Assigned'}</span>
+          </div>
+          {/* END MODIFIED */}
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-medium text-gray-700">Created By:</span>
-            <span>{user.created_by || "N/A"}</span> {/* Display actual creator name if available */}
+            <span>{user.created_by || "N/A"}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="font-medium text-gray-700">Created At:</span>

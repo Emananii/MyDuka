@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query"; // Removed useQueryClient as it's not directly needed here for invalidateQueries
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,85 +25,73 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Edit, Trash2, ArrowUpDown, Eye } from "lucide-react";
 
-// Import all necessary modals and dialogs
 import AddUserModal from "@/components/user-management/add-user-modal";
 import EditUserModal from "@/components/user-management/edit-user-modal";
 import { ConfirmUserDeleteDialog } from "@/components/user-management/confirm-user-delete-dialog";
 import { ConfirmUserDeactivateDialog } from "@/components/user-management/confirm-user-deactivate-dialog";
 import ViewUserModal from "@/components/user-management/view-user-modal";
 
-import { apiRequest, queryClient } from "@/lib/queryClient"; // Ensure queryClient is imported
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
-import { useUser } from "@/context/UserContext"; // Assuming currentUser comes from context
+import { useUser } from "@/context/UserContext";
 
 // Import userRoleEnum from your shared schema for consistency
 import { userRoleEnum } from "@/shared/schema";
 
 // --- Zod Schema for User Forms (adjusted for Admin's scope) ---
-// Note: Store Admin can only create/edit Cashier, Clerk, User roles
-const storeAdminUserSchema = z.object({
+// Note: Store Admin can only create/edit Cashier, Clerk roles
+const storeAdminManagedUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
-  password: z.string().min(8, "Password must be at least 8 characters long").optional(), // Optional for edit
-  role: userRoleEnum.refine(
-    (role) => ["cashier", "clerk", "user"].includes(role),
-    { message: "Store Admin can only assign Cashier, Clerk, or User roles." }
+  password: z.string().min(8, "Password must be at least 8 characters long").optional(),
+  role: userRoleEnum.refine( // Use shared enum but refine allowed values
+    // ⭐ FIX: Removed 'user' from allowed roles for Store Admin to manage ⭐
+    (role) => ["cashier", "clerk"].includes(role),
+    { message: "Store Admin can only assign Cashier or Clerk roles." }
   ),
-  store_id: z.number().int().positive().nullable().optional(), // Store Admin's users are tied to their store
-  is_active: z.boolean().optional(), // For editing status
+  store_id: z.number().int().positive().nullable().optional(),
+  is_active: z.boolean().optional(),
 });
 
 
 export default function StoreAdminUserManagement() {
   const { toast } = useToast();
-  const { user: currentUser } = useUser(); // Get current logged-in user (Store Admin)
+  const { user: currentUser } = useUser();
 
-  // State for modal visibility and selected users
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  // User object for View and Edit modals
   const [selectedUserForView, setSelectedUserForView] = useState(null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
 
-  // IDs for confirmation dialogs
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState(null);
 
-  // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
-  // Fetch users for the current store admin's store
   const { data: users = [], isLoading } = useQuery({
-    queryKey: ["store-users", currentUser?.store_id], // Query key includes store_id
+    queryKey: ["store-users", currentUser?.store_id],
     queryFn: async () => {
       if (!currentUser?.store_id) {
-        // If admin is not assigned to a store, they shouldn't see users
         return [];
       }
-      // Assuming backend endpoint for store-specific users is /api/stores/{store_id}/users
-      const res = await apiRequest("GET", `${BASE_URL}/api/stores/${currentUser.store_id}/users`);
-      // Backend should return an array of users directly
+      const res = await apiRequest("GET", `${BASE_URL}/api/users/stores/${currentUser.store_id}/users`);
       return Array.isArray(res) ? res : [];
     },
-    enabled: !!currentUser?.store_id, // Only enable query if currentUser and store_id exist
+    enabled: !!currentUser?.store_id,
   });
 
-  // Create User Mutation
   const createUserMutation = useMutation({
     mutationFn: async (data) => {
       const payload = {
         ...data,
-        // Ensure store_id is correctly set for users created by this admin
         store_id: currentUser.store_id,
-        // Backend should handle created_by based on JWT
       };
-      // Endpoint for creating users (used by AddUserModal)
       return apiRequest("POST", `${BASE_URL}/api/users/create`, payload);
     },
     onSuccess: () => {
@@ -116,35 +104,33 @@ export default function StoreAdminUserManagement() {
     },
   });
 
-  // Update User Mutation
   const updateUserMutation = useMutation({
     mutationFn: async (data) => {
-      const payload = {
-        ...data,
-        // Ensure store_id is correctly parsed if it's coming from a select
-        store_id: data.store_id === "null" ? null : parseInt(data.store_id, 10),
-      };
-      // Endpoint for updating users (used by EditUserModal)
+      const payload = Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => value !== undefined)
+      );
+      payload.store_id = currentUser.store_id;
+      
       return apiRequest("PUT", `${BASE_URL}/api/users/${selectedUserForEdit.id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-users", currentUser.store_id] });
       toast({ title: "Success", description: "User updated successfully" });
       setIsEditModalOpen(false);
+      setSelectedUserForEdit(null);
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message || "Failed to update user", variant: "destructive" });
     },
   });
 
-  // Delete User Mutation
   const deleteMutation = useMutation({
     mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}/api/users/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-users", currentUser.store_id] });
       toast({ title: "Success", description: "User deleted successfully" });
       setConfirmDeleteId(null);
-      setIsViewModalOpen(false); // Close view modal after delete
+      setIsViewModalOpen(false);
       setSelectedUserForView(null);
     },
     onError: (error) => {
@@ -152,14 +138,13 @@ export default function StoreAdminUserManagement() {
     },
   });
 
-  // Deactivate User Mutation
   const deactivateMutation = useMutation({
     mutationFn: (id) => apiRequest("PATCH", `${BASE_URL}/api/users/${id}/deactivate`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-users", currentUser.store_id] });
       toast({ title: "Success", description: "User deactivated successfully" });
       setConfirmDeactivateId(null);
-      setIsViewModalOpen(false); // Close view modal after deactivate
+      setIsViewModalOpen(false);
       setSelectedUserForView(null);
     },
     onError: (error) => {
@@ -167,7 +152,26 @@ export default function StoreAdminUserManagement() {
     },
   });
 
-  // Filter users based on search term and role filter
+  const canPerformActions = (targetUser) => {
+    if (!currentUser || !targetUser) return false;
+    if (currentUser.id === targetUser.id) return false;
+
+    if (currentUser.role === "admin") {
+      if (currentUser.store_id !== targetUser.store_id) {
+        return false;
+      }
+      if (targetUser.role === "merchant" || targetUser.role === "admin") {
+        return false;
+      }
+      // ⭐ FIX: Only allow actions on 'cashier' and 'clerk' roles ⭐
+      if (targetUser.role === "cashier" || targetUser.role === "clerk") {
+        return true;
+      }
+    }
+    return false;
+  };
+
+
   const filteredUsers = users.filter((user) => {
     const nameMatches = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
     const emailMatches = user.email ? user.email.toLowerCase().includes(searchTerm.toLowerCase()) : false;
@@ -175,37 +179,34 @@ export default function StoreAdminUserManagement() {
     const matchesSearch = nameMatches || emailMatches;
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     
-    // ⭐ IMPORTANT: Store Admin should not see other Store Admins or Merchants in their list
-    // This is a frontend filtering, backend should also enforce this.
-    const isAllowedRole = user.role !== "merchant" && user.role !== "admin";
+    // ⭐ FIX: Exclude 'user' role from display if it's no longer managed ⭐
+    const isAllowedRoleForDisplay = user.role !== "merchant" && user.role !== "admin" && user.role !== "user";
 
-    return matchesSearch && matchesRole && isAllowedRole;
+    return matchesSearch && matchesRole && isAllowedRoleForDisplay;
   });
 
-  // Find user for confirmation dialogs
   const userBeingDeactivated = users.find((u) => u.id === confirmDeactivateId);
   const userBeingDeleted = users.find((u) => u.id === confirmDeleteId);
 
-  // Handlers for actions from ViewUserModal
   const handleEditFromView = () => {
     if (selectedUserForView) {
-      setSelectedUserForEdit(selectedUserForView); // Set user for Edit Modal
-      setIsEditModalOpen(true); // Open Edit Modal
-      setIsViewModalOpen(false); // Close View Modal
+      setSelectedUserForEdit(selectedUserForView);
+      setIsEditModalOpen(true);
+      setIsViewModalOpen(false);
     }
   };
 
   const handleDeactivateFromView = () => {
     if (selectedUserForView) {
-      setConfirmDeactivateId(selectedUserForView.id); // Set ID for Deactivate Dialog
-      setIsViewModalOpen(false); // Close View Modal
+      setConfirmDeactivateId(selectedUserForView.id);
+      setIsViewModalOpen(false);
     }
   };
 
   const handleDeleteFromView = () => {
     if (selectedUserForView) {
-      setConfirmDeleteId(selectedUserForView.id); // Set ID for Delete Dialog
-      setIsViewModalOpen(false); // Close View Modal
+      setConfirmDeleteId(selectedUserForView.id);
+      setIsViewModalOpen(false);
     }
   };
 
@@ -238,7 +239,7 @@ export default function StoreAdminUserManagement() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="cashier">Cashier</SelectItem>
                 <SelectItem value="clerk">Clerk</SelectItem>
-                <SelectItem value="user">User</SelectItem>
+                {/* Removed 'user' from role filter options */}
               </SelectContent>
             </Select>
           </div>
@@ -286,8 +287,59 @@ export default function StoreAdminUserManagement() {
                         <Badge variant="destructive">Inactive</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-gray-500 text-sm">Click to view actions</span>
+                    <TableCell className="text-right space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUserForView(user);
+                                setIsViewModalOpen(true);
+                            }}
+                            title="View Details"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUserForEdit(user);
+                                setIsEditModalOpen(true);
+                            }}
+                            disabled={!canPerformActions(user)}
+                            title={canPerformActions(user) ? "Edit User" : "Unauthorized to edit"}
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeactivateId(user.id);
+                            }}
+                            disabled={!user.is_active || !canPerformActions(user)}
+                            title={!user.is_active ? "Already inactive" : (canPerformActions(user) ? "Deactivate User" : "Unauthorized to deactivate")}
+                        >
+                            <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(user.id);
+                            }}
+                            disabled={user.is_deleted || !canPerformActions(user)}
+                            title={user.is_deleted ? "Already deleted" : (canPerformActions(user) ? "Delete User" : "Unauthorized to delete")}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -301,19 +353,15 @@ export default function StoreAdminUserManagement() {
       <AddUserModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        // Pass the mutation function for creating users
         createUserMutation={createUserMutation}
-        // Pass the current user to help with default store_id and allowed roles
         currentUser={currentUser}
       />
 
       <EditUserModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        user={selectedUserForEdit} // Pass the user selected for editing
-        // Pass the mutation function for updating users
-        updateUserMutation={updateUserMutation}
-        // Pass the current user to help with allowed roles and store_id logic
+        user={selectedUserForEdit}
+        editUserMutation={updateUserMutation}
         currentUser={currentUser}
       />
 
@@ -327,7 +375,6 @@ export default function StoreAdminUserManagement() {
         onEdit={handleEditFromView}
         onDeactivate={handleDeactivateFromView}
         onDelete={handleDeleteFromView}
-        // Pass current user to ViewUserModal for authorization logic within it
         currentUser={currentUser}
       />
 

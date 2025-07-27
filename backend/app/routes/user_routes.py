@@ -9,10 +9,6 @@ from sqlalchemy import func # Import func for lower()
 from http import HTTPStatus
 from datetime import datetime # Import datetime for soft delete email modification
 
-# Assuming you have schemas defined in app/schemas.py for user serialization
-# If not, you'll need to create them or adapt .to_dict() to include all necessary fields.
-# from app.schemas import user_schema, users_schema
-
 # Renamed the blueprint instance to 'users_api_bp' and its internal name to 'users_api'
 users_api_bp = Blueprint("users_api", __name__, url_prefix="/api/users")
 
@@ -45,15 +41,43 @@ def get_all_users():
         return jsonify({"error": "Invalid or inactive user"}), HTTPStatus.FORBIDDEN
 
     if current_user.role == "merchant":
-        # ⭐ FIX: Filter out deleted users for merchant view ⭐
+        # Filter out deleted users for merchant view
         users = User.query.filter_by(is_deleted=False).all()
     elif current_user.role == "admin" and current_user.store_id:
-        # ⭐ FIX: Filter out deleted users for admin view within their store ⭐
+        # Filter out deleted users for admin view within their store
         users = User.query.filter_by(store_id=current_user.store_id, is_deleted=False).all()
     else:
         return jsonify({"error": "Unauthorized to view all users"}), HTTPStatus.FORBIDDEN
 
     return jsonify([serialize_user(user) for user in users]), HTTPStatus.OK
+
+# --- GET Users by Store ID (for Store Admin to view users in their store) ---
+@users_api_bp.route("/stores/<int:store_id>/users", methods=["GET"])
+@jwt_required()
+@role_required("admin") # Only Store Admins should typically access this specific route
+def get_users_by_store(store_id):
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+
+    if not current_user or not current_user.is_active:
+        return jsonify({"error": "Invalid or inactive user"}), HTTPStatus.FORBIDDEN
+
+    # Authorization check: Store Admin can only view users in their assigned store
+    if current_user.role == 'admin':
+        if not current_user.store_id or current_user.store_id != store_id:
+            return jsonify({"error": "Unauthorized to view users for this store."}), HTTPStatus.FORBIDDEN
+    else: # Other roles like Merchant would use the general /api/users/ endpoint
+        return jsonify({"error": "Unauthorized to access this endpoint."}), HTTPStatus.FORBIDDEN
+
+    # ⭐ FIX: Removed 'user' from allowed_roles_for_admin_view ⭐
+    allowed_roles_for_admin_view = ['cashier', 'clerk']
+    users_in_store = User.query.filter(
+        User.store_id == store_id,
+        User.role.in_(allowed_roles_for_admin_view),
+        User.is_deleted == False
+    ).all()
+
+    return jsonify([serialize_user(user) for user in users_in_store]), HTTPStatus.OK
 
 
 # --- GET User by ID (for editing) ---
@@ -67,9 +91,6 @@ def get_user_by_id(user_id):
     if not current_user or not current_user.is_active:
         return jsonify({"error": "Invalid or inactive user"}), HTTPStatus.FORBIDDEN
 
-    # It's generally fine to retrieve a deleted user by ID for specific admin actions,
-    # but you might want to add a check here if the UI shouldn't ever show deleted users
-    # even when accessed directly by ID. For now, we'll allow it.
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), HTTPStatus.NOT_FOUND
@@ -107,9 +128,12 @@ def create_user():
         return jsonify({"error": "Email already exists"}), HTTPStatus.CONFLICT
 
     allowed_roles_to_create = {
-        "merchant": ["admin", "cashier", "clerk", "user"],
-        "admin": ["cashier", "clerk", "user"],
-        "clerk": ["cashier", "user"],
+        # ⭐ FIX: Removed 'user' from roles a merchant can create ⭐
+        "merchant": ["admin", "cashier", "clerk"], 
+        # ⭐ FIX: Removed 'user' from roles an admin can create ⭐
+        "admin": ["cashier", "clerk"], 
+        # ⭐ FIX: Removed 'user' from roles a clerk can create ⭐
+        "clerk": ["cashier"], 
     }
 
     if requested_role not in allowed_roles_to_create.get(current_user.role, []):
@@ -127,8 +151,8 @@ def create_user():
             return jsonify({"error": f"Your account is not assigned to a store. Cannot create users."}), HTTPStatus.FORBIDDEN
         if store_id and store_id != current_user.store_id:
             return jsonify({"error": f"{current_user.role.capitalize()} can only create users for their assigned store."}), HTTPStatus.FORBIDDEN
-        store_id = current_user.store_id
-    else:
+        store_id = current_user.store_id # Force new user to be in the current user's store
+    else: # If a public user somehow hits this (though it's protected) or other edge cases
         store_id = None
 
     new_user = User(
@@ -139,7 +163,6 @@ def create_user():
         created_by=current_user_id,
         store_id=store_id
     )
-    # new_user.set_password(password) # REMOVE this line, as constructor should handle it
 
     db.session.add(new_user)
     db.session.commit()
@@ -177,7 +200,8 @@ def update_user(user_id):
         if user_to_update.role != "merchant":
             can_update = True
     elif current_user.role == "admin":
-        if user_to_update.role in ["cashier", "clerk", "user"]:
+        # ⭐ FIX: Removed 'user' from assignable roles for admin ⭐
+        if user_to_update.role in ["cashier", "clerk"]:
             if current_user.store_id and user_to_update.store_id == current_user.store_id:
                 can_update = True
 
@@ -190,9 +214,6 @@ def update_user(user_id):
         new_email = data['email']
         if not EMAIL_REGEX.match(new_email):
             return jsonify({"error": "Invalid email format"}), HTTPStatus.BAD_REQUEST
-        # When updating email, ensure the new email is not already in use by another *active* user
-        # or a *non-soft-deleted* user. If you allow re-using soft-deleted emails, this check needs
-        # to be `User.query.filter(func.lower(User.email) == func.lower(new_email), User.id != user_id, User.is_deleted == False).first()`
         existing_user = User.query.filter(func.lower(User.email) == func.lower(new_email), User.id != user_id).first()
         if existing_user:
             return jsonify({"error": "Email already in use"}), HTTPStatus.CONFLICT
@@ -200,8 +221,10 @@ def update_user(user_id):
     if 'role' in data:
         new_role = data['role']
         assignable_roles = {
-            "merchant": ["admin", "cashier", "clerk", "user"],
-            "admin": ["cashier", "clerk", "user"]
+            # ⭐ FIX: Removed 'user' from assignable roles for merchant ⭐
+            "merchant": ["admin", "cashier", "clerk"],
+            # ⭐ FIX: Removed 'user' from assignable roles for admin ⭐
+            "admin": ["cashier", "clerk"]
         }
         if new_role not in assignable_roles.get(current_user.role, []):
             return jsonify({"error": f"Unauthorized to assign role '{new_role}'"}), HTTPStatus.FORBIDDEN
