@@ -31,8 +31,7 @@ class Store(BaseModel):
 
     name = db.Column(db.String, nullable=False)
     address = db.Column(db.String)
-    is_active = db.Column(db.Boolean, default=True)
-    
+
     users = db.relationship('User', backref='store')
     store_products = db.relationship('StoreProduct', backref='store')
     sales = db.relationship('Sale', backref='store')

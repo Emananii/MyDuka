@@ -1,22 +1,16 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-// No need to import UserContext directly here unless you're setting user state after registration
-// The new user needs to log in to get a token and set user context.
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  // ✅ FIX: Default role to a safe, allowed role, e.g., "cashier" or "clerk" or "user"
-  const [role, setRole] = useState("cashier"); 
+  const [role, setRole] = useState("cashier");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false); // Added for button disabling
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [, navigate] = useLocation();
-
-  // Ensure this points to your Flask backend.
-  // Using a fallback for VITE_BACKEND_URL in case it's not set.
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
 
   const validate = () => {
@@ -41,7 +35,7 @@ const Register = () => {
     setSuccess("");
     if (!validate()) return;
 
-    setIsSubmitting(true); // Disable button
+    setIsSubmitting(true);
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
@@ -53,34 +47,27 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(data.message || "Registration successful! Redirecting to login...");
-        // Clear form fields after successful registration
-        setEmail('');
-        setPassword('');
-        setName('');
-        setRole('cashier'); // Reset to default
-        setTimeout(() => {
-          navigate("/login");
-        }, 1500);
+        setSuccess(data.message || "Registration successful!");
+        setEmail("");
+        setPassword("");
+        setName("");
+        setRole("cashier");
+        setTimeout(() => navigate("/login"), 1500);
       } else {
-        // Use data.error from your Flask backend or a generic message
-        setError(data.error || data.message || "Registration failed. Please try again.");
+        setError(data.error || data.message || "Registration failed.");
       }
     } catch (err) {
-      console.error("Registration network error:", err); // Log the full error for debugging
-      setError("Network error. Please check your connection and try again.");
+      console.error("Registration error:", err);
+      setError("Network error. Try again.");
     } finally {
-      setIsSubmitting(false); // Re-enable button
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-gray-200 to-indigo-100 font-[Montserrat]">
       <div className="bg-white rounded-[30px] shadow-lg w-[768px] max-w-full min-h-[480px] flex flex-col items-center justify-center">
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col items-center justify-center px-10 py-6 w-full"
-        >
+        <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center px-10 py-6 w-full">
           <h2 className="text-2xl font-semibold mb-2">Register</h2>
           {error && <div className="text-red-600 text-sm mb-2 text-center">{error}</div>}
           {success && <div className="text-green-600 text-sm mb-2 text-center">{success}</div>}
@@ -93,7 +80,7 @@ const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none" // Added border-none and outline-none
+              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
             />
           </div>
 
@@ -130,28 +117,26 @@ const Register = () => {
               required
               className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
             >
-              {/* ✅ FIX: Only offer roles allowed by your backend for self-registration */}
               <option value="cashier">Cashier</option>
               <option value="clerk">Clerk</option>
-              {/* If 'user' is a generic role: */}
               <option value="user">User</option>
             </select>
           </div>
 
           <button
             type="submit"
-            disabled={isSubmitting} // Disable button when submitting
+            disabled={isSubmitting}
             className="bg-indigo-800 text-white text-xs px-12 py-2 border border-transparent rounded-lg font-semibold tracking-wider uppercase mt-4 cursor-pointer transition hover:bg-indigo-700 disabled:opacity-50"
           >
             {isSubmitting ? "Registering..." : "Register"}
           </button>
         </form>
+
         <p className="text-sm my-4">
           Already have an account?{" "}
           <Link href="/login" className="text-indigo-800 hover:underline">
             Login here
-          </Link>
-          .
+          </Link>.
         </p>
       </div>
     </div>

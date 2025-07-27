@@ -25,12 +25,6 @@ from app.error_handlers import register_error_handlers
 
 def create_app():
     app = Flask(__name__)
-    
-    # CORS FIX: Full CORS setup for preflight and credentials
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}},
-         supports_credentials=True,
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"])
 
     # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
@@ -84,7 +78,7 @@ def create_app():
     from app.routes.report_routes import report_bp  
 
     # ✅ FIX: Import YOUR API user routes blueprint (now named users_api_bp)
-    from app.routes.user_routes import users_api_bp 
+    #from app.routes.user_routes import users_api_bp 
 
     # ✅ FIX: Import your TEAMMATE'S user routes blueprint and give it an alias
     # This assumes the blueprint in app/users/routes.py is named 'users_bp' internally.
@@ -98,7 +92,7 @@ def create_app():
 
     # ✅ FIX: Register YOUR API user routes blueprint without an additional url_prefix
     # because it already has /api/users defined within itself.
-    app.register_blueprint(users_api_bp)
+    #app.register_blueprint(users_api_bp)
 
     # ✅ FIX: Register your TEAMMATE'S user routes blueprint with its intended url_prefix
     # This will make its routes accessible under /users/
