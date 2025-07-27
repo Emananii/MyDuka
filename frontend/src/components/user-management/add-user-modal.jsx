@@ -141,9 +141,6 @@ export default function AddUserModal({ isOpen, onClose, createUserMutation, curr
             <DialogTitle className="text-lg font-semibold text-gray-800">
               Add New User
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
           </div>
         </DialogHeader>
 
