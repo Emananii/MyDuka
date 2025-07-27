@@ -1,10 +1,10 @@
 // src/pages/user-management/store-admin-user-management.jsx
 
 import React, { useState } from "react";
-import { useForm } from "react-hook-form"; 
-import { zodResolver } from "@hookform/resolvers/zod"; 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { z } from "zod"; 
+import { z } from "zod";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import { ConfirmUserDeleteDialog } from "@/components/user-management/confirm-us
 import { ConfirmUserDeactivateDialog } from "@/components/user-management/confirm-user-deactivate-dialog";
 import ViewUserModal from "@/components/user-management/view-user-modal";
 
-import { apiRequest, queryClient } from "@/lib/queryClient"; 
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
 import { useUser } from "@/context/UserContext";
@@ -90,7 +90,7 @@ export default function StoreAdminUserManagement() {
     mutationFn: async (data) => {
       const payload = {
         ...data,
-        store_id: currentUser.store_id, 
+        store_id: currentUser.store_id,
       };
       return apiRequest("POST", `${BASE_URL}/api/users/create`, payload);
     },
@@ -109,7 +109,7 @@ export default function StoreAdminUserManagement() {
       const payload = Object.fromEntries(
         Object.entries(data).filter(([_, value]) => value !== undefined)
       );
-      payload.store_id = currentUser.store_id; 
+      payload.store_id = currentUser.store_id;
       
       return apiRequest("PUT", `${BASE_URL}/api/users/${selectedUserForEdit.id}`, payload);
     },
@@ -239,7 +239,7 @@ export default function StoreAdminUserManagement() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="cashier">Cashier</SelectItem>
                 <SelectItem value="clerk">Clerk</SelectItem>
-                {/* ⭐ FIX: Removed 'user' from role filter options ⭐ */}
+                {/* Removed 'user' from role filter options */}
               </SelectContent>
             </Select>
           </div>
@@ -360,8 +360,8 @@ export default function StoreAdminUserManagement() {
       <EditUserModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        user={selectedUserForEdit} 
-        updateUserMutation={updateUserMutation}
+        user={selectedUserForEdit}
+        editUserMutation={updateUserMutation}
         currentUser={currentUser}
       />
 

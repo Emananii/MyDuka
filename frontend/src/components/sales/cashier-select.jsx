@@ -25,6 +25,9 @@ import { Loader2 } from "lucide-react"; // Importing the Loader2 icon
  * @param {boolean} [props.includeAllOption=true] - Whether to include an "All Cashiers" option.
  * @param {number | null} [props.storeId=null] - Optional store ID to filter cashiers by. Pass null to get cashiers from all stores.
  * @param {string} [props.allowedRole='cashier'] - The specific role to filter users by (e.g., 'cashier'). Defaults to 'cashier'.
+ * @param {Array<object>} [props.cashiers=[]] - Optional: Pre-fetched list of cashier objects. If provided, the component uses this instead of fetching internally.
+ * @param {boolean} [props.isLoading=false] - Optional: Loading state passed from parent. Used to disable the select.
+ * @param {boolean} [props.disabled=false] - Optional: General disable prop for the select input.
  */
 export function CashierSelect({
   selectedCashierId,
@@ -33,17 +36,23 @@ export function CashierSelect({
   includeAllOption = true,
   storeId = null, // Prop to filter cashiers by store
   allowedRole = 'cashier', // Default to 'cashier' if not provided
+  cashiers: propCashiers = [], // Renamed to avoid conflict with `data: cashiers` from useQuery
+  isLoading: propIsLoading = false, // Renamed to avoid conflict with `isLoading` from useQuery
+  disabled = false, // Added for general disable
 }) {
+  // Use a ref to store the result of the internal query
   const {
-    data: cashiers,
-    isLoading,
-    isError,
-    error,
+    data: internallyFetchedCashiers,
+    isLoading: isInternalLoading,
+    isError: isInternalError,
+    error: internalError,
   } = useQuery({
     queryKey: ["cashiersList", storeId, allowedRole],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (storeId) {
+      // Only append store_id if it's not null.
+      // If storeId is null, the backend should interpret this as "all stores" for the given role.
+      if (storeId !== null) { // ⭐ FIX: Check for explicit null, not just truthiness ⭐
         params.append('store_id', String(storeId));
       }
       if (allowedRole) {
@@ -54,69 +63,70 @@ export function CashierSelect({
       const queryString = params.toString();
       const res = await apiRequest("GET", `${BASE_URL}/api/users/?${queryString}`);
       
-      // ⭐ IMPORTANT FIX: Adjust this line based on your actual API response structure ⭐
-      // If your API returns { users: [...] }, then use res.users
-      // If your API returns an array directly, then use res
       return Array.isArray(res?.users) ? res.users : (Array.isArray(res) ? res : []);
     },
-    // ⭐ FIX: Ensure enabled is correct for when to run the query ⭐
-    // Only fetch if an allowedRole is set, and if the role is 'cashier', require a storeId.
-    // This prevents fetching all users if storeId is null for a cashier-specific filter.
-    enabled: !!allowedRole && (allowedRole === 'cashier' ? !!storeId : true),
-    staleTime: 5 * 60 * 1000, // Cashiers list might change, keep fresh for 5 min
+    // ⭐ FIX: Changed enabled condition ⭐
+    // The query should run if a role is specified.
+    // When storeId is null, it means "fetch all cashiers for this role across all stores".
+    enabled: !!allowedRole,
+    staleTime: 5 * 60 * 1000,
     onError: (err) => {
         console.error("Failed to fetch cashiers:", err);
     }
   });
 
-  if (isLoading) {
+  // Determine which list of cashiers to use: propCashiers (from parent) or internallyFetchedCashiers
+  const cashiersToRender = propCashiers.length > 0 ? propCashiers : internallyFetchedCashiers;
+  // Determine overall loading state
+  const overallLoading = propIsLoading || isInternalLoading;
+  const overallError = isInternalError ? internalError : null;
+
+
+  if (overallLoading) {
     return (
       <div className="flex items-center space-x-2 text-gray-600">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <Label htmlFor="cashier-select" className="text-sm">{label}:</Label> {/* Added htmlFor for accessibility */}
-        <span className="text-sm">Loading cashiers...</span>
+        <Label htmlFor="cashier-select" className="text-sm">{label}:</Label>
+        <span className="text-sm">Loading {allowedRole}s...</span>
       </div>
     );
   }
 
-  if (isError) {
+  if (overallError) {
     return (
       <div className="flex items-center space-x-2 text-red-600">
-        <Label htmlFor="cashier-select" className="text-sm">{label}:</Label> {/* Added htmlFor for accessibility */}
-        <span className="text-sm">Error: {error?.message || "Failed to load cashiers"}</span>
+        <Label htmlFor="cashier-select" className="text-sm">{label}:</Label>
+        <span className="text-sm">Error: {overallError?.message || `Failed to load ${allowedRole}s`}</span>
       </div>
     );
   }
-
-  // Ensure cashiers is an array before mapping
-  const cashiersToDisplay = cashiers || [];
 
   return (
     <div className="flex items-center space-x-2">
       <Label htmlFor="cashier-select" className="text-sm">{label}:</Label>
       <Select
-        // ⭐ FIX: Ensure selectedCashierId is correctly handled for "all" and null/undefined ⭐
         value={selectedCashierId === null || selectedCashierId === undefined || selectedCashierId === "all"
           ? "all"
           : String(selectedCashierId)
         }
         onValueChange={onSelectCashier}
+        disabled={disabled || overallLoading} // Disable if parent says so, or if internal data is loading
       >
         <SelectTrigger id="cashier-select" className="w-[180px] h-9 text-sm">
-          <SelectValue placeholder="Select a cashier" />
+          <SelectValue placeholder={`Select a ${allowedRole}`} />
         </SelectTrigger>
         <SelectContent>
           {includeAllOption && (
-            <SelectItem value="all">All Cashiers</SelectItem>
+            <SelectItem value="all">All {allowedRole}s</SelectItem>
           )}
-          {cashiersToDisplay.length === 0 && !isLoading && !isError ? (
+          {cashiersToRender.length === 0 && !overallLoading && !overallError ? (
             <SelectItem value="no-options" disabled>
               No {allowedRole}s found
             </SelectItem>
           ) : (
-            cashiersToDisplay.map((cashier) => (
-              <SelectItem key={cashier.id} value={String(cashier.id)}>
-                {cashier.full_name || cashier.username || `Cashier ${cashier.id}`} {/* ⭐ IMPORTANT FIX: Use correct name field ⭐ */}
+            cashiersToRender.map((user) => ( // Renamed 'cashier' to 'user' for broader use
+              <SelectItem key={user.id} value={String(user.id)}>
+                {user.full_name || user.username || `User ${user.id}`} {/* Use appropriate name field */}
               </SelectItem>
             ))
           )}

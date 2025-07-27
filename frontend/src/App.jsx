@@ -40,7 +40,7 @@ import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
 // inventory 
-import MerchantInventory from "@/pages/inventory/merchant-inventory";
+import MerchantInventory from "@/pages/inventory/merchant-inventory"; // This is the actual import name
 
 import NotFound from "@/pages/not-found";
 import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
@@ -172,8 +172,8 @@ function AppRoutes() {
 
       {/* Store Admin-specific */}
       <Route path="/inventory">
-        {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}
-        <ProtectedRoute component={Inventory} allowedRoles={["admin", "merchant"]} />      
+        {/* ⭐ FIX: The error "Inventory is not defined" here. Changed 'Inventory' to 'MerchantInventory' ⭐ */}
+        <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />      
       </Route>
       <Route path="/categories">
         {/* ⭐ FIX: Changed allowedRoles from 'store_admin' to 'admin' ⭐ */}

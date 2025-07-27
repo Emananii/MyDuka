@@ -1,4 +1,4 @@
-// merchant-user-management.jsx
+// src/components/user-management/merchant-user-management.jsx
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Edit, Trash2, ArrowUpDown, Eye } from "lucide-react"; // Added Eye icon for view button
+import { Search, Plus, Edit, Trash2, ArrowUpDown, Eye } from "lucide-react";
 
 import AddUserModal from "@/components/user-management/add-user-modal";
 import EditUserModal from "@/components/user-management/edit-user-modal";
@@ -31,18 +31,17 @@ import ViewUserModal from "@/components/user-management/view-user-modal";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
-import { useUser } from "@/context/UserContext"; // Import useUser
+import { useUser } from "@/context/UserContext";
 
-// Define the base API prefix for user operations (no trailing slash here)
 const API_PREFIX = "/api/users";
 
 export default function MerchantUserManagement() {
-  const { user: currentUser } = useUser(); // Get current user for permissions
+  const { user: currentUser } = useUser();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // Corrected typo: setIsEditModal -> setIsEditModalOpen
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null); // For Edit Modal
+  const [selectedUser, setSelectedUser] = useState(null);
 
-  // State for View User Modal
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedUserForView, setSelectedUserForView] = useState(null);
 
@@ -53,45 +52,152 @@ export default function MerchantUserManagement() {
 
   const { toast } = useToast();
 
-  // Fetch all users
+  const { data: stores = [], isLoading: isLoadingStores } = useQuery({
+    queryKey: ["stores-list"],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest("GET", `${BASE_URL}/api/store/`);
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error("Failed to fetch stores in MerchantUserManagement:", error);
+        toast({
+          title: "Error fetching stores",
+          description: error.message || "Could not load store list.",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+    enabled: currentUser?.role === "merchant" || currentUser?.role === "admin",
+  });
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/`);
-      // Frontend filtering for `is_deleted` users (backend should also filter or provide options)
-      return res.filter(user => !user.is_deleted);
+      const usersRes = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/`);
+      const activeUsers = usersRes.filter(user => !user.is_deleted);
+
+      // Ensure stores are loaded and not empty before attempting to map
+      if (!isLoadingStores && stores.length > 0) {
+        return activeUsers.map(user => {
+          const userStore = stores.find(store => store.id === user.store_id);
+          return {
+            ...user,
+            store_name: userStore ? userStore.name : (user.store_id ? `ID: ${user.store_id}` : 'No Store Assigned')
+          };
+        });
+      }
+      // If stores are still loading or empty, return users without enriched store_name
+      // They will update once stores are loaded.
+      return activeUsers.map(user => ({
+        ...user,
+        store_name: user.store_id ? `ID: ${user.store_id}` : 'Loading Store...'
+      }));
+    },
+    enabled: !isLoadingStores, // Query for users is enabled once stores are no longer loading
+  });
+
+
+  const createUserMutation = useMutation({
+    mutationFn: async (userData) => {
+      // Corrected API endpoint for creating a user
+      const response = await apiRequest("POST", `${BASE_URL}${API_PREFIX}/create`, userData);
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["stores-list"] }); // Invalidate stores too if a new user might affect store data (e.g., if a user is tied to a new store that wasn't previously fetched)
+      toast({
+        title: "User added successfully!",
+        // Correctly access nested user data from the API response
+        description: `${data.user.name} (${data.user.role}) has been created.`,
+        variant: "success",
+      });
+      setIsAddModalOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to add user",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
     },
   });
 
-  // Mutation for deleting a user
+  const editUserMutation = useMutation({
+    mutationFn: async ({ id, ...userData }) => {
+      const response = await apiRequest("PATCH", `${BASE_URL}${API_PREFIX}/${id}`, userData);
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["stores-list"] });
+      toast({
+        title: "User updated successfully!",
+        description: `${data.name}'s details have been updated.`,
+        variant: "success",
+      });
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+      setIsViewModalOpen(false);
+      setSelectedUserForView(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update user",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => apiRequest("DELETE", `${BASE_URL}${API_PREFIX}/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["stores-list"] });
       toast({ title: "User deleted successfully" });
       setConfirmDeleteId(null);
-      setSelectedUser(null); // Clear selected user after action
-      setSelectedUserForView(null); // Clear selected user for view modal
+      setSelectedUser(null);
+      setSelectedUserForView(null);
+      setIsViewModalOpen(false);
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message || "Failed to delete user", variant: "destructive" });
     },
   });
 
-  // Mutation for deactivating a user
   const deactivateMutation = useMutation({
     mutationFn: (id) => apiRequest("PATCH", `${BASE_URL}${API_PREFIX}/${id}/deactivate`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["stores-list"] });
       toast({ title: "User deactivated successfully" });
       setConfirmDeactivateId(null);
-      setSelectedUser(null); // Clear selected user after action
-      setSelectedUserForView(null); // Clear selected user for view modal
+      setSelectedUser(null);
+      setSelectedUserForView(null);
+      setIsViewModalOpen(false);
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message || "Failed to deactivate user", variant: "destructive" });
     },
   });
+
+  const handleEditFromView = () => {
+    setIsViewModalOpen(false);
+    setSelectedUser(selectedUserForView);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteFromView = () => {
+    setIsViewModalOpen(false);
+    setConfirmDeleteId(selectedUserForView.id);
+  };
+
+  const handleDeactivateFromView = () => {
+    setIsViewModalOpen(false);
+    setConfirmDeactivateId(selectedUserForView.id);
+  };
 
   const handleSort = (field) => {
     // Optional: implement sort handling if needed
@@ -109,17 +215,14 @@ export default function MerchantUserManagement() {
   const userBeingDeactivated = users.find((u) => u.id === confirmDeactivateId);
   const userBeingDeleted = users.find((u) => u.id === confirmDeleteId);
 
-  // Helper function to determine if the current user can perform actions on target user
   const canPerformActions = (targetUser) => {
     if (!currentUser || !targetUser) return false;
-    if (currentUser.id === targetUser.id) return false; // Cannot modify self
+    if (currentUser.id === targetUser.id) return false;
 
     if (currentUser.role === "merchant") {
-      // Merchant can manage any user except other merchants
       return targetUser.role !== "merchant";
     }
     if (currentUser.role === "admin") {
-      // Admin can manage cashier, clerk, user within their own store, but not other admins or merchants
       return (
         targetUser.role !== "admin" &&
         targetUser.role !== "merchant" &&
@@ -128,7 +231,6 @@ export default function MerchantUserManagement() {
     }
     return false;
   };
-
 
   return (
     <div className="space-y-6">
@@ -172,14 +274,14 @@ export default function MerchantUserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead> {/* Actions column */}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoading || isLoadingStores ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8">
-                    Loading users...
+                    Loading users and stores...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
@@ -192,7 +294,6 @@ export default function MerchantUserManagement() {
                 filteredUsers.map((user) => (
                   <TableRow
                     key={user.id}
-                    // ⭐ Keep row click to open ViewUserModal ⭐
                     onClick={() => {
                       setSelectedUserForView(user);
                       setIsViewModalOpen(true);
@@ -209,13 +310,11 @@ export default function MerchantUserManagement() {
                         <Badge variant="destructive">Inactive</Badge>
                       )}
                     </TableCell>
-                    {/* ⭐ RE-ADDED individual action buttons to table row ⭐ */}
                     <TableCell className="text-right space-x-2">
-                        {/* View Button (optional, as row click already does this) */}
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => { // Stop propagation for button click
+                            onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUserForView(user);
                                 setIsViewModalOpen(true);
@@ -225,44 +324,41 @@ export default function MerchantUserManagement() {
                             <Eye className="h-4 w-4" />
                         </Button>
 
-                        {/* Edit Button */}
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => { // Stop propagation for button click
+                            onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedUser(user);
                                 setIsEditModalOpen(true);
                             }}
-                            disabled={!canPerformActions(user)} // Disable based on permission
+                            disabled={!canPerformActions(user)}
                             title={canPerformActions(user) ? "Edit User" : "Unauthorized to edit"}
                         >
                             <Edit className="h-4 w-4" />
                         </Button>
 
-                        {/* Deactivate Button */}
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => { // Stop propagation for button click
+                            onClick={(e) => {
                                 e.stopPropagation();
                                 setConfirmDeactivateId(user.id);
                             }}
-                            disabled={!user.is_active || !canPerformActions(user)} // Disable if inactive or unauthorized
+                            disabled={!user.is_active || !canPerformActions(user)}
                             title={!user.is_active ? "Already inactive" : (canPerformActions(user) ? "Deactivate User" : "Unauthorized to deactivate")}
                         >
                             <ArrowUpDown className="h-4 w-4" />
                         </Button>
 
-                        {/* Delete Button */}
                         <Button
                             variant="destructive"
                             size="sm"
-                            onClick={(e) => { // Stop propagation for button click
+                            onClick={(e) => {
                                 e.stopPropagation();
                                 setConfirmDeleteId(user.id);
                             }}
-                            disabled={user.is_deleted || !canPerformActions(user)} // Disable if deleted or unauthorized
+                            disabled={user.is_deleted || !canPerformActions(user)}
                             title={user.is_deleted ? "Already deleted" : (canPerformActions(user) ? "Delete User" : "Unauthorized to delete")}
                         >
                             <Trash2 className="h-4 w-4" />
@@ -276,19 +372,21 @@ export default function MerchantUserManagement() {
         </CardContent>
       </Card>
 
-      {/* --- MODAL CALLS --- */}
       <AddUserModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        createUserMutation={createUserMutation}
+        currentUser={currentUser}
       />
 
       <EditUserModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         user={selectedUser}
+        editUserMutation={editUserMutation}
+        currentUser={currentUser}
       />
 
-      {/* View User Modal: Still exists, opened by row click */}
       <ViewUserModal
         user={selectedUserForView}
         isOpen={isViewModalOpen}
@@ -296,7 +394,9 @@ export default function MerchantUserManagement() {
           setIsViewModalOpen(false);
           setSelectedUserForView(null);
         }}
-        // Removed onEdit/onDeactivate/onDelete props from here, as actions are now on table row
+        onEdit={handleEditFromView}
+        onDeactivate={handleDeactivateFromView}
+        onDelete={handleDeleteFromView}
       />
 
       <ConfirmUserDeleteDialog

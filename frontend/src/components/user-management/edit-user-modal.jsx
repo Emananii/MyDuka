@@ -38,16 +38,15 @@ import { userRoleEnum } from "@/shared/schema";
 const editUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email format").min(1, "Email is required"),
-  role: userRoleEnum.refine( // Use imported enum and refine
-    // ⭐ FIX: Removed 'user' from allowed roles for Store Admin to edit ⭐
-    (role) => ["merchant", "admin", "clerk", "cashier"].includes(role), // Allow all roles from enum, then disable UI selectively
+  role: userRoleEnum.refine(
+    (role) => ["merchant", "admin", "clerk", "cashier"].includes(role),
     { message: "Invalid role selected." }
   ).optional(), 
   store_id: z.union([z.number().int().positive(), z.literal(null)]).nullable().optional(),
   is_active: z.boolean().optional(),
 });
 
-export default function EditUserModal({ user, isOpen, onClose, updateUserMutation, currentUser }) {
+export default function EditUserModal({ user, isOpen, onClose, editUserMutation, currentUser }) {
   const { toast } = useToast();
 
   const form = useForm({
@@ -93,29 +92,29 @@ export default function EditUserModal({ user, isOpen, onClose, updateUserMutatio
   });
 
   const onSubmit = (data) => {
+    // Ensure we send only defined values, excluding undefined fields
     const payload = Object.fromEntries(
       Object.entries(data).filter(([_, value]) => value !== undefined)
     );
 
+    // Ensure store_id is handled correctly: for admin, it's fixed; otherwise parse string or null
     payload.store_id = currentUser?.role === "admin"
-                      ? currentUser.store_id
-                      : (payload.store_id === "null" ? null : parseInt(payload.store_id, 10));
+                      ? currentUser.store_id // Admin's store_id is fixed
+                      : (payload.store_id === "null" ? null : parseInt(payload.store_id, 10)); // Merchant can set null or specific ID
 
     if (payload.role) {
       payload.role = payload.role.toLowerCase();
     }
-
-    updateUserMutation.mutate(payload);
+    
+    editUserMutation.mutate({ id: user.id, ...payload });
   };
 
   const getAssignableRoles = () => {
     if (!currentUser) return [];
     switch (currentUser.role) {
       case "merchant":
-        // ⭐ FIX: Removed 'user' from assignable roles for merchant ⭐
         return ["admin", "clerk", "cashier"];
       case "admin": 
-        // ⭐ FIX: Removed 'user' from assignable roles for admin ⭐
         return ["clerk", "cashier"];
       default:
         return [];
@@ -124,8 +123,10 @@ export default function EditUserModal({ user, isOpen, onClose, updateUserMutatio
 
   const assignableRoles = getAssignableRoles();
 
+  // Determine if the store select should be shown at all
   const showStoreSelect = currentUser?.role === "merchant";
 
+  // Determine if the store select should be disabled (e.g., while loading, or for admin users)
   const isStoreSelectDisabled = isLoadingStores || currentUser?.role === "admin";
 
   return (
@@ -287,7 +288,7 @@ export default function EditUserModal({ user, isOpen, onClose, updateUserMutatio
                         checked={field.value}
                         onCheckedChange={field.onChange}
                         disabled={
-                            currentUser?.role === "admin" && user?.role === "admin"
+                            (currentUser?.role === "admin" && user?.role === "admin") // ⭐ FIXED SYNTAX HERE ⭐
                         }
                       />
                     </FormControl>
@@ -303,16 +304,16 @@ export default function EditUserModal({ user, isOpen, onClose, updateUserMutatio
                 variant="outline"
                 className="flex-1"
                 onClick={onClose}
-                disabled={updateUserMutation.isPending}
+                disabled={editUserMutation.isPending}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={updateUserMutation.isPending}
+                disabled={editUserMutation.isPending}
               >
-                {updateUserMutation.isPending ? "Updating..." : "Update User"}
+                {editUserMutation.isPending ? "Updating..." : "Update User"}
               </Button>
             </div>
           </form>

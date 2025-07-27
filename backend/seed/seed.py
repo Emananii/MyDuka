@@ -60,14 +60,14 @@ def seed_all():
                 password="adminpass123",
                 role="merchant",
                 is_active=True,
-                store_id=store_main.id,
+                store_id=None, # ⭐ FIX: Merchant store_id should be None
             )
             merchant_victor = User(
                 name="Victor Merchant",
                 email="victor.merchant@myduka.com",
                 password="merchant123",
                 role="merchant",
-                store_id=store_main.id
+                store_id=None # ⭐ FIX: Merchant store_id should be None
             )
             admin_alice = User(
                 name="Alice Admin",
