@@ -28,7 +28,7 @@ import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
 import Reports from "@/pages/reports";
 import Categories from "@/pages/categories";
-import Suppliers from "@/pages/suppliers"; // Import the Suppliers page
+import Suppliers from "@/pages/suppliers";
 
 import AdminProfile from "@/pages/admin-profile";
 import MerchantProfile from "@/pages/merchant-profile";
@@ -39,13 +39,16 @@ import CashierSalesPage from "@/pages/sales/cashier-sales-page";
 import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
-// inventory
+// Inventory related pages (general)
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
-import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
-import SupplyRequestListPage from "@/pages/inventory/supply-request-list-page";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
+// --- START: Supply Request Specific Pages (Using the ones we made) ---
+// IMPORTANT: Corrected path from 'suply-requests' to 'supply-requests'
+import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
+import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
+// --- END: Supply Request Specific Pages ---
 
 import NotFound from "@/pages/not-found";
 
@@ -206,18 +209,24 @@ function AppRoutes() {
       <Route path="/inventory/admin">
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
-      <Route path="/inventory/supply-requests">
-         <ProtectedRoute component={SupplyRequestListPage} allowedRoles={["admin", "clerk"]} />
+
+      {/* --- START: Supply Request Pages (Refactored) --- */}
+      {/* Route for clerks to view/manage THEIR OWN supply requests */}
+      <Route path="/supply-requests/clerk">
+        <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
+      {/* Route for store admins/merchants to view ALL supply requests for their store(s) */}
+      <Route path="/supply-requests/admin">
+         <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin", "merchant"]} />
+      </Route>
+      {/* --- END: Supply Request Pages --- */}
+
 
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
-      </Route>
-      <Route path="/inventory/supply-requests/:id">
-        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
       </Route>
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
@@ -235,11 +244,9 @@ function AppRoutes() {
         <ProtectedRoute component={() => <AdminProfile onLogout={handleLogout} />} allowedRoles={["admin"]} />
       </Route>
       <Route path="/clerks-profile">
-        <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
+        <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
-      <Route path="/inventory/supply-requests">
-        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
-      </Route>
+
 
       {/* Merchant */}
       <Route path="/stores">

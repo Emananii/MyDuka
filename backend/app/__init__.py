@@ -1,5 +1,3 @@
-# app.py
-
 import os
 from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -78,9 +76,10 @@ def create_app():
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
     from app.users.routes import users_bp as teammate_users_bp
-
-    # NEW: Import your suppliers blueprint
     from app.routes.supplier_routes import suppliers_bp
+
+    # NEW: Import your supply_bp blueprint
+    from app.routes.supply_routes import supply_bp # Adjust path if different, e.g., app.blueprints.supply_routes
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
@@ -88,10 +87,10 @@ def create_app():
     app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
-    #app.register_blueprint(teammate_users_bp, url_prefix='/users')
-
-    # NEW: Register your suppliers blueprint under the /api prefix
     app.register_blueprint(suppliers_bp)
+
+    # NEW: Register your supply_bp blueprint
+    app.register_blueprint(supply_bp)
 
     # CORS configuration should be after blueprint registration
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
