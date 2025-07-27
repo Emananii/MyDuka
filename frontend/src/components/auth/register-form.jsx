@@ -65,80 +65,104 @@ const Register = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-gray-200 to-indigo-100 font-[Montserrat]">
-      <div className="bg-white rounded-[30px] shadow-lg w-[768px] max-w-full min-h-[480px] flex flex-col items-center justify-center">
-        <form onSubmit={handleSubmit} className="flex flex-col items-center justify-center px-10 py-6 w-full">
-          <h2 className="text-2xl font-semibold mb-2">Register</h2>
-          {error && <div className="text-red-600 text-sm mb-2 text-center">{error}</div>}
-          {success && <div className="text-green-600 text-sm mb-2 text-center">{success}</div>}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center font-[Montserrat]">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-xl rounded-xl p-8"
+        style={{ width: "500px" }} // Fixed width for desktop
+      >
+        <h2 className="text-2xl font-bold text-indigo-800 mb-6 text-center">
+          Create Your Account
+        </h2>
 
-          <div className="w-full">
-            <label htmlFor="name" className="block text-sm mb-1">Name:</label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            />
+        {error && (
+          <div className="bg-red-100 text-red-700 text-sm p-2 rounded mb-4 text-center">
+            {error}
           </div>
+        )}
 
-          <div className="w-full">
-            <label htmlFor="email" className="block text-sm mb-1">Email:</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            />
+        {success && (
+          <div className="bg-green-100 text-green-700 text-sm p-2 rounded mb-4 text-center">
+            {success}
           </div>
+        )}
 
-          <div className="w-full">
-            <label htmlFor="password" className="block text-sm mb-1">Password:</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            />
-          </div>
+        <div className="mb-4">
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            Name
+          </label>
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-gray-100 focus:outline-none"
+          />
+        </div>
 
-          <div className="w-full">
-            <label htmlFor="role" className="block text-sm mb-1">Role:</label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              required
-              className="bg-gray-100 border-none my-2 py-2 px-4 text-sm rounded-lg w-full outline-none"
-            >
-              <option value="cashier">Cashier</option>
-              <option value="clerk">Clerk</option>
-              <option value="user">User</option>
-            </select>
-          </div>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-gray-100 focus:outline-none"
+          />
+        </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-indigo-800 text-white text-xs px-12 py-2 border border-transparent rounded-lg font-semibold tracking-wider uppercase mt-4 cursor-pointer transition hover:bg-indigo-700 disabled:opacity-50"
+        <div className="mb-4">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-gray-100 focus:outline-none"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+            Role
+          </label>
+          <select
+            id="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            required
+            className="w-full px-4 py-2 rounded-lg bg-gray-100 focus:outline-none"
           >
-            {isSubmitting ? "Registering..." : "Register"}
-          </button>
-        </form>
+            <option value="cashier">Cashier</option>
+            <option value="clerk">Clerk</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="merchant">Merchant</option>
+          </select>
+        </div>
 
-        <p className="text-sm my-4">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-2 mt-2 bg-indigo-800 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+        >
+          {isSubmitting ? "Registering..." : "Register"}
+        </button>
+
+        <p className="text-sm text-center text-gray-600 mt-4">
           Already have an account?{" "}
           <Link href="/login" className="text-indigo-800 hover:underline">
             Login here
-          </Link>.
+          </Link>
         </p>
-      </div>
+      </form>
     </div>
   );
 };
