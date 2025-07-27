@@ -34,6 +34,7 @@ const schema = z.object({
   sku: z.string().min(1, "SKU is required"),
   unit: z.string().min(1, "Unit is required"),
   categoryId: z.string().min(1, "Category is required"),
+  image_url: z.string().url("Image URL must be valid"),
 });
 
 export default function AddItemModal({ isOpen, onClose }) {
@@ -44,6 +45,7 @@ export default function AddItemModal({ isOpen, onClose }) {
       sku: "",
       unit: "pcs",
       categoryId: "",
+      image_url: "",
     },
   });
 
@@ -56,12 +58,13 @@ export default function AddItemModal({ isOpen, onClose }) {
     queryFn: async () => {
       const res = await fetch(`${BASE_URL}api/inventory/categories`);
       if (!res.ok) throw new Error("Failed to fetch categories");
-      return res.json(); // or res.json().data depending on your backend
+      return res.json();
     },
   });
 
   const mutation = useMutation({
-    mutationFn: (data) => apiRequest("POST", `${BASE_URL}/api/inventory/products`, data),
+    mutationFn: (data) =>
+      apiRequest("POST", `${BASE_URL}/api/inventory/products`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Success", description: "Item added successfully" });
@@ -83,10 +86,12 @@ export default function AddItemModal({ isOpen, onClose }) {
 
   const onSubmit = (values) => {
     const payload = {
-      ...values,
+      name: values.name,
+      sku: values.sku,
+      unit: values.unit,
+      image_url: values.image_url,
       category_id: parseInt(values.categoryId),
     };
-    delete payload.categoryId;
     mutation.mutate(payload);
   };
 
@@ -160,6 +165,22 @@ export default function AddItemModal({ isOpen, onClose }) {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="image_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

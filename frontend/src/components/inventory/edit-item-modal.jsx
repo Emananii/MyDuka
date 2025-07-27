@@ -1,5 +1,3 @@
-// components/inventory/EditItemModal.jsx
-
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,11 +19,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { BASE_URL } from "@/lib/constants";
 
-
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   sku: z.string().min(1, "SKU is required"),
   unit: z.string().min(1, "Unit is required"),
+  image_url: z.string().url("Image URL must be valid"),
   category_id: z.number().min(1, "Category is required"),
 });
 
@@ -47,6 +45,7 @@ export default function EditItemModal({ isOpen, onClose, item }) {
       name: "",
       sku: "",
       unit: "",
+      image_url: "",
       category_id: undefined,
     },
   });
@@ -57,6 +56,7 @@ export default function EditItemModal({ isOpen, onClose, item }) {
         name: item.name,
         sku: item.sku,
         unit: item.unit,
+        image_url: item.image_url || "",
         category_id: item.category_id || undefined,
       });
     }
@@ -118,6 +118,20 @@ export default function EditItemModal({ isOpen, onClose, item }) {
                   <FormLabel>Unit</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="e.g. pcs, kg, liters" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="image_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image URL</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="https://example.com/image.jpg" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

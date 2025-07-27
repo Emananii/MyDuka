@@ -44,12 +44,15 @@ import MerchantSalesPage from "@/pages/sales/merchant-sales-page"; // <--- NEW
 
 // inventory 
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
+import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory"; // <--- NEW
+import SupplyRequestDetailsPage from "@/pages/supply-request-details-page"; // <--- NEW
+import AdminInventory from "./pages/inventory/admin-inventory";
 
 import NotFound from "@/pages/not-found";
 
-import { UserProvider, UserContext } from "@/context/UserContext";
+// import { UserProvider, UserContext } from "@/context/UserContext";
 
-import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
+
 import POSInterfacePage from "@/pages/POS-interface";
 // The duplicate import below has been removed:
 // import { Menu, Bell, User } from "lucide-react"; 
@@ -59,9 +62,8 @@ import POSInterfacePage from "@/pages/POS-interface";
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { user } = useContext(UserContext);
-  // const [, navigate] = useLocation();
-
-  // console.log("User object in MainLayout:", user); // For debugging
+  // Removed unnecessary empty array destructuring from useLocation
+  useLocation();
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -185,6 +187,12 @@ function AppRoutes() {
       {/* Admin-specific routes */}
       <Route path="/inventory">
         <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
+        </Route>
+      <Route path="/inventory/clerk">
+        <ProtectedRoute component={ClerkInventoryDashboard} allowedRoles={["clerk"]} />
+      </Route>
+      <Route path="/inventory/admin">
+        <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
@@ -213,7 +221,9 @@ function AppRoutes() {
       <Route path="/clerks-profile"> {/* Assuming clerks profile is admin accessible */}
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
       </Route>
-
+      <Route path="/inventory/supply-requests">
+        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
+      </Route>
 
       {/* Merchant-specific routes */}
       <Route path="/stores">
