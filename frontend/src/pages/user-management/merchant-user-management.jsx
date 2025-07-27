@@ -90,9 +90,9 @@ export default function MerchantUserManagement() {
     },
   });
 
-  const handleSort = (field) => {
-    // Optional: implement sort handling if needed
-  };
+  // const handleSort = (field) => {
+  //   // Optional: implement sort handling if needed
+  // };
 
   const filteredUsers = users.filter((user) => {
     const nameMatches = user.name ? user.name.toLowerCase().includes(searchTerm.toLowerCase()) : false;
