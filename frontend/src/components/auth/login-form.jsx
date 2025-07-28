@@ -1,8 +1,10 @@
 // src/components/auth/login-form.jsx
 import React, { useContext, useState } from "react";
 import { useLocation } from "wouter";
-import { UserContext } from "@/context/UserContext";
-import { Button } from "@/components/ui/button";
+import { useUser } from "@/context/UserContext"; 
+import { Button } from "@/components/ui/button"; 
+import { Input } from "@/components/ui/input";   
+// Removed Card, CardContent, CardHeader, CardTitle imports as we're using divs now
 
 const LoginForm = () => {
   const { login } = useContext(UserContext);
@@ -17,46 +19,95 @@ const LoginForm = () => {
     setError("");
 
     try {
-      await login(email, password); // your login logic
-      navigate("/"); // redirect to dashboard after successful login
+      await login(email, password);
+      setSuccess("Login successful!");
+      navigate("/"); // Navigate to dashboard or home page after successful login
     } catch (err) {
-      setError("Invalid credentials. Please try again.");
+      console.error("Login failed:", err); 
+      let displayErrorMessage = "Login failed. Please check your credentials.";
+
+      if (err.message) {
+        const parts = err.message.split(': ', 2); 
+        if (parts.length > 1) {
+          displayErrorMessage = parts[1];
+        } else {
+          displayErrorMessage = err.message;
+        }
+      }
+      
+      setError(displayErrorMessage); 
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleLogin} className="max-w-sm mx-auto p-4">
-      <h2 className="text-xl font-semibold mb-4">Login</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 font-sans">
+      {/* Main container for the form, replacing the Card component */}
+      <div className="w-full max-w-xl bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-md overflow-hidden"> 
+        
+        {/* Header section, replacing CardHeader */}
+        <div className="bg-indigo-600 p-8 text-white text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            MyDuka
+          </h1>
+          <p className="text-indigo-200 text-lg mt-2">Inventory & Sales Management</p>
+        </div>
 
-      <div className="mb-4">
-        <label className="block mb-1">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-          required
-        />
+        {/* Content section, replacing CardContent */}
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h2>
+
+            {error && (
+              <div className="text-red-700 bg-red-100 p-3 rounded-lg text-sm text-center border border-red-200">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="text-green-700 bg-green-100 p-3 rounded-lg text-sm text-center border border-green-200">
+                {success}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-base focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-base focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 px-4 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-lg transition-all"
+            >
+              {isSubmitting ? 'Logging in...' : 'Login'}
+            </Button>
+          </form>
+        </div>
       </div>
-
-      <div className="mb-4">
-        <label className="block mb-1">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-          required
-        />
-      </div>
-
-      {error && <p className="text-red-500 mb-2">{error}</p>}
-
-      <Button type="submit" className="w-full">
-        Login
-      </Button>
-    </form>
+    </div>
   );
 };
 
-export default LoginForm;
+export default Login;

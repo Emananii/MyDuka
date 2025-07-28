@@ -12,7 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
-import AuthenticatedLayout from "@/components/layout/authenticated-layout";
+//import AuthenticatedLayout from "@/components/layout/authenticated-layout";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -37,12 +37,21 @@ import CashierSalesPage from "@/pages/sales/cashier-sales-page";
 import StoreAdminSalesPage from "@/pages/sales/store-admin-sales-page";
 import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 
+// Inventory related pages (general)
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
-import SupplyRequestDetailsPage from "@/pages/supply-request-details-page";
+// Removed: SupplyRequestDetailsPage - details are handled by modals
+// Removed: SupplyRequestListPage - replaced by role-specific list pages
 import AdminInventory from "./pages/inventory/admin-inventory";
 
+// --- START: Supply Request Specific Pages (Using the ones we made) ---
+// IMPORTANT: Corrected path from 'suply-requests' to 'supply-requests'
+import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
+import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
+// --- END: Supply Request Specific Pages ---
+
 import NotFound from "@/pages/not-found";
+
 import POSInterfacePage from "@/pages/POS-interface";
 import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
 import MerchantUserManagement from "./pages/user-management/merchant-user-management";
@@ -52,7 +61,7 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 // --- Layout Component ---
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Preserving user's dropdown state
   const { user, logout } = useContext(UserContext);
   const [location, navigate] = useLocation();
 
@@ -87,13 +96,13 @@ function MainLayout({ children }) {
               <h2 className="text-2xl font-semibold text-gray-800">MyDuka</h2>
             </div>
 
-            <div className="relative flex items-center space-x-4">
+            <div className="relative flex items-center space-x-4"> {/* Added relative for dropdown positioning */}
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
               </Button>
 
               {user && profilePath ? (
-                <div className="relative">
+                <div className="relative"> {/* Outer div for dropdown positioning */}
                   <div onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <Avatar className="cursor-pointer">
                       <AvatarImage
@@ -149,16 +158,28 @@ function MainLayout({ children }) {
 function AuthRoutes() {
   return (
     <Switch>
+      {/* 🔐 Separate login pages for each role */}
+      {/* Retained specific login paths from App.jsx_v1 logic for clarity */}
+      <Route path="/login/admin">
+          <Login role="admin" />
+      </Route>
+      <Route path="/login/merchant">
+          <Login role="merchant" />
+      </Route>
+      <Route path="/login/clerk">
+          <Login role="clerk" />
+      </Route>
+      <Route path="/login/cashier">
+          <Login role="cashier" />
+      </Route>
+
+      {/* 🔁 Fallback login */}
       <Route path="/login">
-        <AuthenticatedLayout>
           <Login />
-        </AuthenticatedLayout>
       </Route>
 
       <Route path="/register">
-        <AuthenticatedLayout>
           <Register />
-        </AuthenticatedLayout>
       </Route>
 
       <Route>
@@ -183,6 +204,8 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+
+      {/* Cashier */}
       <Route path="/pos">
         <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} />
       </Route>
@@ -193,7 +216,7 @@ function AppRoutes() {
         <ProtectedRoute component={() => <CashierProfile onLogout={handleLogout} />} allowedRoles={["cashier"]} />
       </Route>
 
-      {/* Inventory */}
+      {/* Inventory Routes */}
       <Route path="/inventory">
         <ProtectedRoute component={MerchantInventory} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -203,15 +226,36 @@ function AppRoutes() {
       <Route path="/inventory/admin">
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
+
+      {/* --- START: Supply Request Pages (Refactored) --- */}
+      {/* Route for clerks to view/manage THEIR OWN supply requests */}
+      <Route path="/supply-requests/clerk">
+        <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
+      </Route>
+      {/* Route for store admins/merchants to view ALL supply requests for their store(s) */}
+      <Route path="/supply-requests/admin">
+         <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
+      </Route>
+      {/* Removed old/incorrect supply request related routes that were handled by modals now:
+          - <Route path="/purchases/:id"> which was incorrectly pointing to SupplyRequestDetailsPage
+          - <Route path="/inventory/supply-requests"> which was pointing to SupplyRequestDetailsPage
+      */}
+      {/* --- END: Supply Request Pages --- */}
+
+
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
+      {/* Ensure any specific purchase detail route, if needed, points to a PurchaseDetailsPage, not SupplyRequestDetailsPage */}
+      {/* If you need a specific Purchase Details Page, you'd add:
       <Route path="/purchases/:id">
-        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "merchant"]} />
+        <ProtectedRoute component={PurchaseDetailsPage} allowedRoles={["admin", "merchant"]} />
       </Route>
+      */}
+
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -228,11 +272,11 @@ function AppRoutes() {
         <ProtectedRoute component={() => <AdminProfile onLogout={handleLogout} />} allowedRoles={["admin"]} />
       </Route>
       <Route path="/clerks-profile">
-        <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant"]} />
+        <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
-      <Route path="/inventory/supply-requests">
-        <ProtectedRoute component={SupplyRequestDetailsPage} allowedRoles={["admin", "clerk"]} />
-      </Route>
+
+
+      {/* Merchant */}
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -246,6 +290,7 @@ function AppRoutes() {
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
       </Route>
 
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );

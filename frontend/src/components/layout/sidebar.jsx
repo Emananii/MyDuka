@@ -1,4 +1,3 @@
-// src/components/layout/Sidebar.jsx
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -13,6 +12,7 @@ import {
   DollarSign, // Sales Icon
   UserRound, // For Manage Clerks & Cashiers
   UserCog, // For Manage Store Admins
+  ClipboardList, // New icon for Supply Requests
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/UserContext";
@@ -21,21 +21,19 @@ import { Loader2 } from "lucide-react";
 // Define all possible navigation items with their required roles
 const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant","admin"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
   // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
-  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
+  //{ name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
   // ⭐ UPDATED: Admin can manage Stock Transfers (stock approvals) ⭐
-  { name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
+  //{ name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
   // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
-  // ⭐ UPDATED: Admin can view Suppliers for payment statuses ⭐
   { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
-  // ⭐ UPDATED: Admin can view Reports ⭐
   { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
   
 
@@ -52,12 +50,18 @@ const navigationConfig = [
     icon: UserCog,
     roles: ["merchant"],
   },
-  // ⭐ NEW: Supply Requests for Admin approval/decline ⭐
+  // ⭐ UPDATED: Supply Requests links, specific to roles ⭐
   {
-    name: "Supply Requests",
-    href: "/supply-requests", // Assuming this is your supply requests route
-    icon: Truck, // Or another relevant icon like Inbox/ClipboardList
-    roles: ["admin"],
+    name: "My Supply Requests", // Link for clerks
+    href: "/supply-requests/clerk",
+    icon: ClipboardList,
+    roles: ["clerk"], // Only visible to clerks
+  },
+  {
+    name: "Review Supply Requests", // Link for admins/merchants
+    href: "/supply-requests/admin",
+    icon: ClipboardList,
+    roles: ["admin"], // Visible to admins and merchants
   },
 ];
 
@@ -111,7 +115,7 @@ export default function Sidebar() {
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           {/* Logo / Brand Header */}
           <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200">
-            <Warehouse className="h-8 w-8 text-blue-600 mr-3" />
+            <ShoppingCart className="h-8 w-8 text-blue-600 mr-3" />
             <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
           </div>
 

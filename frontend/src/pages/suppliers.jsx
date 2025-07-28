@@ -33,7 +33,7 @@ export default function Suppliers() {
   } = useQuery({
     queryKey: [`${BASE_URL}/suppliers/`],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/suppliers/`);
+      const res = await fetch(`${BASE_URL}/api/suppliers/`);
       if (!res.ok) throw new Error("Failed to fetch suppliers");
       return res.json();
     },

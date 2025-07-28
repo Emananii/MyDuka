@@ -1,39 +1,32 @@
-// pages/inventory/SupplyRequestListPage.jsx
-
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
-import { useEffect, useState } from "react";
-import { useUser } from "@/hooks/use-user";
+import { useState } from "react";
+import { useUser } from "@/context/UserContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import RespondToSupplyRequestModal from "@/components/inventory/RespondToSupplyRequestModal";
+import RespondToSupplyRequestModal from "@/components/inventory/response-to-supply-request";
 import { Link } from "wouter";
 
 export default function SupplyRequestListPage() {
   const { user } = useUser();
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [isModalOpen, setModalOpen] = useState(false);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["supply-requests"],
     queryFn: () => apiRequest("GET", `${BASE_URL}/api/supply-requests`),
+    enabled: !!user, // Only fetch if the user is loaded
   });
-
-  useEffect(() => {
-    if (!user) return;
-    refetch();
-  }, [user, refetch]);
 
   if (isLoading) return <p className="p-4 text-sm">Loading...</p>;
   if (error) return <p className="p-4 text-sm text-red-500">Failed to load requests.</p>;
 
   const handleRespond = (request) => {
     setSelectedRequest(request);
-    setModalOpen(true);
   };
 
-  const requests = Array.isArray(data) ? data : [];
+  // Use optional chaining and nullish coalescing for cleaner default value
+  const requests = data ?? [];
 
   return (
     <div className="p-6">
@@ -47,8 +40,8 @@ export default function SupplyRequestListPage() {
         {requests.map((req) => (
           <Card key={req.id}>
             <CardContent className="p-4 space-y-1">
-              <div><strong>Store:</strong> {req.store.name}</div>
-              <div><strong>Product:</strong> {req.product.name}</div>
+              <div><strong>Store:</strong> {req.store?.name || "—"}</div>
+              <div><strong>Product:</strong> {req.product?.name || "—"}</div>
               <div><strong>Quantity:</strong> {req.requested_quantity}</div>
               <div><strong>Status:</strong> <span className="capitalize">{req.status}</span></div>
 
@@ -76,8 +69,8 @@ export default function SupplyRequestListPage() {
 
       {selectedRequest && (
         <RespondToSupplyRequestModal
-          isOpen={isModalOpen}
-          onClose={() => setModalOpen(false)}
+          isOpen={!!selectedRequest}
+          onClose={() => setSelectedRequest(null)}
           storeId={selectedRequest.store.id}
           request={{
             id: selectedRequest.id,
