@@ -21,7 +21,7 @@ import { Loader2 } from "lucide-react";
 // Define all possible navigation items with their required roles
 const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant","admin"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
   // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
   //{ name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
