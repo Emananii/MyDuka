@@ -238,7 +238,7 @@ function AppRoutes() {
       </Route>
       {/* Route for store admins/merchants to view ALL supply requests for their store(s) */}
       <Route path="/supply-requests/admin">
-         <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin", "merchant"]} />
+         <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
       </Route>
       {/* Removed old/incorrect supply request related routes that were handled by modals now:
           - <Route path="/purchases/:id"> which was incorrectly pointing to SupplyRequestDetailsPage
