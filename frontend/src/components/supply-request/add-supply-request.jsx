@@ -78,7 +78,7 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
         requested_quantity: parseInt(requestedQuantity),
       };
 
-      const response = await axios.post('/api/supply-requests', payload);
+      const response = await axios.post('/api/supply-requests/create', payload);
 
       toast({
         title: "Supply Request Submitted!",

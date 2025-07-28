@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity # Ensure jwt_required is imported
 from sqlalchemy import desc
 from app.models import SupplyRequest, User, Store, Product
-from app import db
+from app import db # Corrected import for db
 from datetime import datetime
 
 supply_bp = Blueprint('supply_bp', __name__, url_prefix='/api/supply-requests')
@@ -10,12 +10,17 @@ supply_bp = Blueprint('supply_bp', __name__, url_prefix='/api/supply-requests')
 # Route 1: GET all supply requests (with filtering, sorting, pagination)
 # Handles: GET /api/supply-requests?status=<status>&store_id=<id>&page=<num>&per_page=<num>
 @supply_bp.route('/', methods=['GET'])
-# @jwt_required() # Removed authorization for testing
+@jwt_required(optional=True) # Relaxed: Allows access without JWT, but processes if present
 def get_all_supply_requests():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 10))
     status = request.args.get('status')
     store_id = request.args.get('store_id')
+
+    # Optionally get user_id even if optional=True, it will be None if no token
+    current_user_id = get_jwt_identity()
+    # You could use current_user_id here to filter requests based on the logged-in user
+    # e.g., if current_user_id and user_role == "clerk": query = query.filter_by(clerk_id=current_user_id)
 
     query = SupplyRequest.query
 
@@ -35,13 +40,14 @@ def get_all_supply_requests():
             "id": req.id,
             "store_id": req.store_id,
             "product_id": req.product_id,
-            "requested_quantity": req.quantity,
+            "requested_quantity": req.requested_quantity, # CORRECTED: Use req.requested_quantity
             "status": req.status,
             "created_at": req.created_at.isoformat() if req.created_at else None,
             "updated_at": req.updated_at.isoformat() if req.updated_at else None,
             "product": {
                 "id": req.product.id,
-                "name": req.product.name
+                "name": req.product.name,
+                "unit": req.product.unit # Added unit for frontend display
             } if req.product else None,
             "store": {
                 "id": req.store.id,
@@ -68,23 +74,27 @@ def get_all_supply_requests():
 # Route 2: GET a single supply request by ID
 # Handles: GET /api/supply-requests/<request_id>
 @supply_bp.route('/<int:request_id>', methods=['GET'])
-# @jwt_required() # Removed authorization for testing
+@jwt_required(optional=True) # Relaxed: Allows access without JWT, but processes if present
 def get_single_supply_request(request_id):
     req = SupplyRequest.query.get(request_id)
     if not req:
         return jsonify({"error": "Supply request not found"}), 404
 
+    # Optionally get user_id even if optional=True, it will be None if no token
+    # current_user_id = get_jwt_identity()
+
     return jsonify({
         "id": req.id,
         "store_id": req.store_id,
         "product_id": req.product_id,
-        "requested_quantity": req.quantity,
+        "requested_quantity": req.requested_quantity, # CORRECTED: Use req.requested_quantity
         "status": req.status,
         "created_at": req.created_at.isoformat() if req.created_at else None,
         "updated_at": req.updated_at.isoformat() if req.updated_at else None,
         "product": {
             "id": req.product.id,
-            "name": req.product.name
+            "name": req.product.name,
+            "unit": req.product.unit # Added unit for frontend display
         } if req.product else None,
         "store": {
             "id": req.store.id,
@@ -104,9 +114,9 @@ def get_single_supply_request(request_id):
 # Route 3: POST new supply request (typically from clerk)
 # Handles: POST /api/supply-requests/create
 @supply_bp.route('/create', methods=['POST'])
-# @jwt_required() # Removed authorization for testing
+@jwt_required() # REQUIRED: get_jwt_identity() needs JWT context for user_id
 def create_supply_request():
-    user_id = get_jwt_identity() # Still need identity for clerk_id, but not enforced by JWT for now
+    user_id = get_jwt_identity() # This is the clerk_id
     data = request.get_json()
 
     product_id = data.get("product_id")
@@ -119,7 +129,7 @@ def create_supply_request():
     new_request = SupplyRequest(
         store_id=store_id,
         product_id=product_id,
-        quantity=requested_quantity,
+        requested_quantity=requested_quantity,
         status="pending",
         clerk_id=user_id # Associate with the clerk who created it
     )
@@ -132,9 +142,9 @@ def create_supply_request():
 # Route 4: PATCH respond to a supply request (admin/merchant action)
 # Handles: PATCH /api/supply-requests/<request_id>/respond
 @supply_bp.route('/<int:request_id>/respond', methods=['PATCH'])
-# @jwt_required() # Removed authorization for testing
+@jwt_required() # REQUIRED: get_jwt_identity() needs JWT context for admin_id
 def respond_to_supply_request(request_id):
-    admin_id = get_jwt_identity() # Still need identity for admin_id, but not enforced by JWT for now
+    admin_id = get_jwt_identity() # This would be the admin/merchant ID
     req = SupplyRequest.query.get(request_id)
 
     if not req:
