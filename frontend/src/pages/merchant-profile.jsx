@@ -2,24 +2,32 @@ import React, { useState, useEffect } from "react";
 import { useUser } from "@/context/UserContext";
 
 const MerchantProfile = ({ onLogout }) => {
-  const { user } = useUser(); // get logged-in user
+  const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [newMerchant, setNewMerchant] = useState({ name: "", email: "", password: "" });
+  const [editInfo, setEditInfo] = useState({ name: user?.name, email: user?.email });
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("success"); // success or error
+  const [messageType, setMessageType] = useState("success");
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-  // fetch merchants list
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/merchants`)
       .then((res) => res.json())
-      .then(setUsers)
+      .then((data) => {
+      // normalize if necessary
+      const merchantsArray = Array.isArray(data) ? data : data.users || [];
+      setUsers(merchantsArray);
+    })
       .catch(() => setMessage("Failed to load merchants"));
   }, []);
 
   const handleInputChange = (e) => {
     setNewMerchant({ ...newMerchant, [e.target.name]: e.target.value });
+  };
+
+  const handleEditChange = (e) => {
+    setEditInfo({ ...editInfo, [e.target.name]: e.target.value });
   };
 
   const handleCreateMerchant = async (e) => {
@@ -47,6 +55,23 @@ const MerchantProfile = ({ onLogout }) => {
     } catch {
       setMessageType("error");
       setMessage("Failed to create merchant.");
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editInfo),
+      });
+      if (!res.ok) throw new Error();
+      setMessageType("success");
+      setMessage("Profile updated.");
+    } catch {
+      setMessageType("error");
+      setMessage("Failed to update profile.");
     }
   };
 
@@ -82,16 +107,12 @@ const MerchantProfile = ({ onLogout }) => {
   }, [message]);
 
   if (!user) {
-    return (
-      <div className="text-center mt-10 text-red-600 font-semibold">
-        Not logged in
-      </div>
-    );
+    return <div className="text-center mt-10 text-red-600 font-semibold">Not logged in</div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto my-10 p-6 bg-white border border-gray-200 rounded-lg shadow-sm font-[Montserrat]">
-      <div className="flex justify-between items-center mb-4">
+    <div className="max-w-3xl mx-auto my-10 p-6 bg-white border border-gray-200 rounded-lg shadow-sm font-[Montserrat]">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Merchant Profile</h2>
         <button
           onClick={onLogout}
@@ -101,15 +122,46 @@ const MerchantProfile = ({ onLogout }) => {
         </button>
       </div>
 
+      {/* My Info */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">My Info</h3>
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">My Info</h3>
         <p><strong>Name:</strong> {user.name}</p>
         <p><strong>Email:</strong> {user.email}</p>
         <p><strong>Role:</strong> {user.role}</p>
       </div>
 
+      {/* Edit Info */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">Edit Profile</h3>
+        <form onSubmit={handleEditSubmit} className="flex flex-col gap-3">
+          <input
+            type="text"
+            name="name"
+            value={editInfo.name}
+            onChange={handleEditChange}
+            placeholder="Name"
+            className="bg-gray-100 border-none py-2 px-4 text-sm rounded-lg w-full outline-none"
+          />
+          <input
+            type="email"
+            name="email"
+            value={editInfo.email}
+            onChange={handleEditChange}
+            placeholder="Email"
+            className="bg-gray-100 border-none py-2 px-4 text-sm rounded-lg w-full outline-none"
+          />
+          <button
+            type="submit"
+            className="bg-indigo-800 text-white text-xs px-6 py-2 rounded-lg hover:bg-indigo-700 transition"
+          >
+            Update Profile
+          </button>
+        </form>
+      </div>
+
+      {/* Create Merchant */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Create New Merchant</h3>
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">Create New Merchant</h3>
         <form onSubmit={handleCreateMerchant} className="flex flex-col gap-3">
           <input
             type="text"
@@ -146,7 +198,7 @@ const MerchantProfile = ({ onLogout }) => {
 
       {message && (
         <div
-          className={`mb-4 ${
+          className={`mb-4 text-sm ${
             messageType === "error" ? "text-red-600" : "text-green-600"
           }`}
         >
@@ -154,15 +206,16 @@ const MerchantProfile = ({ onLogout }) => {
         </div>
       )}
 
+      {/* Merchant List */}
       <div>
-        <h3 className="text-lg font-semibold mb-2">Merchants List</h3>
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">Merchants List</h3>
         <table className="w-full text-sm border">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="py-2 px-3 text-left">Name</th>
-              <th className="py-2 px-3 text-left">Email</th>
-              <th className="py-2 px-3 text-left">Status</th>
-              <th className="py-2 px-3 text-left">Actions</th>
+            <tr className="bg-gray-100 text-left">
+              <th className="py-2 px-3">Name</th>
+              <th className="py-2 px-3">Email</th>
+              <th className="py-2 px-3">Status</th>
+              <th className="py-2 px-3">Actions</th>
             </tr>
           </thead>
           <tbody>
