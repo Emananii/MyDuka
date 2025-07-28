@@ -63,16 +63,20 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(mutation.mutate)} className="space-y-4">
-            {["name", "address", "contact_person", "phone", "notes"].map((field) => (
+            {["name", "address", "contact_person", "phone", "notes"].map((fieldName) => (
               <FormField
-                key={field}
+                key={fieldName}
                 control={form.control}
-                name={field}
+                name={fieldName}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="capitalize">{field.replace("_", " ")}</FormLabel>
+                    <FormLabel className="capitalize">
+                      {typeof fieldName === "string"
+                        ? fieldName.replace(/_/g, " ")
+                        : ""}
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder={`Enter ${field.replace("_", " ")}`} {...field} />
+                      <Input placeholder={`Enter ${fieldName.replace(/_/g, " ")}`} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -84,7 +88,11 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={mutation.isPending}>
+              <Button
+                type="submit"
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                disabled={mutation.isPending}
+              >
                 {mutation.isPending ? "Updating..." : "Update Store"}
               </Button>
             </div>
