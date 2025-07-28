@@ -12,7 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
-import AuthenticatedLayout from "@/components/layout/authenticated-layout";
+//import AuthenticatedLayout from "@/components/layout/authenticated-layout";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -42,6 +42,8 @@ import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 // Inventory related pages (general)
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
+// Removed: SupplyRequestDetailsPage - details are handled by modals
+// Removed: SupplyRequestListPage - replaced by role-specific list pages
 import AdminInventory from "./pages/inventory/admin-inventory";
 
 // --- START: Supply Request Specific Pages (Using the ones we made) ---
@@ -59,10 +61,12 @@ import MerchantUserManagement from "./pages/user-management/merchant-user-manage
 
 import { UserProvider, UserContext } from "@/context/UserContext";
 
+// --- Layout Component ---
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const { user } = useContext(UserContext);
-  useLocation();
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Preserving user's dropdown state
+  const { user, logout } = useContext(UserContext);
+  const [location, navigate] = useLocation();
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -70,7 +74,7 @@ function MainLayout({ children }) {
     clerk: "/clerks-profile",
     cashier: "/cashier-profile",
   };
-  const profilePath = user?.role ? profilePathMap[user.role] : null;
+  const profilePath = user?.role ? profilePathMap[user.role] : "/profile";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -95,23 +99,49 @@ function MainLayout({ children }) {
               <h2 className="text-2xl font-semibold text-gray-800">MyDuka</h2>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="relative flex items-center space-x-4"> {/* Added relative for dropdown positioning */}
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
               </Button>
 
               {user && profilePath ? (
-                <Link href={profilePath} title="View Profile">
-                  <Avatar>
-                    <AvatarImage
-                      src={user.avatar || "/default-avatar.jpg"}
-                      alt={user.name || "User"}
-                    />
-                    <AvatarFallback>
-                      {user.name ? user.name.charAt(0).toUpperCase() : "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
+                <div className="relative"> {/* Outer div for dropdown positioning */}
+                  <div onClick={() => setDropdownOpen(!dropdownOpen)}>
+                    <Avatar className="cursor-pointer">
+                      <AvatarImage
+                        src={user.avatar || "/default-avatar.jpg"}
+                        alt={user.name || "User"}
+                      />
+                      <AvatarFallback>
+                        {user.name ? user.name.charAt(0).toUpperCase() : "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-50">
+                      <button
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          navigate(profilePath);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          logout?.();
+                          navigate("/login");
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <Link href="/login">
                   <Button variant="outline">Login</Button>
@@ -127,42 +157,32 @@ function MainLayout({ children }) {
   );
 }
 
+// --- Auth Routes ---
 function AuthRoutes() {
   return (
     <Switch>
       {/* 🔐 Separate login pages for each role */}
+      {/* Retained specific login paths from App.jsx_v1 logic for clarity */}
       <Route path="/login/admin">
-        <AuthenticatedLayout>
           <Login role="admin" />
-        </AuthenticatedLayout>
       </Route>
       <Route path="/login/merchant">
-        <AuthenticatedLayout>
           <Login role="merchant" />
-        </AuthenticatedLayout>
       </Route>
       <Route path="/login/clerk">
-        <AuthenticatedLayout>
           <Login role="clerk" />
-        </AuthenticatedLayout>
       </Route>
       <Route path="/login/cashier">
-        <AuthenticatedLayout>
           <Login role="cashier" />
-        </AuthenticatedLayout>
       </Route>
 
       {/* 🔁 Fallback login */}
       <Route path="/login">
-        <AuthenticatedLayout>
           <Login />
-        </AuthenticatedLayout>
       </Route>
 
       <Route path="/register">
-        <AuthenticatedLayout>
           <Register />
-        </AuthenticatedLayout>
       </Route>
 
       <Route>
@@ -174,6 +194,7 @@ function AuthRoutes() {
   );
 }
 
+// --- Application Routes ---
 function AppRoutes() {
   const { logout } = useContext(UserContext);
   const [, navigate] = useLocation();
@@ -219,6 +240,10 @@ function AppRoutes() {
       <Route path="/supply-requests/admin">
          <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin", "merchant"]} />
       </Route>
+      {/* Removed old/incorrect supply request related routes that were handled by modals now:
+          - <Route path="/purchases/:id"> which was incorrectly pointing to SupplyRequestDetailsPage
+          - <Route path="/inventory/supply-requests"> which was pointing to SupplyRequestDetailsPage
+      */}
       {/* --- END: Supply Request Pages --- */}
 
 
@@ -228,6 +253,13 @@ function AppRoutes() {
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
+      {/* Ensure any specific purchase detail route, if needed, points to a PurchaseDetailsPage, not SupplyRequestDetailsPage */}
+      {/* If you need a specific Purchase Details Page, you'd add:
+      <Route path="/purchases/:id">
+        <ProtectedRoute component={PurchaseDetailsPage} allowedRoles={["admin", "merchant"]} />
+      </Route>
+      */}
+
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -268,6 +300,7 @@ function AppRoutes() {
   );
 }
 
+// --- Main App ---
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
