@@ -126,8 +126,15 @@ export const saleHistoryItemSchema = baseModelSchema.extend({
   cashier_id: z.number().int().positive().nullable(),
   payment_status: paymentStatusEnum,
   total: z.number(),
-  cashier: userSchema.pick({ id: true, name: true, email: true }).optional(),
-  store: storeSchema.pick({ id: true, name: true }).optional(),
+  cashier: z.object({
+    id: z.number().int().positive().optional(), // Make ID optional
+    name: z.string(),
+    email: z.string().email().optional(), // Make email optional
+  }).optional(), // The whole cashier object is optional
+  store: z.object({
+    id: z.number().int().positive().optional(), // Make ID optional
+    name: z.string(),
+  }).optional(), // The whole store object is optional
 });
 export const saleHistoryListSchema = z.array(saleHistoryItemSchema);
 
@@ -137,8 +144,17 @@ export const saleDetailsSchema = baseModelSchema.extend({
   payment_status: paymentStatusEnum,
   total: z.number(),
   notes: z.string().nullable().optional(),
-  cashier: userSchema.pick({ id: true, name: true, email: true, role: true }).optional(),
-  store: storeSchema.pick({ id: true, name: true, address: true }).optional(),
+  cashier: z.object({
+    id: z.number().int().positive().optional(), // Make ID optional
+    name: z.string(),
+    email: z.string().email().optional(), // Make email optional
+    role: userRoleEnum.optional(), // Role might also be optional in some contexts
+  }).optional(),
+  store: z.object({
+    id: z.number().int().positive().optional(), // Make ID optional
+    name: z.string(),
+    address: z.string().nullable().optional(), // Address might be optional
+  }).optional(),
   sale_items: z.array(saleItemFetchedSchema).min(1),
 });
 

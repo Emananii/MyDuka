@@ -1,4 +1,5 @@
-import React, { useState, useContext, useEffect } from "react";
+// src/App.jsx
+import React, { useState, useContext } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
 import { Menu, Bell } from "lucide-react";
 
@@ -22,7 +23,6 @@ import ProtectedRoute from "@/components/auth/protected-route";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
-//import Inventory from "@/pages/inventory";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -52,8 +52,6 @@ import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
 // --- END: Supply Request Specific Pages ---
 
-//landing pages
-import LandingPage from "@/pages/landingpage";
 import NotFound from "@/pages/not-found";
 
 import POSInterfacePage from "@/pages/POS-interface";
@@ -85,6 +83,7 @@ function MainLayout({ children }) {
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
       />
+
       <div className="flex flex-col flex-1 overflow-hidden">
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between px-6 py-4">
@@ -151,6 +150,7 @@ function MainLayout({ children }) {
             </div>
           </div>
         </header>
+
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
@@ -161,15 +161,31 @@ function MainLayout({ children }) {
 function AuthRoutes() {
   return (
     <Switch>
-      {/* 🔁 Fallback login and registration */}
-      <Route path="/login">
-        <Login />
+      {/* 🔐 Separate login pages for each role */}
+      {/* Retained specific login paths from App.jsx_v1 logic for clarity */}
+      <Route path="/login/admin">
+          <Login role="admin" />
       </Route>
-      <Route path="/register">
-        <Register />
+      <Route path="/login/merchant">
+          <Login role="merchant" />
+      </Route>
+      <Route path="/login/clerk">
+          <Login role="clerk" />
+      </Route>
+      <Route path="/login/cashier">
+          <Login role="cashier" />
       </Route>
 
-      {/* 🔐 Main authenticated routes (wrapped in MainLayout) */}
+      {/* 🔁 Fallback login */}
+
+      <Route path="/login">
+          <Login />
+      </Route>
+
+      <Route path="/register">
+          <Register />
+      </Route>
+
       <Route>
         <MainLayout>
           <AppRoutes />
