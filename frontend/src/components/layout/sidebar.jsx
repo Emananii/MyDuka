@@ -21,14 +21,11 @@ import { Loader2 } from "lucide-react";
 // Define all possible navigation items with their required roles
 const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant","admin"] },
-  { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
-  // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
-  //{ name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
-  // ⭐ UPDATED: Admin can manage Stock Transfers (stock approvals) ⭐
-  //{ name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
-  // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
-  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant", "admin"] },
+  { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant", "admin"] },
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
+  { name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
+  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
   { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },

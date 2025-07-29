@@ -1,5 +1,4 @@
-// Login.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useUser } from "@/context/UserContext"; 
 import { Button } from "@/components/ui/button"; 
@@ -12,6 +11,20 @@ const Login = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [line1Path, setLine1Path] = useState("M100,400 L200,350 L300,280 L400,200 L500,150 L600,120 L700,100");
+  const [line2Path, setLine2Path] = useState("M100,450 L200,420 L300,380 L400,300 L500,250 L600,200 L700,180");
+  const [line3Path, setLine3Path] = useState("M100,430 L200,400 L300,350 L400,280 L500,220 L600,180 L700,150");
+  const [barData, setBarData] = useState([
+    { x: 60, y: 480, height: 20 },
+    { x: 160, y: 460, height: 40 },
+    { x: 260, y: 420, height: 80 },
+    { x: 360, y: 350, height: 150 },
+    { x: 460, y: 300, height: 200 },
+    { x: 560, y: 280, height: 220 },
+    { x: 660, y: 250, height: 250 },
+  ]);
 
   const [, navigate] = useLocation();
   const { login } = useUser();
@@ -27,7 +40,6 @@ const Login = () => {
       setSuccess("Login successful!");
       navigate("/"); // Navigate to dashboard or home page after successful login
     } catch (err) {
-      console.error("Login failed:", err); 
       let displayErrorMessage = "Login failed. Please check your credentials.";
 
       if (err.message) {
@@ -44,6 +56,49 @@ const Login = () => {
       setIsSubmitting(false);
     }
   };
+
+  const togglePassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const generateLineData = (baseOffset) => {
+    let path = "M100,";
+    let points = [];
+    for (let i = 0; i < 7; i++) {
+      const x = 100 + i * 100;
+      const y = Math.random() * 300 + 100 + baseOffset;
+      points.push({ x, y });
+    }
+    path += points[0].y;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L${points[i].x},${points[i].y}`;
+    }
+    return path;
+  };
+
+  const updateChartData = () => {
+    setLine1Path(generateLineData(0));
+    setLine2Path(generateLineData(50));
+    setLine3Path(generateLineData(25));
+    setBarData(
+      barData.map(() => {
+        const newHeight = Math.random() * 250 + 50;
+        return { x: undefined, y: 500 - newHeight, height: newHeight };
+      }).map((bar, index) => ({
+        ...bar,
+        x: 60 + index * 100,
+      }))
+    );
+  };
+
+  useEffect(() => {
+    const initialUpdate = setTimeout(updateChartData, 4000);
+    const interval = setInterval(updateChartData, 6000);
+    return () => {
+      clearTimeout(initialUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 font-sans">
