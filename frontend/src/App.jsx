@@ -161,23 +161,6 @@ function MainLayout({ children }) {
 function AuthRoutes() {
   return (
     <Switch>
-      {/* 🌐 Public landing page */}
-      <Route path="/" component={LandingPage} />
-
-      {/* 🔐 Role-specific login pages */}
-      <Route path="/login/admin">
-        <Login role="admin" />
-      </Route>
-      <Route path="/login/merchant">
-        <Login role="merchant" />
-      </Route>
-      <Route path="/login/clerk">
-        <Login role="clerk" />
-      </Route>
-      <Route path="/login/cashier">
-        <Login role="cashier" />
-      </Route>
-
       {/* 🔁 Fallback login and registration */}
       <Route path="/login">
         <Login />
@@ -192,9 +175,13 @@ function AuthRoutes() {
           <AppRoutes />
         </MainLayout>
       </Route>
+
+      {/* 🌐 Public landing page - move this BELOW the main layout */}
+      <Route path="/" component={LandingPage} />
     </Switch>
   );
 }
+
 
 // --- Application Routes ---
 function AppRoutes() {
