@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/context/UserContext'; // Assuming you have a UserContext
+import { useUser } from '@/context/UserContext';
 import { apiRequest } from '@/lib/queryClient';
 import { BASE_URL } from '@/lib/constants';
 import { saleHistoryListSchema, saleDetailsSchema } from '@/shared/schema'; // Your schemas
@@ -11,11 +11,11 @@ import { saleHistoryListSchema, saleDetailsSchema } from '@/shared/schema'; // Y
 import SalesFilterBar from '@/components/sales/sales-filter-bar';
 import SalesTable from '@/components/sales/sales-table';
 import SaleDetailsDialog from '@/components/sales/sale-details-dialog';
-import { Loader2 } from 'lucide-react'; // For loading user context
-import { subDays, format } from 'date-fns'; // For date calculations and formatting
+import { Loader2 } from 'lucide-react';
+import { subDays, format } from 'date-fns';
 
 export default function MerchantSalesPage() {
-  const { user: currentUser, isLoading: isLoadingUser } = useUser(); // Get logged-in user from context
+  const { user: currentUser, isLoading: isLoadingUser } = useUser();
   const { toast } = useToast();
 
   // State for filters
@@ -34,7 +34,7 @@ export default function MerchantSalesPage() {
     };
   });
 
-  const [viewingSaleId, setViewingSaleId] = useState(null); // State for opening sale details dialog
+  const [viewingSaleId, setViewingSaleId] = useState(null);
 
   // Memoize filters for useQuery dependency, converting Dates to strings for API
   const queryFilters = useMemo(() => {
@@ -49,7 +49,7 @@ export default function MerchantSalesPage() {
 
   // Fetch sales data
   const {
-    data: salesResponse, // Will contain { sales: [], total: N, page: N, pages: N, per_page: N }
+    data: salesResponse,
     isLoading: isLoadingSales,
     isError: isErrorSales,
     error: salesError,
@@ -67,7 +67,7 @@ export default function MerchantSalesPage() {
         per_page: res.per_page,
       };
     },
-    enabled: !isLoadingUser && currentUser?.role === 'merchant', // Only fetch if user loaded and is merchant
+    enabled: !isLoadingUser && currentUser?.role === 'merchant',
     staleTime: 60 * 1000, // 1 minute stale time
     onError: (err) => {
       toast({
@@ -78,15 +78,25 @@ export default function MerchantSalesPage() {
     },
   });
 
-  const sales = salesResponse?.sales || []; // Extract the actual sales array for the table
+  const sales = salesResponse?.sales || [];
 
   // Callback for filter changes from SalesFilterBar
   const handleFilterChange = useCallback((key, value) => {
     setFilters(prev => {
+      // Handle dateRange specifically as it's an object
       if (key === 'dateRange') {
         return { ...prev, dateRange: value };
       }
-      // Handle reset logic if you add a reset button to SalesFilterBar
+      // Handle 'search' and other direct key-value filters
+      if (key === 'search') { // ⭐ Explicitly handle search key ⭐
+          return { ...prev, search: value };
+      }
+      // Handle storeId and cashierId, allowing null to clear filters
+      if (key === 'storeId' || key === 'cashierId') {
+        return { ...prev, [key]: value === 'all' ? null : value };
+      }
+
+      // Handle a potential 'reset' action if your filter bar has one
       if (key === 'reset') {
         const today = new Date();
         const thirtyDaysAgo = subDays(today, 29);
@@ -97,7 +107,7 @@ export default function MerchantSalesPage() {
           cashierId: null,
         };
       }
-      return { ...prev, [key]: value };
+      return { ...prev, [key]: value }; // General case for other filters
     });
   }, []);
 
@@ -136,8 +146,8 @@ export default function MerchantSalesPage() {
         filters={filters}
         onFilterChange={handleFilterChange}
         showSearchFilter={true}
-        showStoreFilter={true}    // Merchant can filter by store
-        showCashierFilter={true}   // Merchant can filter by cashier
+        showStoreFilter={true}
+        showCashierFilter={true}
       />
 
       {/* Sales Table */}

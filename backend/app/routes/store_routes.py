@@ -177,7 +177,7 @@ def delete_store(store_id):
 # List all stores
 @store_bp.route("/", methods=["GET"])
 @jwt_required()
-@role_required("merchant", "admin")
+@role_required("merchant")
 def list_stores():
     """
     Lists all active (not soft-deleted) stores.
@@ -438,7 +438,7 @@ def respond_supply_request(store_id, req_id):
     req.admin_response = comment
     req.updated_at = datetime.utcnow()
 
-    req.admin_response = data.get("comment")
+    # req.admin_response = data.get("comment")
     req.updated_at = datetime.now(timezone.utc) # Use timezone-aware datetime
     db.session.commit()
     return jsonify({"status": req.status.value, "request_id": req.id})

@@ -6,9 +6,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
 import { PencilLine, Trash2 } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient"; // Ensure apiRequest is correctly imported
 import { BASE_URL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import EditSupplierModal from "./edit-supplier-modal";
@@ -16,21 +16,29 @@ import EditSupplierModal from "./edit-supplier-modal";
 export default function ViewSupplierModal({ supplier, isOpen, onClose }) {
   const [editing, setEditing] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient(); // Initialize useQueryClient
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `${BASE_URL}/suppliers/${supplier?.id}`),
+    mutationFn: () => apiRequest("DELETE", `${BASE_URL}/api/suppliers/${supplier?.id}`),
     onSuccess: () => {
       toast({
         title: "Deleted",
-        description: `Supplier #${supplier.id} deleted`,
+        description: `Supplier #${supplier.id} deleted successfully.`,
       });
-      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/suppliers`] });
-      onClose();
+      // Invalidate the query to refetch the list
+      queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/api/suppliers/`] });
+      onClose(); // Close the modal first
+
+      // Reload the page after a short delay
+      setTimeout(() => {
+        window.location.href = "/suppliers";
+      }, 1200);
     },
     onError: (error) => {
+      console.error("Failed to delete supplier:", error); // Log error for debugging
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error.message || "An error occurred during deletion.",
         variant: "destructive",
       });
     },
@@ -54,10 +62,25 @@ export default function ViewSupplierModal({ supplier, isOpen, onClose }) {
               <strong>Name:</strong> {supplier.name}
             </div>
             <div>
-              <strong>Contact:</strong> {supplier.contact || "No contact provided"}
+              <strong>Contact Person:</strong> {supplier.contact_person || "No contact person provided"}
+            </div>
+            <div>
+              <strong>Phone:</strong> {supplier.phone || "No phone provided"}
+            </div>
+            <div>
+              <strong>Email:</strong> {supplier.email || "No email provided"}
             </div>
             <div>
               <strong>Address:</strong> {supplier.address || "No address provided"}
+            </div>
+            <div>
+              <strong>Notes:</strong> {supplier.notes || "No notes"}
+            </div>
+            <div>
+              <strong>Created At:</strong> {new Date(supplier.created_at).toLocaleString()}
+            </div>
+            <div>
+              <strong>Last Updated:</strong> {new Date(supplier.updated_at).toLocaleString()}
             </div>
           </div>
 

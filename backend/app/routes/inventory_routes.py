@@ -113,7 +113,7 @@ def create_category():
     db.session.commit()
     return jsonify(new_category.to_dict()), 201
 
-@inventory_bp.route('/categories/<int:id>', methods=['PATCH'])
+@inventory_bp.route('/categories/<int:id>', methods=['PATCH' , 'PUT'])
 # @jwt_required() # Uncomment if you want to protect this route
 def update_category(id):
     """

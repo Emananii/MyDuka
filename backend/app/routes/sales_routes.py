@@ -185,4 +185,3 @@ def delete_sale(id):
     except Exception:
         db.session.rollback()
         raise # Re-raise to be caught by the global generic Exception handler
-
