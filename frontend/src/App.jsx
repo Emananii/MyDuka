@@ -177,6 +177,7 @@ function AuthRoutes() {
       </Route>
 
       {/* 🔁 Fallback login */}
+
       <Route path="/login">
           <Login />
       </Route>
@@ -190,9 +191,13 @@ function AuthRoutes() {
           <AppRoutes />
         </MainLayout>
       </Route>
+
+      {/* 🌐 Public landing page - move this BELOW the main layout */}
+      <Route path="/" component={LandingPage} />
     </Switch>
   );
 }
+
 
 // --- Application Routes ---
 function AppRoutes() {
