@@ -49,6 +49,14 @@ def seed_all():
             def get_random_date_in_range():
                 return faker.date_time_between(start_date=start_date_for_seeding, end_date=end_date_for_seeding, tzinfo=UTC)
 
+            # Define a wider date range for historical data (e.g., 2 years)
+            end_date_for_seeding = datetime.now(UTC)
+            start_date_for_seeding = end_date_for_seeding - timedelta(days=365 * 2) # 2 years of data
+
+            # Helper function to get a random datetime within the defined range
+            def get_random_date_in_range():
+                return faker.date_time_between(start_date=start_date_for_seeding, end_date=end_date_for_seeding, tzinfo=UTC)
+
             # --- 1. Create Stores ---
             print("🏢 Creating Stores...")
             store_main = Store(name="Main Branch (CBD)", address="Tom Mboya Street, Nairobi")
@@ -221,6 +229,7 @@ def seed_all():
 
             # --- 5. Create StoreProduct Records (Inventory Stock with Prices) ---
             print("📊 Creating StoreProduct records (initial inventory stock)...")
+            print("📊 Creating StoreProduct records (initial inventory stock)...")
             store_products_to_seed = []
             all_stores_from_db = Store.query.all()
             all_products_from_db = Product.query.all()
@@ -246,6 +255,7 @@ def seed_all():
                 return sp
 
             # Random initial stock for all stores and a subset of products
+            # Random initial stock for all stores and a subset of products
             for store in all_stores_from_db:
                 num_products_per_store = random.randint(min(10, len(all_products_from_db)), min(25, len(all_products_from_db)))
                 products_for_store = random.sample(all_products_from_db, num_products_per_store)
@@ -256,7 +266,15 @@ def seed_all():
                     price = (base_price * Decimal(str(random.uniform(1.2, 2.5)))).quantize(Decimal('0.01'))
                     low_stock_threshold = random.randint(5, 50)
                     last_updated = faker.date_time_between(start_date='-60d', end_date='now', tzinfo=None)
+                    quantity_in_stock = random.randint(0, 200)
+                    base_price = Decimal(str(round(random.uniform(50, 500), 2)))
+                    price = (base_price * Decimal(str(random.uniform(1.2, 2.5)))).quantize(Decimal('0.01'))
+                    low_stock_threshold = random.randint(5, 50)
+                    last_updated = faker.date_time_between(start_date='-60d', end_date='now', tzinfo=None)
 
+                    # Ensure we don't duplicate StoreProduct if it's already added by specific seeding below
+                    existing_sp = StoreProduct.query.filter_by(store_id=store.id, product_id=product.id).first()
+                    if not existing_sp:
                     # Ensure we don't duplicate StoreProduct if it's already added by specific seeding below
                     existing_sp = StoreProduct.query.filter_by(store_id=store.id, product_id=product.id).first()
                     if not existing_sp:
@@ -402,7 +420,10 @@ def seed_all():
             for store in all_initial_stores:
                 # Significantly increase the number of sales per store
                 num_sales_per_store = random.randint(100, 500) # More sales for better trends
+                # Significantly increase the number of sales per store
+                num_sales_per_store = random.randint(100, 500) # More sales for better trends
                 for _ in range(num_sales_per_store):
+                    sale_date = get_random_date_in_range() # Use a random datetime
                     sale_date = get_random_date_in_range() # Use a random datetime
                     cashier = get_random_cashier(store.id)
                     if cashier:
@@ -410,7 +431,9 @@ def seed_all():
                             store_id=store.id,
                             cashier_id=cashier.id,
                             created_at=sale_date, # Explicitly set created_at for historical sales
+                            created_at=sale_date, # Explicitly set created_at for historical sales
                             payment_status=random.choice(['paid', 'unpaid']),
+                            is_deleted=faker.boolean(chance_of_getting_true=2) # Lower chance of deleted sales
                             is_deleted=faker.boolean(chance_of_getting_true=2) # Lower chance of deleted sales
                         ))
             
@@ -435,6 +458,7 @@ def seed_all():
                 num_sale_items = random.randint(1, min(5, len(available_store_products)))
                 selected_store_products = random.sample(available_store_products, num_sale_items)
                 
+                
                 for store_product in selected_store_products:
                     if store_product.quantity_in_stock <= 0:
                         continue 
@@ -452,6 +476,7 @@ def seed_all():
                         price_at_sale=item_price # Set price_at_sale as per model
                     )
                     sale_items_to_seed.append(sale_item)
+                    
                     
             db.session.add_all(sale_items_to_seed)
             db.session.commit() # Commit all sales, sale items, and updated StoreProduct quantities
@@ -518,9 +543,35 @@ def seed_all():
                     
                     if not initiator or not approver:
                         continue
+            print("📦 Creating Stock Transfers...")
+            stock_transfers_to_seed = []
+            if len(all_initial_stores) >= 2 and all_products_from_db:
+                for _ in range(random.randint(2, 5)):
+                    from_store = random.choice(all_initial_stores)
+                    to_store = random.choice([s for s in all_initial_stores if s != from_store])
+                    
+                    if not to_store: # Ensure a different store can be selected
+                        continue
+                        
+                    initiator = random.choice(available_admins) if available_admins else None
+                    approver = random.choice(available_admins) if available_admins else None
+                    
+                    if not initiator or not approver:
+                        continue
 
                     status = random.choice(['pending', 'approved', 'rejected'])
+                    status = random.choice(['pending', 'approved', 'rejected'])
                     
+                    transfer = StockTransfer(
+                        from_store_id=from_store.id,
+                        to_store_id=to_store.id,
+                        initiated_by=initiator.id,
+                        approved_by=approver.id if status == 'approved' else None,
+                        status=status,
+                        transfer_date=faker.date_time_between(start_date='-30d', end_date='now', tzinfo=None),
+                        notes=faker.sentence()
+                    )
+                    stock_transfers_to_seed.append(transfer)
                     transfer = StockTransfer(
                         from_store_id=from_store.id,
                         to_store_id=to_store.id,
@@ -534,7 +585,24 @@ def seed_all():
             
             db.session.add_all(stock_transfers_to_seed)
             db.session.flush() # Flush to get transfer IDs for items
+            db.session.add_all(stock_transfers_to_seed)
+            db.session.flush() # Flush to get transfer IDs for items
 
+            # Create Stock Transfer Items
+            stock_transfer_items_to_seed = []
+            for transfer in StockTransfer.query.all(): # Fetch the flushed transfers
+                num_items = random.randint(1, 3)
+                products_for_transfer = random.sample(all_products_from_db, num_items)
+                for product in products_for_transfer:
+                    quantity = random.randint(1, 20)
+                    stock_transfer_items_to_seed.append(StockTransferItem(
+                        stock_transfer_id=transfer.id,
+                        product_id=product.id,
+                        quantity=quantity
+                    ))
+            db.session.add_all(stock_transfer_items_to_seed)
+            db.session.commit()
+            print(f"✅ Created {StockTransfer.query.count()} stock transfers and {StockTransferItem.query.count()} items.")
             # Create Stock Transfer Items
             stock_transfer_items_to_seed = []
             for transfer in StockTransfer.query.all(): # Fetch the flushed transfers

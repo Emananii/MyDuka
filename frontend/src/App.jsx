@@ -13,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
 //import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
+//import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -22,6 +23,8 @@ import Register from "@/components/auth/register-form";
 import ProtectedRoute from "@/components/auth/protected-route";
 
 // Pages
+// Removed generic Dashboard import as we'll use role-specific ones
+// import Dashboard from "@/pages/dashboard";
 // Removed generic Dashboard import as we'll use role-specific ones
 // import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
@@ -45,6 +48,7 @@ import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
+// --- START: Supply Request Specific Pages ---
 // --- START: Supply Request Specific Pages ---
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
@@ -251,6 +255,7 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
+      {/* --- START: Supply Request Pages --- */}
       {/* --- START: Supply Request Pages --- */}
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />

@@ -20,7 +20,8 @@ import { Loader2 } from "lucide-react";
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
+  // The href for Dashboard will be dynamically determined below
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier", "clerk"] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant","admin"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
   // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
@@ -29,7 +30,12 @@ const navigationConfig = [
   //{ name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
   // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
-  { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
+  { 
+    name: "Suppliers", 
+    href: "/suppliers", 
+    icon: Factory, 
+    roles: ["merchant"] // ⭐ CHANGED: Only 'merchant' can see Suppliers in sidebar ⭐
+  },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
@@ -122,13 +128,19 @@ export default function Sidebar() {
           {/* Navigation Links */}
           <nav className="mt-5 flex-grow px-4 space-y-1">
             {visibleNavigation.map((item) => {
-              const isActive = location === item.href;
+              let itemHref = item.href;
+              // Dynamically set the Dashboard href based on user role
+              if (item.name === "Dashboard" && currentUser?.role) {
+                itemHref = `/dashboard/${currentUser.role}`;
+              }
+
+              const isActive = location === itemHref;
               const Icon = item.icon;
 
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={itemHref} // Use the dynamically determined href
                   className={cn(
                     "group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
                     isActive
