@@ -12,15 +12,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
-//import AuthenticatedLayout from "@/components/layout/authenticated-layout";
+//import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+// Auth
 import Login from "@/components/auth/login-form";
 import Register from "@/components/auth/register-form";
 import ProtectedRoute from "@/components/auth/protected-route";
 
-import Dashboard from "@/pages/dashboard";
+// Pages
+// Removed generic Dashboard import as we'll use role-specific ones
+// import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -40,12 +43,9 @@ import MerchantSalesPage from "@/pages/sales/merchant-sales-page";
 // Inventory related pages (general)
 import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
-// Removed: SupplyRequestDetailsPage - details are handled by modals
-// Removed: SupplyRequestListPage - replaced by role-specific list pages
 import AdminInventory from "./pages/inventory/admin-inventory";
 
-// --- START: Supply Request Specific Pages (Using the ones we made) ---
-// IMPORTANT: Corrected path from 'suply-requests' to 'supply-requests'
+// --- START: Supply Request Specific Pages ---
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
 // --- END: Supply Request Specific Pages ---
@@ -53,10 +53,18 @@ import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-
 import NotFound from "@/pages/not-found";
 
 import POSInterfacePage from "@/pages/POS-interface";
+
 import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
 import MerchantUserManagement from "./pages/user-management/merchant-user-management";
 
 import { UserProvider, UserContext } from "@/context/UserContext";
+
+// --- NEW: Import specific dashboard components for each role ---
+//import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
+import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
+//import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
+//import ClerkDashboardPage from "@/pages/dashboard/clerk/dashboard";
+
 
 // --- Layout Component ---
 function MainLayout({ children }) {
@@ -203,7 +211,23 @@ function AppRoutes() {
 
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      {/* Removed the universal "/" route for dashboard */}
+      {/* <Route path="/" component={Dashboard} /> */}
+
+      {/* NEW: Role-specific Dashboard Routes */}
+      <Route path="/dashboard/merchant">
+        <ProtectedRoute component={MerchantDashboardPage} allowedRoles={["merchant"]} />
+      </Route>
+      <Route path="/dashboard/admin">
+        <ProtectedRoute component={AdminDashboardPage} allowedRoles={["admin"]} />
+      </Route>
+      {/* <Route path="/dashboard/cashier">
+        <ProtectedRoute component={CashierDashboardPage} allowedRoles={["cashier"]} />
+      </Route>
+      <Route path="/dashboard/clerk">
+        <ProtectedRoute component={ClerkDashboardPage} allowedRoles={["clerk"]} />
+      </Route> */}
+      {/* END NEW: Role-specific Dashboard Routes */}
 
       {/* Cashier */}
       <Route path="/pos">
@@ -227,21 +251,14 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
-      {/* --- START: Supply Request Pages (Refactored) --- */}
-      {/* Route for clerks to view/manage THEIR OWN supply requests */}
+      {/* --- START: Supply Request Pages --- */}
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
-      {/* Route for store admins/merchants to view ALL supply requests for their store(s) */}
       <Route path="/supply-requests/admin">
          <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
       </Route>
-      {/* Removed old/incorrect supply request related routes that were handled by modals now:
-          - <Route path="/purchases/:id"> which was incorrectly pointing to SupplyRequestDetailsPage
-          - <Route path="/inventory/supply-requests"> which was pointing to SupplyRequestDetailsPage
-      */}
       {/* --- END: Supply Request Pages --- */}
-
 
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
@@ -249,7 +266,6 @@ function AppRoutes() {
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
-      {/* Ensure any specific purchase detail route, if needed, points to a PurchaseDetailsPage, not SupplyRequestDetailsPage */}
       {/* If you need a specific Purchase Details Page, you'd add:
       <Route path="/purchases/:id">
         <ProtectedRoute component={PurchaseDetailsPage} allowedRoles={["admin", "merchant"]} />
@@ -274,7 +290,6 @@ function AppRoutes() {
       <Route path="/clerks-profile">
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
-
 
       {/* Merchant */}
       <Route path="/stores">

@@ -214,7 +214,7 @@ class Purchase(BaseModel):
     store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False) # Made nullable false, as per purchase_routes.py
     date = db.Column(db.Date, nullable=False, default=datetime.now(timezone.utc).date()) # Added default and nullable false as per purchase_routes.py
     reference_number = db.Column(db.String(100), nullable=True) # Added length and nullable true
-    total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0.00")) # Added this line
+    total_amount = db.Column(db.Numeric(10, 2), nullable=True, default=Decimal("0.00")) # Added this line
     is_paid = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text, nullable=True) # Made nullable true
 

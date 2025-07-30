@@ -9,7 +9,7 @@ from app.models import User, Store, Product, Purchase
 
 # --- CRITICAL FIX 1: Correct url_prefix for the blueprint ---
 # It should be "/api/dashboard" so that routes like /api/dashboard/movements work correctly.
-dashboard = Blueprint("dashboard", __name__, url_prefix="/api/dashboard")
+dashboard = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
 # 1. Summary Chart Data
 # Removed @jwt_required() and @role_required("admin")

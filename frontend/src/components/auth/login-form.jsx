@@ -1,22 +1,26 @@
-// src/components/auth/login-form.jsx
-import React, { useContext, useState } from "react";
+// Login.jsx
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useUser } from "@/context/UserContext"; 
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";   
 // Removed Card, CardContent, CardHeader, CardTitle imports as we're using divs now
 
-const LoginForm = () => {
-  const { login } = useContext(UserContext);
-  const [, navigate] = useLocation(); // get navigate function
-
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = async (e) => {
+  const [, navigate] = useLocation();
+  const { login } = useUser();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
+    setIsSubmitting(true);
 
     try {
       await login(email, password);
