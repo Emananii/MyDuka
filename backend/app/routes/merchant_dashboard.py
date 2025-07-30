@@ -2,8 +2,8 @@ from flask import Blueprint, jsonify
 # Removed flask_jwt_extended and app.routes.auth_routes imports
 # from flask_jwt_extended import jwt_required, get_jwt_identity
 # from app.routes.auth_routes import role_required
-from app.models import db, Product, StoreProduct, Purchase, StockTransfer, PurchaseItem, StockTransferItem, Supplier, User, Store
-from sqlalchemy import func, distinct, cast, String
+from app.models import db, Product, StoreProduct, Purchase, StockTransfer, PurchaseItem, StockTransferItem, Supplier, User, Store, Sale, SaleItem # Imported Sale, SaleItem
+from sqlalchemy import func, distinct, cast, String, Date # Imported Date for casting
 from datetime import datetime, timedelta
 from decimal import Decimal # Import Decimal for type conversion
 
@@ -174,6 +174,7 @@ def get_merchant_dashboard_movements():
         product = Product.query.get(sti.product_id)
         transfer = StockTransfer.query.get(sti.stock_transfer_id)
         if product and transfer:
+            # Corrected the syntax error here
             from_store_name = Store.query.get(transfer.from_store_id).name if transfer.from_store_id else "N/A"
             to_store_name = Store.query.get(transfer.to_store_id).name if transfer.to_store_id else "N/A"
             
@@ -191,3 +192,114 @@ def get_merchant_dashboard_movements():
     all_movements.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
 
     return jsonify(all_movements[:10]), 200
+
+# --- NEW: Sales Trend Daily ---
+@merchant_dashboard_bp.route('/sales_trend_daily', methods=['GET'])
+# @jwt_required()
+# @role_required("merchant")
+def get_daily_sales_trend():
+    """
+    Fetches daily total sales trend for the merchant dashboard.
+    """
+    # Query to get total sales per day
+    daily_sales = db.session.query(
+        cast(Sale.created_at, Date).label('sale_date'),
+        func.sum(SaleItem.quantity * SaleItem.price_at_sale).label('total_sales')
+    ).join(SaleItem, Sale.id == SaleItem.sale_id).filter(
+        Sale.is_deleted == False,
+        SaleItem.is_deleted == False
+    ).group_by(
+        cast(Sale.created_at, Date)
+    ).order_by(
+        cast(Sale.created_at, Date)
+    ).all()
+
+    sales_trend_data = []
+    for row in daily_sales:
+        sales_trend_data.append({
+            "date": row.sale_date.isoformat(),
+            "value": float(row.total_sales) # Convert Decimal to float for JSON
+        })
+    return jsonify(sales_trend_data), 200
+
+# --- NEW: Profit Trend Daily ---
+@merchant_dashboard_bp.route('/profit_trend_daily', methods=['GET'])
+# @jwt_required()
+# @role_required("merchant")
+def get_daily_profit_trend():
+    """
+    Fetches daily total profit trend for the merchant dashboard.
+    Profit is approximated as (Sales Revenue - Average Product Cost).
+    """
+    # Subquery to calculate the average unit cost for each product from purchases
+    # This is a simplification; a real accounting system would track COGS more precisely.
+    product_avg_cost_subquery = db.session.query(
+        PurchaseItem.product_id,
+        func.avg(PurchaseItem.unit_cost).label('avg_cost')
+    ).filter(
+        PurchaseItem.is_deleted == False
+    ).group_by(
+        PurchaseItem.product_id
+    ).subquery()
+
+    # Query to get daily sales revenue and approximate daily cost of goods sold (COGS)
+    daily_profit_data = db.session.query(
+        cast(Sale.created_at, Date).label('sale_date'),
+        func.sum(SaleItem.quantity * SaleItem.price_at_sale).label('total_revenue'),
+        func.sum(SaleItem.quantity * product_avg_cost_subquery.c.avg_cost).label('total_cogs')
+    ).join(SaleItem, Sale.id == SaleItem.sale_id).join( # Join SaleItem with StoreProduct
+        StoreProduct, SaleItem.store_product_id == StoreProduct.id # Correct join condition
+    ).outerjoin( # Use outerjoin to include sales even if product has no purchase history
+        product_avg_cost_subquery,
+        StoreProduct.product_id == product_avg_cost_subquery.c.product_id # Corrected join condition
+    ).filter(
+        Sale.is_deleted == False,
+        SaleItem.is_deleted == False
+    ).group_by(
+        cast(Sale.created_at, Date)
+    ).order_by(
+        cast(Sale.created_at, Date)
+    ).all()
+
+    profit_trend_data = []
+    for row in daily_profit_data:
+        revenue = row.total_revenue or Decimal('0.00')
+        cogs = row.total_cogs or Decimal('0.00') # Handle cases where a product might not have an avg_cost (e.g., if never purchased)
+        profit = revenue - cogs
+        profit_trend_data.append({
+            "date": row.sale_date.isoformat(),
+            "value": float(profit) # Convert Decimal to float for JSON
+        })
+    return jsonify(profit_trend_data), 200
+
+# --- NEW: Top Performing Stores ---
+@merchant_dashboard_bp.route('/top_performing_stores', methods=['GET'])
+# @jwt_required()
+# @role_required("merchant")
+def get_top_performing_stores():
+    """
+    Fetches the top performing stores based on total sales revenue.
+    """
+    top_stores_query = db.session.query(
+        Store.id.label('store_id'),
+        Store.name.label('store_name'),
+        func.sum(SaleItem.quantity * SaleItem.price_at_sale).label('total_revenue')
+    ).join(Sale, Store.id == Sale.store_id).join(
+        SaleItem, Sale.id == SaleItem.sale_id
+    ).filter(
+        Sale.is_deleted == False,
+        SaleItem.is_deleted == False
+    ).group_by(
+        Store.id, Store.name
+    ).order_by(
+        func.sum(SaleItem.quantity * SaleItem.price_at_sale).desc()
+    ).limit(5).all() # Get top 5 stores
+
+    top_stores_data = []
+    for store_id, store_name, total_revenue in top_stores_query:
+        top_stores_data.append({
+            "store_id": store_id,
+            "store_name": store_name,
+            "total_revenue": float(total_revenue) # Convert Decimal to float for JSON
+        })
+    return jsonify(top_stores_data), 200

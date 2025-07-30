@@ -26,6 +26,12 @@ import {
 } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
 
+// Import the new chart components
+import SalesTrendChart from "@/components/dashboard/merchant/sales-trend-chart";
+import ProfitTrendChart from "@/components/dashboard/merchant/profit-trend-chart";
+// NEW: Import the TopPerformingStoresCard component
+import TopPerformingStoresCard from "@/components/dashboard/merchant/top-performing-stores-card";
+
 export default function Dashboard() {
   const { data: stats = {}, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ["dashboard-summary"],
@@ -127,7 +133,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
 
-      {/* Summary Cards */}
+      {/* Summary Cards (Keep at top) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <SummaryCard label="Total Items" value={total_items} icon={<Package className="w-6 h-6 text-blue-600" />} color="bg-blue-100" />
         <SummaryCard label="Total Stock" value={total_stock} icon={<Boxes className="w-6 h-6 text-green-600" />} color="bg-green-100" />
@@ -137,7 +143,7 @@ export default function Dashboard() {
         <SummaryCard label="Purchase Value" value={total_purchase_value} icon={<TrendingUp className="w-6 h-6 text-orange-600" />} color="bg-orange-100" isCurrency wide />
       </div>
 
-      {/* Inventory Status */}
+      {/* Inventory Status (Keep here) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -189,7 +195,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Movements and Recent Activity */}
+      {/* Movements and Recent Activity (Keep here) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -264,39 +270,51 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Supplier Spending Trends */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HandCoins className="w-5 h-5 text-yellow-600" />
-            Top Suppliers by Spending
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {supplier_spending_trends.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Amount Spent</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {supplier_spending_trends.map((supplier, index) => (
-                  <TableRow key={supplier.supplier_id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{supplier.supplier_name}</TableCell>
-                    <TableCell>{formatCurrency(supplier.total_spent)}</TableCell>
+      {/* NEW SECTION: Supplier Spending Trends and Top Performing Stores (side-by-side) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Supplier Spending Trends */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HandCoins className="w-5 h-5 text-yellow-600" />
+              Top Suppliers by Spending
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {supplier_spending_trends.length ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>Amount Spent</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-gray-500">No supplier data available</p>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {supplier_spending_trends.map((supplier, index) => (
+                    <TableRow key={supplier.supplier_id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{supplier.supplier_name}</TableCell>
+                      <TableCell>{formatCurrency(supplier.total_spent)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-gray-500">No supplier data available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Performing Stores Card */}
+        <TopPerformingStoresCard />
+      </div>
+
+      {/* Charts Section (Moved to bottom) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SalesTrendChart />
+        <ProfitTrendChart />
+      </div>
     </div>
   );
 }
