@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"; // <--- UPDATED IMPORT PATH
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,19 +26,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowUpDown, MoreHorizontal, PlusCircle, Search } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { 
+  ArrowUpDown, 
+  MoreHorizontal, 
+  PlusCircle, 
+  Search, 
+  Mail, 
+  Users,
+  UserPlus
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/context/UserContext";
-import AddUserModal from "./add-user-modal"; // Adjust path if needed
-import EditUserModal from "./edit-user-modal"; // Assume you'll create this
-
-// Assuming you'll also create these confirm dialogs
+import AddUserModal from "./add-user-modal";
+import EditUserModal from "./edit-user-modal";
 import ConfirmDeactivateUserDialog from './confirm-user-deactivate-dialog';
 import ConfirmUserDeleteDialog from './confirm-user-delete-dialog';
-
+import PendingInvitationsTable from './pending-invitations-table';
 
 export default function UserTable() {
   const queryClient = useQueryClient();
@@ -52,6 +71,7 @@ export default function UserTable() {
   const [sorting, setSorting] = useState([]);
   const [columnFilters, setColumnFilters] = useState([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [activeTab, setActiveTab] = useState("users");
 
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -62,6 +82,8 @@ export default function UserTable() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [userToActOn, setUserToActOn] = useState(null);
 
+  // Check if current user can send invitations (only merchants can)
+  const canSendInvitations = currentUser?.role === "merchant";
 
   // Fetch users data
   const {
@@ -72,8 +94,6 @@ export default function UserTable() {
   } = useQuery({
     queryKey: [`${BASE_URL}/users`, pagination, sorting, columnFilters, globalFilter],
     queryFn: async () => {
-      // In a real application with many users, you'd pass pagination, sorting,
-      // and filter parameters to your backend API for server-side processing.
       const response = await apiRequest("GET", `${BASE_URL}/users`);
       return response;
     },
@@ -81,6 +101,28 @@ export default function UserTable() {
       // Filter out deleted users for display
       return data.filter(user => !user.is_deleted);
     }
+  });
+
+  // Fetch pending invitations count for tab badge
+  const { data: pendingInvitations = [] } = useQuery({
+    queryKey: ["pendingInvitations"],
+    queryFn: async () => {
+      if (!canSendInvitations) return [];
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/invitations/pending", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) return [];
+        return response.json();
+      } catch (error) {
+        return [];
+      }
+    },
+    enabled: canSendInvitations,
   });
 
   const deactivateUserMutation = useMutation({
@@ -93,7 +135,7 @@ export default function UserTable() {
         title: "Success",
         description: "User deactivated successfully",
       });
-      setIsDeactivateConfirmOpen(false); // Close dialog on success
+      setIsDeactivateConfirmOpen(false);
       setUserToActOn(null);
     },
     onError: (error) => {
@@ -102,7 +144,7 @@ export default function UserTable() {
         description: error.message || "Failed to deactivate user",
         variant: "destructive",
       });
-      setIsDeactivateConfirmOpen(false); // Close dialog on error
+      setIsDeactivateConfirmOpen(false);
       setUserToActOn(null);
     },
   });
@@ -117,7 +159,7 @@ export default function UserTable() {
         title: "Success",
         description: "User deleted successfully",
       });
-      setIsDeleteConfirmOpen(false); // Close dialog on success
+      setIsDeleteConfirmOpen(false);
       setUserToActOn(null);
     },
     onError: (error) => {
@@ -126,7 +168,7 @@ export default function UserTable() {
         description: error.message || "Failed to delete user",
         variant: "destructive",
       });
-      setIsDeleteConfirmOpen(false); // Close dialog on error
+      setIsDeleteConfirmOpen(false);
       setUserToActOn(null);
     },
   });
@@ -144,6 +186,11 @@ export default function UserTable() {
   const handleDeleteClick = (user) => {
     setUserToActOn(user);
     setIsDeleteConfirmOpen(true);
+  };
+
+  const handleInviteAdmin = () => {
+    setIsAddUserModalOpen(true);
+    // The modal will handle switching to the invite tab
   };
 
   // Column Definitions for TanStack Table
@@ -189,7 +236,6 @@ export default function UserTable() {
         header: "Store ID",
         cell: ({ row }) => {
           const storeId = row.getValue("store_id");
-          // You might fetch store names separately and map them here
           return <div>{storeId || "N/A"}</div>;
         },
       },
@@ -207,20 +253,17 @@ export default function UserTable() {
           const user = row.original;
           const isCurrentUser = currentUser?.id === user.id;
 
-          // Determine if the current user can perform actions on the target user
           const canPerformActions = () => {
-            if (isCurrentUser) return false; // Cannot modify self via this table
+            if (isCurrentUser) return false;
             if (currentUser?.role === "merchant") {
-              // Merchant can deactivate/delete all non-merchant users
               return user.role !== "merchant";
             }
             if (currentUser?.role === "admin") {
-              // Admin can deactivate/delete cashier, clerk, user within their store
               return (
-                user.role !== "admin" && // Cannot deactivate/delete another admin
-                user.role !== "merchant" && // Cannot deactivate/delete a merchant
-                currentUser.store_id && // Current admin must be assigned to a store
-                user.store_id === currentUser.store_id // Target user must be in the same store
+                user.role !== "admin" &&
+                user.role !== "merchant" &&
+                currentUser.store_id &&
+                user.store_id === currentUser.store_id
               );
             }
             return false;
@@ -236,7 +279,6 @@ export default function UserTable() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                {/* View User (if you have a view modal/page) */}
                 <DropdownMenuItem onClick={() => console.log("View user", user.id)}>
                   View User
                 </DropdownMenuItem>
@@ -246,14 +288,13 @@ export default function UserTable() {
                     <DropdownMenuItem onClick={() => handleEdit(user)}>
                       Edit User
                     </DropdownMenuItem>
-                    {user.is_active ? ( // Show deactivate if active
+                    {user.is_active ? (
                       <DropdownMenuItem onClick={() => handleDeactivateClick(user)}>
                         Deactivate User
                       </DropdownMenuItem>
-                    ) : ( // Show activate if inactive
+                    ) : (
                       <DropdownMenuItem
                          onClick={() => {
-                             // Implement activation logic here if needed
                              toast({
                                  title: "Info",
                                  description: "User activation functionality not yet implemented.",
@@ -282,7 +323,7 @@ export default function UserTable() {
         },
       },
     ],
-    [currentUser, toast] // Dependencies: currentUser and toast
+    [currentUser, toast]
   );
 
   const table = useReactTable({
@@ -305,102 +346,202 @@ export default function UserTable() {
   });
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading users...</div>;
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2">Loading users...</span>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (isError) {
-    return <div className="text-center py-8 text-red-600">Error: {error.message}</div>;
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center h-64">
+          <div className="text-center text-red-600">
+            <p className="text-lg font-semibold mb-2">Error Loading Users</p>
+            <p>{error.message}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div className="w-full">
-      <div className="flex items-center py-4 justify-between">
-        <div className="flex items-center space-x-2">
-          <Input
-            placeholder="Search users..."
-            value={globalFilter ?? ""}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            className="max-w-sm"
-          />
-          <Button onClick={() => setGlobalFilter("")} variant="outline" className={globalFilter ? "" : "hidden"}>
-            Clear Search
+    <div className="w-full space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">User Management</h2>
+          <p className="text-muted-foreground">
+            Manage users and admin invitations for your organization
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {canSendInvitations && (
+            <Button variant="outline" onClick={handleInviteAdmin}>
+              <Mail className="mr-2 h-4 w-4" />
+              Invite Admin
+            </Button>
+          )}
+          <Button onClick={() => setIsAddUserModalOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add User
           </Button>
         </div>
-        <Button onClick={() => setIsAddUserModalOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add User
-        </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </TableCell>
-              </TableRow>
+      {/* Tabs Section */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Active Users
+            {users && (
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs">
+                {users.length}
+              </span>
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </TabsTrigger>
+          {canSendInvitations && (
+            <TabsTrigger value="invitations" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Pending Invitations
+              {pendingInvitations.length > 0 && (
+                <span className="ml-1 rounded-full bg-orange-100 text-orange-800 px-2 py-0.5 text-xs">
+                  {pendingInvitations.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
-      </div>
+        {/* Users Tab Content */}
+        <TabsContent value="users" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Active Users
+              </CardTitle>
+              <CardDescription>
+                View and manage all active users in your organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Search and Controls */}
+              <div className="flex items-center py-4 justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users..."
+                      value={globalFilter ?? ""}
+                      onChange={(event) => setGlobalFilter(event.target.value)}
+                      className="pl-8 max-w-sm"
+                    />
+                  </div>
+                  {globalFilter && (
+                    <Button onClick={() => setGlobalFilter("")} variant="outline" size="sm">
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
 
+              {/* Users Table */}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          return (
+                            <TableHead key={header.id}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <Users className="h-8 w-8 text-muted-foreground" />
+                            <p className="text-muted-foreground">No users found</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {table.getRowModel().rows.length} of {users?.length || 0} users
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Pending Invitations Tab Content */}
+        {canSendInvitations && (
+          <TabsContent value="invitations" className="space-y-4">
+            <PendingInvitationsTable />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      {/* Modals and Dialogs */}
       <AddUserModal
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
       />
-      {/* Assuming you will implement EditUserModal */}
+      
       <EditUserModal
         isOpen={isEditUserModalOpen}
         onClose={() => {
@@ -410,7 +551,6 @@ export default function UserTable() {
         user={selectedUser}
       />
 
-      {/* Confirmation Dialogs */}
       <ConfirmDeactivateUserDialog
         isOpen={isDeactivateConfirmOpen}
         onClose={() => {
