@@ -24,14 +24,15 @@ import { Search, Plus, Edit, Trash2, ArrowUpDown } from "lucide-react";
 import AddItemModal from "@/components/inventory/add-item-modal";
 import EditItemModal from "@/components/inventory/edit-item-modal";
 
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient"; // Ensure apiRequest is imported
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
 
-// Define the API prefix based on your Flask blueprint
-const API_PREFIX = "/api/inventory"; // This should match your Flask blueprint's url_prefix
+const API_PREFIX = "/api/inventory";
+// You might want to define a separate prefix for 'store' if it's not under /api/inventory
+const STORE_API_PREFIX = "/api/store"; // Define this for clarity and consistency
 
-export default function Inventory() {
+export default function MerchantInventory() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -40,55 +41,63 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  const [storeFilter, setStoreFilter] = useState("all");
   const [sortField, setSortField] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
 
   const { toast } = useToast();
 
-  const { data: items = [], isLoading } = useQuery({
-    // Use a more specific query key, avoiding the full URL string directly
-    // This allows react-query to better manage cache based on relevant data,
-    // although using the full URL as key technically works.
-    queryKey: ["products", API_PREFIX], // Example: ["products", "/api/inventory"]
+  const { data: items = [], isLoading: isLoadingItems } = useQuery({
+    queryKey: ["products", API_PREFIX],
     queryFn: async () => {
-      // Fetch from the correct endpoint by combining BASE_URL, API_PREFIX, and the resource path
+      // Assuming inventory products also require authentication,
+      // consider changing this to apiRequest as well if it causes issues later.
       const res = await fetch(`${BASE_URL}${API_PREFIX}/products`);
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || `Failed to fetch products: ${res.statusText}`);
+        throw new Error(errorData.message || `Failed to fetch products`);
       }
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      return await res.json();
     },
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories", API_PREFIX], // Example: ["categories", "/api/inventory"]
+    queryKey: ["categories", API_PREFIX],
     queryFn: async () => {
-      // Fetch from the correct endpoint
+      // Assuming inventory categories also require authentication,
+      // consider changing this to apiRequest as well if it causes issues later.
       const res = await fetch(`${BASE_URL}${API_PREFIX}/categories`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || `Failed to fetch categories: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error("Failed to fetch categories");
       const data = await res.json();
-      // Ensure data structure matches what your backend returns for categories
-      // It looks like your backend returns an array directly, so Array.isArray check is good.
       return Array.isArray(data) ? data : data.categories || [];
+    },
+  });
+
+  const { data: stores = [], isLoading: isLoadingStores, isError: isStoreError } = useQuery({
+    queryKey: ["stores", STORE_API_PREFIX], // Add STORE_API_PREFIX to queryKey
+    queryFn: async () => {
+      // FIX: Use apiRequest for the /api/store/ endpoint
+      // apiRequest handles adding the JWT token
+      try {
+        const data = await apiRequest("GET", `${BASE_URL}${STORE_API_PREFIX}/`);
+        return Array.isArray(data) ? data : []; // Ensure it returns an array
+      } catch (error) {
+        // apiRequest already throws an error with a message
+        throw new Error(error.message || "Failed to fetch stores");
+      }
     },
   });
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id) => apiRequest("DELETE", `${BASE_URL}${API_PREFIX}/products/${id}`),
     onSuccess: () => {
-      // Invalidate using the same key as the products query
       queryClient.invalidateQueries({ queryKey: ["products", API_PREFIX] });
       toast({ title: "Success", description: "Item deleted successfully" });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Something went wrong",
+        description: error.message || "Failed to delete item",
         variant: "destructive",
       });
     },
@@ -129,7 +138,8 @@ export default function Inventory() {
         categoryFilter === "all" || item.category?.id?.toString() === categoryFilter;
       const stockStatus = getStockStatus(item);
       const matchesStock = stockFilter === "all" || stockStatus === stockFilter;
-      return matchesSearch && matchesCategory && matchesStock;
+      const matchesStore = storeFilter === "all" || item.store_id?.toString() === storeFilter;
+      return matchesSearch && matchesCategory && matchesStock && matchesStore;
     })
     .sort((a, b) => {
       let aValue = a[sortField];
@@ -170,12 +180,12 @@ export default function Inventory() {
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
-                    // Ensure cat.id is converted to string for SelectItem value
-                    <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              
 
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-40">
@@ -186,6 +196,30 @@ export default function Inventory() {
                   <SelectItem value="in-stock">In Stock</SelectItem>
                   <SelectItem value="low-stock">Low Stock</SelectItem>
                   <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={storeFilter} onValueChange={setStoreFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Stores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stores</SelectItem>
+                  {isLoadingStores ? (
+                    <SelectItem disabled value="loading">
+                      Loading...
+                    </SelectItem>
+                  ) : isStoreError ? (
+                    <SelectItem disabled value="error">
+                      Error loading stores
+                    </SelectItem>
+                  ) : (
+                    stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id.toString()}>
+                        {store.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -211,7 +245,7 @@ export default function Inventory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoadingItems ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-400">
                     Loading inventory...
@@ -219,7 +253,7 @@ export default function Inventory() {
                 </TableRow>
               ) : filteredAndSortedItems.length ? (
                 filteredAndSortedItems.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-gray-50">
+                  <TableRow key={item.id}>
                     <TableCell>{item.sku}</TableCell>
                     <TableCell className="flex items-center gap-3">
                       <a href={item.image_url} target="_blank" rel="noopener noreferrer">
@@ -257,7 +291,7 @@ export default function Inventory() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    No inventory items found
+                    No inventory items found.
                   </TableCell>
                 </TableRow>
               )}

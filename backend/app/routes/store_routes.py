@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timezone # Use timezone.utc for datetime.utcnow() replacement
 from app import db
 from app.models import (
-    Store, StoreProduct, SupplyRequest, StockTransfer,
+    Store, StoreProduct, SupplyRequest, StockTransferItem,
     StockTransferItem, Product, User,
     SupplyRequestStatus, StockTransferStatus
 )
@@ -18,10 +18,12 @@ store_bp = Blueprint("store", __name__, url_prefix="/api/store")
 def create_store():
     data = request.get_json() or {}
     name = data.get("name")
+    address = data.get("address")
 
     if not name or not isinstance(name, str):
         abort(400, description="Store name is required and must be a string.")
 
+    user_id = get_jwt_identity()
     store = Store(name=name.strip(), address=data.get("address"))
     """
     Create a new store.
@@ -285,6 +287,46 @@ def invite_user(store_id):
     db.session.add(user)
     db.session.commit()
     return jsonify({"message": f"Invitation sent to {email}", "user_id": user.id}), 202
+
+# Update store details (Merchant only)
+@store_bp.route("/<int:store_id>", methods=["PUT"])
+@jwt_required()
+@role_required("merchant")
+def update_store_details(store_id):
+    data = request.get_json() or {}
+    name = data.get("name")
+    address = data.get("address")
+
+    user_id = get_jwt_identity()
+    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+
+    if not store or not store.is_active:
+        abort(404, description="Store not found")
+
+    if name:
+        store.name = name.strip()
+    if address:
+        store.address = address.strip()
+
+    db.session.commit()
+
+    return jsonify({"message": "Store updated", "store": store.to_dict()}), 200
+
+# Deactivate store (Merchant only)
+@store_bp.route("/<int:store_id>", methods=["DELETE"])
+@jwt_required()
+@role_required("merchant")
+def deactivate_store(store_id):
+    user_id = get_jwt_identity()
+    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+
+    if not store or not store.is_active:
+        abort(404, description="Store not found or already inactive")
+
+    store.is_active = False
+    db.session.commit()
+
+    return jsonify({"message": "Store deactivated"}), 200
 
 # Clerk creates a supply request
 @store_bp.route("/<int:store_id>/supply-requests", methods=["POST"])
