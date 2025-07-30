@@ -75,11 +75,11 @@ def create_app():
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
-    from app.users.routes import users_bp as teammate_users_bp
     from app.routes.supplier_routes import suppliers_bp
+    from app.routes.supply_routes import supply_bp
 
-    # NEW: Import your supply_bp blueprint
-    from app.routes.supply_routes import supply_bp # Adjust path if different, e.g., app.blueprints.supply_routes
+    # NEW: Import your merchant_dashboard blueprint
+    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
@@ -88,11 +88,9 @@ def create_app():
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
-
-    # NEW: Register your supply_bp blueprint
     app.register_blueprint(supply_bp)
+    app.register_blueprint(merchant_dashboard_bp)
 
-    # CORS configuration should be after blueprint registration
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
 
     # --- Register Global Error Handlers ---
