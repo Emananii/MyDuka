@@ -1,9 +1,11 @@
+# app.py
+
 import os
 from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from flask_cors import CORS # Keep this import
+from flask_cors import CORS
 from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
@@ -23,12 +25,6 @@ from app.error_handlers import register_error_handlers
 
 def create_app():
     app = Flask(__name__)
-    
-    # CORS FIX: Full CORS setup for preflight and credentials
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}},
-         supports_credentials=True,
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"])
 
     # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
@@ -37,11 +33,19 @@ def create_app():
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
 
+    # Initialize CORS *before* blueprint registration, and correctly.
+    # This single CORS initialization should handle all your needs.
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}},
+         supports_credentials=True,
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"])
+
     # Flasgger configuration
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
         # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
+        # Flasgger should not dictate CORS headers; Flask-CORS does that.
         # 'headers': [
         #     ('Access-Control-Allow-Origin', '*'),
         #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
@@ -76,9 +80,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    # Ensure Flask-CORS is initialized for your app
-
     swagger.init_app(app)
+
 
     # --- Import Models (needed for Flask-Migrate) ---
     from app import models
@@ -90,25 +93,25 @@ def create_app():
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
-    from app.users.routes import users_bp as teammate_users_bp
     from app.routes.supplier_routes import suppliers_bp
-
-    # NEW: Import your supply_bp blueprint
-    from app.routes.supply_routes import supply_bp # Adjust path if different, e.g., app.blueprints.supply_routes
+    from app.routes.admin_dashboard import dashboard
+    from app.routes.purchase_routes import purchase_bp
+    from app.routes.supply_routes import supply_bp # Adjust path if different
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
-    app.register_blueprint(inventory_bp)
+    app.register_blueprint(inventory_bp) # This is the key one for the 404s
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
-
-    # NEW: Register your supply_bp blueprint
+    app.register_blueprint(purchase_bp)
     app.register_blueprint(supply_bp)
 
-    # CORS configuration should be after blueprint registration
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    # ✅ FIX: REMOVE this redundant CORS initialization
+    # CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)

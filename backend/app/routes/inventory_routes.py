@@ -13,8 +13,7 @@ inventory_bp = Blueprint('inventory', __name__, url_prefix="/api/inventory")
 # --- CATEGORY ROUTES ---
 
 @inventory_bp.route('/categories', methods=['GET'])
-@jwt_required()
-def get_all_categories():
+def get_categories():
     """
     Get a list of all categories.
     ---
@@ -42,9 +41,8 @@ def get_all_categories():
                 type: boolean
                 example: false
     """
-    categories = Category.query.all()
-    result = [{"id": cat.id, "name": cat.name,} for cat in categories]
-    return jsonify(result), 200
+    categories = Category.query.filter_by(is_deleted=False).all()
+    return jsonify([category.to_dict() for category in categories]), 200
 
 @inventory_bp.route('/categories', methods=['POST'])
 # @jwt_required() # Uncomment if you want to protect this route

@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast, Numeric
 from . import db
 from app.auth.utils import hash_password, verify_password
 from decimal import Decimal
@@ -183,7 +183,6 @@ class Sale(BaseModel):
         )
 
 
-
 class SaleItem(BaseModel):
     __tablename__ = 'sale_items'
 
@@ -211,23 +210,51 @@ class Supplier(BaseModel):
 class Purchase(BaseModel):
     __tablename__ = 'purchases'
 
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'))
-    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
-    date = db.Column(db.Date)
-    reference_number = db.Column(db.String)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True) # Made nullable true, as per purchase_routes.py
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=False) # Made nullable false, as per purchase_routes.py
+    date = db.Column(db.Date, nullable=False, default=datetime.now(timezone.utc).date()) # Added default and nullable false as per purchase_routes.py
+    reference_number = db.Column(db.String(100), nullable=True) # Added length and nullable true
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0.00")) # Added this line
     is_paid = db.Column(db.Boolean, default=False)
-    notes = db.Column(db.Text)
+    notes = db.Column(db.Text, nullable=True) # Made nullable true
 
-    purchase_items = db.relationship('PurchaseItem', backref='purchase')
+    purchase_items = db.relationship('PurchaseItem', backref='purchase', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        # Using super().to_dict() to get base attributes, then override/add specifics
+        data = super().to_dict()
+        # Ensure Decimal is converted to float for JSON serialization
+        if 'total_amount' in data and isinstance(data['total_amount'], Decimal):
+            data['total_amount'] = float(data['total_amount'])
+        
+        # Handle datetime and date objects for ISO format
+        if 'date' in data and isinstance(data['date'], datetime):
+            data['date'] = data['date'].isoformat()
+        elif 'date' in data and isinstance(data['date'], (datetime.date)):
+             data['date'] = data['date'].isoformat()
+
+        if 'created_at' in data and isinstance(data['created_at'], datetime):
+            data['created_at'] = data['created_at'].isoformat()
+        if 'updated_at' in data and isinstance(data['updated_at'], datetime):
+            data['updated_at'] = data['updated_at'].isoformat()
+            
+        return data
 
 
 class PurchaseItem(BaseModel):
     __tablename__ = 'purchase_items'
 
-    purchase_id = db.Column(db.Integer, db.ForeignKey('purchases.id'))
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchases.id'), nullable=False) # Made nullable false
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False) # Made nullable false
     quantity = db.Column(db.Integer, nullable=False)
-    unit_cost = db.Column(db.Numeric(10, 2))
+    unit_cost = db.Column(db.Numeric(10, 2), nullable=False) # Made nullable false
+
+    def to_dict(self):
+        data = super().to_dict()
+        if 'unit_cost' in data and isinstance(data['unit_cost'], Decimal):
+            data['unit_cost'] = float(data['unit_cost'])
+        data['total_cost'] = float(self.quantity * self.unit_cost)
+        return data
 
 
 class SupplyRequest(BaseModel):
