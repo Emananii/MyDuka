@@ -29,7 +29,12 @@ const navigationConfig = [
   //{ name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
   // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
-  { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
+  { 
+    name: "Suppliers", 
+    href: "/suppliers", 
+    icon: Factory, 
+    roles: ["merchant"] // ⭐ CHANGED: Only 'merchant' can see Suppliers in sidebar ⭐
+  },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },

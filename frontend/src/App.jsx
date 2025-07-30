@@ -199,6 +199,12 @@ function AppRoutes() {
   const { logout } = useContext(UserContext);
   const [, navigate] = useLocation();
 
+/*************  ✨ Windsurf Command ⭐  *************/
+  /**
+   * Handle user logout, by calling the logout function from the UserContext and
+   * redirecting to the login page.
+   */
+/*******  0ca8a0fb-387b-447c-b4cc-d1634b611b21  *******/
   const handleLogout = () => {
     if (logout) logout();
     navigate("/login");
