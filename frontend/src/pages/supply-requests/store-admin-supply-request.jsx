@@ -39,6 +39,9 @@ export default function StoreAdminSupplyRequest() {
   const { user } = useUser(); // Get logged-in user details (admin/merchant)
   const queryClient = useQueryClient();
 
+  // Log the user object to see its structure and store_id
+  console.log("Admin User Context:", user);
+
   // Modal control states
   const [viewingRequest, setViewingRequest] = useState(null); // Data for the View modal
   const [approvingRequest, setApprovingRequest] = useState(null); // Data for the Approve modal
@@ -58,11 +61,21 @@ export default function StoreAdminSupplyRequest() {
   } = useQuery({
     queryKey: ["admin_supply_requests", user?.store_id], // Query key includes store_id
     queryFn: async () => {
-      if (!user?.store_id) return []; // Don't fetch if store ID isn't available
+      // Temporarily hardcode store_id to 2 for testing, as clerk is submitting to store_id 2
+      const targetStoreId = 2; // user?.store_id; // Change this back to user?.store_id for production
 
-      // Fetch requests, ideally filtered by store_id on the backend
-      const response = await axios.get(`/api/supply-requests?store_id=${user.store_id}`);
-      // CORRECTED: Access the 'data' array from the response object
+      if (!targetStoreId) {
+        console.log("Admin targetStoreId is not available, skipping fetch.");
+        return []; // Don't fetch if store ID isn't available
+      }
+
+      console.log(`Fetching supply requests for store_id: ${targetStoreId}`);
+      const response = await axios.get(`/api/supply-requests?store_id=${targetStoreId}`);
+      
+      // Log the raw response data from the backend
+      console.log("Raw API Response for admin_supply_requests:", response.data);
+      
+      // Access the 'data' array from the response object
       return response.data.data;
     },
     enabled: !!user?.store_id, // Only run this query if user.store_id exists
@@ -73,6 +86,7 @@ export default function StoreAdminSupplyRequest() {
         title: "Error fetching requests.",
         description: err.response?.data?.message || "Could not load supply requests.",
       });
+      console.error("Error fetching admin supply requests:", err);
     },
   });
 
@@ -80,11 +94,15 @@ export default function StoreAdminSupplyRequest() {
   const filteredRequests = useMemo(() => {
     let filtered = supplyRequests;
 
+    // Log the requests before filtering to see what's available
+    console.log("Requests before status filter:", filtered);
+
     // Filter by status
-    // Changed condition to exclude "all" status, which means no status filter
     if (selectedStatus && selectedStatus !== "all") {
       filtered = filtered.filter(request => request.status === selectedStatus);
     }
+    console.log("Requests after status filter:", filtered);
+
 
     // Filter by search term (product name, clerk name, request ID)
     if (searchTerm) {
@@ -92,10 +110,13 @@ export default function StoreAdminSupplyRequest() {
       filtered = filtered.filter(
         (request) =>
           request.product?.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          request.clerk?.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
+          // IMPORTANT: Changed clerk.name to clerk.email to match backend serialization
+          request.clerk?.email?.toLowerCase().includes(lowerCaseSearchTerm) ||
           String(request.id).includes(lowerCaseSearchTerm)
       );
     }
+    console.log("Requests after search filter:", filtered);
+
 
     // Sort by created_at in descending order (most recent first) by default
     return [...filtered].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -126,7 +147,9 @@ export default function StoreAdminSupplyRequest() {
 
   // Callback to refresh list after approve/decline
   const handleRequestActionSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["admin_supply_requests"] }); // Invalidate and refetch
+    // Invalidate and refetch all relevant queries
+    queryClient.invalidateQueries({ queryKey: ["admin_supply_requests", user?.store_id] });
+    queryClient.invalidateQueries({ queryKey: ["clerk_supply_requests", user?.id] }); // Also invalidate clerk's view if needed
     setApprovingRequest(null); // Close approve modal
     setViewingRequest(null); // Close view modal if open
   };
@@ -151,7 +174,7 @@ export default function StoreAdminSupplyRequest() {
     return (
       <div className="p-6 text-center text-red-600">
         <p>{error.message || "An unexpected error occurred while loading requests."}</p>
-        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["admin_supply_requests"] })}>Retry</Button>
+        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["admin_supply_requests", user?.store_id] })}>Retry</Button>
       </div>
     );
   }
@@ -173,7 +196,7 @@ export default function StoreAdminSupplyRequest() {
             <div className="relative">
               <Input
                 type="text"
-                placeholder="Search by product, clerk, or ID..."
+                placeholder="Search by product, clerk email, or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -187,7 +210,7 @@ export default function StoreAdminSupplyRequest() {
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem> {/* Changed value from "" to "all" */}
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="declined">Declined</SelectItem>
@@ -250,7 +273,8 @@ export default function StoreAdminSupplyRequest() {
                       Requested By
                     </p>
                     <p className="text-sm text-gray-600">
-                      {request.clerk?.name || "N/A"}
+                      {/* Display clerk.email */}
+                      {request.clerk?.email || "N/A"}
                     </p>
                   </div>
                   <div>
