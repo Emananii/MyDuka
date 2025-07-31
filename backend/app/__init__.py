@@ -1,5 +1,3 @@
-# app.py
-
 import os
 from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -33,24 +31,10 @@ def create_app():
     app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
 
-    # Initialize CORS *before* blueprint registration, and correctly.
-    # This single CORS initialization should handle all your needs.
-    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}},
-         supports_credentials=True,
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"])
-
     # Flasgger configuration
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
-        # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
-        # Flasgger should not dictate CORS headers; Flask-CORS does that.
-        # 'headers': [
-        #     ('Access-Control-Allow-Origin', '*'),
-        #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-        #     ('Access-Control-Allow-Credentials', "true"),
-        # ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
@@ -75,13 +59,11 @@ def create_app():
         ]
     }
 
-
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     swagger.init_app(app)
-
 
     # --- Import Models (needed for Flask-Migrate) ---
     from app import models
@@ -90,61 +72,28 @@ def create_app():
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
+    from app.routes.purchase_routes import purchase_bp
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
     from app.routes.supplier_routes import suppliers_bp
     from app.routes.supply_routes import supply_bp
-    from app.routes.invitation_routes import invitations_bp
+
+    # NEW: Import your merchant_dashboard blueprint
+    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
-    app.register_blueprint(inventory_bp) # This is the key one for the 404s
+    app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
     app.register_blueprint(supply_bp)
-    
-    # Register invitation blueprint with proper URL prefix
-    app.register_blueprint(invitations_bp, url_prefix='/api/invitations')
-    
-    # Register teammate users blueprint
-    app.register_blueprint(teammate_users_bp, url_prefix='/api/users')
+    app.register_blueprint(purchase_bp)
+    app.register_blueprint(merchant_dashboard_bp)
 
-    # Environment-based CORS origins for better security
-    ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
-    
-    # CORS configuration - centralized and clean
-    CORS(app, resources={
-        r"/*": {
-            "origins": ALLOWED_ORIGINS,
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
-
-    # Debug logging for CORS preflight requests
-    @app.before_request
-    def handle_preflight():
-        from flask import request
-        if request.method == "OPTIONS":
-            app.logger.info(f"OPTIONS request to: {request.path}")
-            app.logger.info(f"Origin: {request.headers.get('Origin')}")
-            app.logger.info(f"Access-Control-Request-Method: {request.headers.get('Access-Control-Request-Method')}")
-            app.logger.info(f"Access-Control-Request-Headers: {request.headers.get('Access-Control-Request-Headers')}")
-
-    # Debug logging for CORS response headers (only in debug mode)
-    @app.after_request
-    def after_request(response):
-        if app.debug:
-            # Log CORS headers being sent for debugging
-            cors_headers = {k: v for k, v in response.headers if k.startswith('Access-Control')}
-            if cors_headers:
-                app.logger.info(f"CORS headers sent: {cors_headers}")
-        return response
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)

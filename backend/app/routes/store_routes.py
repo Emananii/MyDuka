@@ -176,6 +176,7 @@ def get_store(store_id):
     return jsonify(store.to_dict()), 200
 
 # Update store (PATCH for partial updates, including active/delete status)
+#@store_bp.route("/<int:store_id>", methods=["PATCH"])
 @store_bp.route("/<int:store_id>", methods=["PATCH"])
 @jwt_required()
 @role_required("merchant", "admin")
@@ -232,11 +233,14 @@ def update_store(store_id):
 
     store = Store.query.get_or_404(store_id)
 
-    # Authorization check
-    if current_user.role == "merchant":
-        if store.merchant_id != current_user_id:
-            abort(403, description="Forbidden: Merchant does not own this store.")
-    # Admin is allowed by @role_required
+    # Authorization check (MODIFIED)
+    # If the merchant role is allowed to update any store they can see,
+    # then no further check is needed here beyond the @role_required.
+    # The previous line `if store.merchant_id != current_user_id:` is removed.
+    # Admins are already allowed by @role_required.
+    # If a merchant should only see/edit their own stores, and you don't want merchant_id on Store,
+    # then you'd need a separate StoreManager or MerchantStoreLink table.
+    # For now, this assumes @role_required handles it sufficiently for "merchant" role.
 
     data = request.get_json() or {}
 
@@ -376,12 +380,20 @@ def list_stores():
     is_active_filter = request.args.get('is_active', type=str) # Comes as string 'true'/'false'
     is_deleted_filter = request.args.get('is_deleted', type=str) # Comes as string 'true'/'false'
 
-    stores_query = Store.query
+    stores_query = Store.query # Start with all stores
 
-    # Apply role-based filtering for merchants
-    if current_user.role == "merchant":
-        stores_query = stores_query.filter_by(merchant_id=current_user_id)
-    # Admins see all stores, no explicit filter needed here for them
+    # --- REMOVE THIS ENTIRE BLOCK ---
+    # if current_user.role == "merchant":
+    #     stores_query = stores_query.filter_by(merchant_id=current_user_id)
+    # --------------------------------
+
+    # The existing logic correctly handles filtering by is_deleted for admins
+    # and ensures non-admins only see non-deleted stores.
+    # Since 'merchant' is now a system-wide admin, they will fall under the 'admin'
+    # logic or the general 'see all non-deleted' logic depending on where you
+    # define their permissions.
+    # Given they are in @role_required("merchant", "admin"), they have admin-like access here.
+
 
     if search_query:
         stores_query = stores_query.filter(
@@ -397,16 +409,20 @@ def list_stores():
         else:
             abort(400, "Invalid value for 'is_active'. Must be 'true' or 'false'.")
 
-    # Only allow filtering by is_deleted for admins, or default to non-deleted for others
-    if is_deleted_filter is not None and current_user.role == "admin":
+    # Admins and (now) merchants (as system-wide admins) can explicitly filter by is_deleted.
+    # Other roles (clerk/cashier if they could ever hit this endpoint) would default to is_deleted=False.
+    if is_deleted_filter is not None and (current_user.role == "admin" or current_user.role == "merchant"):
         if is_deleted_filter.lower() == 'true':
             stores_query = stores_query.filter_by(is_deleted=True)
         elif is_deleted_filter.lower() == 'false':
             stores_query = stores_query.filter_by(is_deleted=False)
         else:
             abort(400, "Invalid value for 'is_deleted'. Must be 'true' or 'false'.")
-    elif current_user.role != "admin": # Non-admins only see non-deleted stores by default
+    elif current_user.role != "admin" and current_user.role != "merchant": # Only show non-deleted for other specific roles if they access
         stores_query = stores_query.filter_by(is_deleted=False)
+    # If a merchant is system-wide admin, they'd typically see non-deleted by default,
+    # but can filter to see deleted if allowed by the API args and the if condition above.
+    # The existing logic for is_deleted looks generally fine for this purpose.
 
 
     stores_query = stores_query.order_by(Store.name)

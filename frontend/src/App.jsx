@@ -14,15 +14,12 @@ import MobileNav from "@/components/layout/mobile-nav";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+// Auth
 import Login from "@/components/auth/login-form";
 //import Register from "@/components/auth/register-form";
 import ProtectedRoute from "@/components/auth/protected-route";
 
-// Admin Registration for Invitations
-import AdminRegistrationPage from "@/components/user-management/admin-registration-page";
-
 // Pages
-import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -44,7 +41,7 @@ import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
-// Supply Request Specific Pages
+// --- START: Supply Request Specific Pages ---
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
 
@@ -53,42 +50,23 @@ import LandingPage from "@/pages/landingpage";
 import NotFound from "@/pages/not-found";
 
 import POSInterfacePage from "@/pages/POS-interface";
+
+// ⭐ Ensure these are correctly imported using their actual export names ⭐
+// Based on typical project structures, these are often default exports
+// but if you get "does not provide an export named 'X'" errors again,
+// you might need to change them to named imports: import { StoreAdminUserManagement } from ...
 import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
 import MerchantUserManagement from "./pages/user-management/merchant-user-management";
 
 import { UserProvider, UserContext } from "@/context/UserContext";
 
-// Root Route Component - handles initial routing logic
-function RootRoute() {
-  const { user, isLoading } = useContext(UserContext);
-  const [, navigate] = useLocation();
+// --- NEW: Import specific dashboard components for each role ---
+// Assuming these are default exports. If you get a "named 'X'" error, change to { X }
+import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
+import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
+//import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
+//import ClerkDashboardPage from "@/pages/dashboard/clerk/dashboard";
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (user) {
-        // User is authenticated, redirect to dashboard
-        navigate('/dashboard', { replace: true });
-      } else {
-        // User is not authenticated, redirect to landing page
-        navigate('/landing', { replace: true });
-      }
-    }
-  }, [user, isLoading, navigate]);
-
-  // Show loading while determining auth status
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-}
 
 // --- Layout Component ---
 function MainLayout({ children }) {
@@ -186,8 +164,43 @@ function MainLayout({ children }) {
   );
 }
 
+// --- Auth Routes ---
+function AuthRoutes() {
+  return (
+    <Switch>
+      {/* 🔐 Separate login pages for each role */}
+      <Route path="/login/admin">
+          <Login role="admin" />
+      </Route>
+      <Route path="/login/merchant">
+          <Login role="merchant" />
+      </Route>
+      <Route path="/login/clerk">
+          <Login role="clerk" />
+      </Route>
+      <Route path="/login/cashier">
+          <Login role="cashier" />
+      </Route>
 
-// --- Application Routes (Protected/Authenticated Routes) ---
+      {/* 🔁 Fallback login */}
+      <Route path="/login">
+          <Login />
+      </Route>
+
+      <Route path="/register">
+          <Register />
+      </Route>
+
+      <Route>
+        <MainLayout>
+          <AppRoutes />
+        </MainLayout>
+      </Route>
+    </Switch>
+  );
+}
+
+// --- Application Routes ---
 function AppRoutes() {
   const { logout } = useContext(UserContext);
   const [, navigate] = useLocation();
@@ -199,10 +212,19 @@ function AppRoutes() {
 
   return (
     <Switch>
-      {/* Dashboard - Default authenticated route */}
-      <Route path="/dashboard">
-        <ProtectedRoute component={Dashboard} allowedRoles={["admin", "merchant", "clerk", "cashier"]} />
+      {/* NEW: Role-specific Dashboard Routes */}
+      <Route path="/dashboard/merchant">
+        <ProtectedRoute component={MerchantDashboardPage} allowedRoles={["merchant"]} />
       </Route>
+      <Route path="/dashboard/admin">
+        <ProtectedRoute component={AdminDashboardPage} allowedRoles={["admin"]} />
+      </Route>
+      {/* <Route path="/dashboard/cashier">
+        <ProtectedRoute component={CashierDashboardPage} allowedRoles={["cashier"]} />
+      </Route>
+      <Route path="/dashboard/clerk">
+        <ProtectedRoute component={ClerkDashboardPage} allowedRoles={["clerk"]} />
+      </Route> */}
 
       {/* Cashier Routes */}
       <Route path="/pos">
@@ -234,21 +256,22 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
-      {/* Supply Request Routes */}
+      {/* --- START: Supply Request Pages --- */}
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
       <Route path="/supply-requests/admin">
          <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
       </Route>
+      {/* --- END: Supply Request Pages --- */}
 
-      {/* Other Business Routes */}
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
+
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -268,7 +291,7 @@ function AppRoutes() {
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
 
-      {/* Merchant Routes */}
+      {/* Merchant */}
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -277,6 +300,17 @@ function AppRoutes() {
       </Route>
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
+      </Route>
+      {/* Route for Merchant User Management */}
+      {/* ⭐ ENSURE THIS ROUTE IS PRESENT AND CORRECT ⭐ */}
+      <Route path="/user-management/merchant"> {/* Changed path from /merchant-user-management to match sidebar */}
+        <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
+      </Route>
+
+      {/* Route for Store Admin User Management */}
+      {/* ⭐ ENSURE THIS ROUTE IS PRESENT AND CORRECT ⭐ */}
+      <Route path="/user-management/store-admin">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
       </Route>
 
       {/* 404 Not Found - This should be last */}

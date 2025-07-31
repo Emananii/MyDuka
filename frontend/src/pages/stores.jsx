@@ -28,7 +28,7 @@ export default function Stores() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const {
-    data: stores = [],
+    data, // Get the raw data object from useQuery
     isLoading,
     isError,
     error,
@@ -36,9 +36,14 @@ export default function Stores() {
   } = useQuery({
     queryKey: ["stores"],
     queryFn: async () => {
-      return await apiRequest("GET", `${BASE_URL}/api/store/`);
+      const response = await apiRequest("GET", `${BASE_URL}/api/stores/`);
+      // **IMPORTANT CHANGE HERE:** Access the 'stores' key from the response
+      return response.stores || []; // Ensure we return an array, even if 'stores' key is missing
     },
   });
+
+  // Now, `stores` will definitely be an array (either the fetched data or an empty array)
+  const stores = data || []; // Default `data` itself to an empty array in case it's null/undefined initially
 
   const filteredStores = stores.filter((store) =>
     store.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -85,6 +90,7 @@ export default function Stores() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {/* Use filteredStores directly here */}
               {filteredStores.length > 0 ? (
                 filteredStores.map((store) => (
                   <TableRow key={store.id} className="hover:bg-gray-50">

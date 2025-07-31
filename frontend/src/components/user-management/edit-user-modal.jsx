@@ -76,7 +76,7 @@ export default function EditUserModal({ user, isOpen, onClose, editUserMutation,
     queryKey: ["stores-list"], 
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", `${BASE_URL}/api/store/`); 
+        const response = await apiRequest("GET", `${BASE_URL}/api/stores/`); 
         return Array.isArray(response) ? response : []; 
       } catch (error) {
         console.error("Failed to fetch stores in EditUserModal:", error);

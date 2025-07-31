@@ -31,13 +31,17 @@ export function StoreSelect({
   includeAllOption = true,
 }) {
   const {
-    data: stores,
+    data: stores, // 'stores' will now correctly be the array
     isLoading,
     isError,
     error,
   } = useQuery({
     queryKey: ["storesList"], // Unique query key for caching store data
-    queryFn: () => apiRequest("GET", `${BASE_URL}/api/store/`), // Assuming /api/stores endpoint exists
+    // --- FIX: Extract the 'stores' array from the API response ---
+    queryFn: async () => {
+      const response = await apiRequest("GET", `${BASE_URL}/api/stores/`);
+      return response.stores; // Return only the array of stores
+    },
     staleTime: 10 * 60 * 1000, // Stores list doesn't change often, keep fresh for 10 min
   });
 
@@ -54,11 +58,14 @@ export function StoreSelect({
   if (isError) {
     return (
       <div className="flex items-center space-x-2 text-red-600">
-        <Label>{label}:</Label>
+        <Label htmlFor="store-select">{label}:</Label> {/* Added htmlFor for accessibility */}
         <span>Error: {error?.message || "Failed to load stores"}</span>
       </div>
     );
   }
+
+  // Ensure 'stores' is an array before mapping, even with the fix, as a safeguard
+  const storesArray = Array.isArray(stores) ? stores : [];
 
   return (
     <div className="flex items-center space-x-2">
@@ -74,7 +81,8 @@ export function StoreSelect({
           {includeAllOption && (
             <SelectItem value="all">All Stores</SelectItem>
           )}
-          {stores && stores.map((store) => (
+          {/* Use storesArray here to ensure it's iterable */}
+          {storesArray.map((store) => (
             <SelectItem key={store.id} value={String(store.id)}>
               {store.name}
             </SelectItem>

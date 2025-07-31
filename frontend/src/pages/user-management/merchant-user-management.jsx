@@ -1,4 +1,3 @@
-// src/components/user-management/merchant-user-management.jsx
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,7 +37,6 @@ const API_PREFIX = "/api/users";
 export default function MerchantUserManagement() {
   const { user: currentUser } = useUser();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  // Corrected typo: setIsEditModal -> setIsEditModalOpen
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -56,8 +54,10 @@ export default function MerchantUserManagement() {
     queryKey: ["stores-list"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", `${BASE_URL}/api/store/`);
-        return Array.isArray(response) ? response : [];
+        const response = await apiRequest("GET", `${BASE_URL}/api/stores/`);
+        // Assuming the stores API directly returns an array or an object with a 'stores' key
+        // If it's like your users API, you might need response.stores here too.
+        return Array.isArray(response) ? response : (response.stores || []);
       } catch (error) {
         console.error("Failed to fetch stores in MerchantUserManagement:", error);
         toast({
@@ -74,8 +74,11 @@ export default function MerchantUserManagement() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const usersRes = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/`);
-      const activeUsers = usersRes.filter(user => !user.is_deleted);
+      // CORRECTED: Access the 'users' array from the response object
+      const response = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/`);
+      const allUsers = response.users || []; // Ensure allUsers is always an array
+
+      const activeUsers = allUsers.filter(user => !user.is_deleted);
 
       // Ensure stores are loaded and not empty before attempting to map
       if (!isLoadingStores && stores.length > 0) {
@@ -83,15 +86,17 @@ export default function MerchantUserManagement() {
           const userStore = stores.find(store => store.id === user.store_id);
           return {
             ...user,
-            store_name: userStore ? userStore.name : (user.store_id ? `ID: ${user.store_id}` : 'No Store Assigned')
+            // Use store_name from API if available, otherwise fallback
+            // The backend is already sending store_name, so this part is for robustness
+            store_name: user.store_name || (userStore ? userStore.name : (user.store_id ? `ID: ${user.store_id}` : 'No Store Assigned'))
           };
         });
       }
-      // If stores are still loading or empty, return users without enriched store_name
-      // They will update once stores are loaded.
+      // If stores are still loading or empty, return users with store_name directly from API
+      // or a 'Loading Store...' placeholder if API didn't provide it
       return activeUsers.map(user => ({
         ...user,
-        store_name: user.store_id ? `ID: ${user.store_id}` : 'Loading Store...'
+        store_name: user.store_name || (user.store_id ? `ID: ${user.store_id}` : 'Loading Store...')
       }));
     },
     enabled: !isLoadingStores, // Query for users is enabled once stores are no longer loading
@@ -101,12 +106,12 @@ export default function MerchantUserManagement() {
   const createUserMutation = useMutation({
     mutationFn: async (userData) => {
       // Corrected API endpoint for creating a user
-      const response = await apiRequest("POST", `${BASE_URL}${API_PREFIX}/create`, userData);
+      const response = await apiRequest("POST", `${BASE_URL}${API_PREFIX}/`, userData);
       return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["stores-list"] }); // Invalidate stores too if a new user might affect store data (e.g., if a user is tied to a new store that wasn't previously fetched)
+      queryClient.invalidateQueries({ queryKey: ["stores-list"] });
       toast({
         title: "User added successfully!",
         // Correctly access nested user data from the API response
@@ -217,12 +222,16 @@ export default function MerchantUserManagement() {
 
   const canPerformActions = (targetUser) => {
     if (!currentUser || !targetUser) return false;
+    // A user cannot perform actions on themselves
     if (currentUser.id === targetUser.id) return false;
 
     if (currentUser.role === "merchant") {
+      // Merchants can manage anyone who is not another merchant
       return targetUser.role !== "merchant";
     }
     if (currentUser.role === "admin") {
+      // Admins can manage anyone who is not another admin or merchant,
+      // and who belongs to their specific store
       return (
         targetUser.role !== "admin" &&
         targetUser.role !== "merchant" &&
@@ -262,7 +271,7 @@ export default function MerchantUserManagement() {
                 <SelectItem value="admin">Store Admin</SelectItem>
                 <SelectItem value="cashier">Cashier</SelectItem>
                 <SelectItem value="clerk">Clerk</SelectItem>
-                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="user">User</SelectItem> {/* Assuming "user" is a valid role too */}
               </SelectContent>
             </Select>
           </div>
@@ -274,19 +283,20 @@ export default function MerchantUserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Store</TableHead> {/* Added Store column */}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading || isLoadingStores ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8"> {/* Adjusted colspan */}
                     Loading users and stores...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8"> {/* Adjusted colspan */}
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -310,6 +320,7 @@ export default function MerchantUserManagement() {
                         <Badge variant="destructive">Inactive</Badge>
                       )}
                     </TableCell>
+                    <TableCell>{user.store_name}</TableCell> {/* Display store name */}
                     <TableCell className="text-right space-x-2">
                         <Button
                             variant="outline"
