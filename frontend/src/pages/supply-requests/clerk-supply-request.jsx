@@ -320,7 +320,13 @@ export default function ClerkSupplyRequest() {
       </Card>
 
       {/* Modals */}
-      <AddSupplyRequest isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdded={handleRequestActionSuccess} />
+      {/* CORRECTED: The prop name for the callback was changed from 'onAdded' to 'onSupplyRequestAdded'
+           to match the prop name expected by the AddSupplyRequest component. */}
+      <AddSupplyRequest 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSupplyRequestAdded={handleRequestActionSuccess} 
+      />
       {editingRequest && isEditModalOpen && (
         <EditSupplyRequest isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setEditingRequest(null); }} request={editingRequest} onUpdated={handleRequestActionSuccess} />
       )}

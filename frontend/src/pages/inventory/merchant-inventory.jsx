@@ -28,16 +28,19 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BASE_URL } from "@/lib/constants";
 
+// API endpoints for inventory and store management
 const API_PREFIX = "/api/inventory";
 const STORE_API_PREFIX = "/api/store";
 
 export default function MerchantInventory() {
+  // State for modal visibility and selected items
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [confirmDeleteItemType, setConfirmDeleteItemType] = useState(null);
 
+  // State for filtering and sorting
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
@@ -47,6 +50,9 @@ export default function MerchantInventory() {
 
   const { toast } = useToast();
 
+  // --- Data Fetching Queries ---
+
+  // Fetch all available categories
   const { data: categories = [] } = useQuery({
     queryKey: ["categories", API_PREFIX],
     queryFn: async () => {
@@ -61,6 +67,7 @@ export default function MerchantInventory() {
     cacheTime: Infinity,
   });
 
+  // Fetch all stores to populate the store filter dropdown
   const { data: stores = [], isLoading: isLoadingStores, isError: isStoreError } = useQuery({
     queryKey: ["stores", STORE_API_PREFIX],
     queryFn: async () => {
@@ -75,6 +82,7 @@ export default function MerchantInventory() {
     cacheTime: 10 * 60 * 1000,
   });
 
+  // Fetch inventory items based on selected filters
   const {
     data: items = [],
     isLoading: isLoadingItems,
@@ -86,6 +94,7 @@ export default function MerchantInventory() {
       const [_key, currentStoreFilter, currentCategoryFilter, currentSearchTerm] = queryKey;
 
       if (currentStoreFilter === "all") {
+        // Fetch all products when "All Stores" is selected
         const productsUrl = `${BASE_URL}${API_PREFIX}/products`;
         const products = await apiRequest("GET", productsUrl);
 
@@ -99,6 +108,7 @@ export default function MerchantInventory() {
           category_name: categories.find(cat => cat.id === item.category_id)?.name || 'N/A'
         })) : [];
       } else {
+        // Fetch inventory for a specific store
         const params = new URLSearchParams();
         if (currentSearchTerm) {
             params.append('search', currentSearchTerm);
@@ -112,12 +122,14 @@ export default function MerchantInventory() {
         return Array.isArray(storeProducts) ? storeProducts : [];
       }
     },
+    // Only run the query when stores are loaded or when the filter is "all"
     enabled: !!stores.length || storeFilter === "all",
     placeholderData: (previousData) => previousData,
     staleTime: 5 * 1000,
     cacheTime: 10 * 60 * 1000,
   });
 
+  // Show a toast notification if there's an error fetching items
   useEffect(() => {
     if (isItemsError) {
       toast({
@@ -128,17 +140,22 @@ export default function MerchantInventory() {
     }
   }, [isItemsError, itemsError, toast]);
 
+  // --- Mutations ---
 
+  // Mutation for deleting an item
   const deleteItemMutation = useMutation({
     mutationFn: async ({ id, type }) => {
       if (type === "product") {
+        // Delete a product from all stores
         return apiRequest("DELETE", `${BASE_URL}${API_PREFIX}/products/${id}`);
       } else if (type === "store_product") {
+        // Delete a product from a specific store's inventory
         return apiRequest("DELETE", `${BASE_URL}${API_PREFIX}/store_products/${id}`);
       }
       throw new Error("Invalid item type for deletion.");
     },
     onSuccess: () => {
+      // Invalidate queries to refetch data after a successful deletion
       queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Success", description: "Item deleted successfully" });
@@ -154,6 +171,9 @@ export default function MerchantInventory() {
     },
   });
 
+  // --- Helper Functions ---
+
+  // Function to handle sorting
   const handleSort = (field) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -163,9 +183,8 @@ export default function MerchantInventory() {
     }
   };
 
+  // Determine the stock status of an item
   const getStockStatus = useCallback((item) => {
-    // If not viewing a specific store, or if stock quantity is not provided, it's N/A for display purposes.
-    // This 'not-applicable' status will NOT be a filter option.
     if (storeFilter === "all" || item.quantity_in_stock === null || item.quantity_in_stock === undefined) {
       return "not-applicable";
     }
@@ -174,6 +193,7 @@ export default function MerchantInventory() {
     return "in-stock";
   }, [storeFilter]);
 
+  // Return the appropriate badge for the stock status
   const getStockBadge = (status) => {
     switch (status) {
       case "out-of-stock":
@@ -183,15 +203,17 @@ export default function MerchantInventory() {
       case "in-stock":
         return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
       case "not-applicable":
-        return <Badge variant="secondary">N/A</Badge>; // For display in table
+        return <Badge variant="secondary">N/A</Badge>;
       default:
         return null;
     }
   };
 
+  // Filter and sort the items based on the current state
   const filteredAndSortedItems = useMemo(() => {
     let currentItems = items;
 
+    // Apply search filter
     if (searchTerm) {
       currentItems = currentItems.filter((item) => {
         const itemName = item.product_name || item.name || "";
@@ -203,6 +225,7 @@ export default function MerchantInventory() {
       });
     }
 
+    // Apply category filter
     if (categoryFilter !== "all") {
       currentItems = currentItems.filter((item) => {
         const itemCategoryName = item.category_name || categories.find(cat => cat.id === item.category_id)?.name;
@@ -211,18 +234,15 @@ export default function MerchantInventory() {
       });
     }
 
-    // Only apply stock filter if it's not "all"
+    // Apply stock filter
     if (stockFilter !== "all") {
       currentItems = currentItems.filter((item) => {
         const stockStatus = getStockStatus(item);
-        // Ensure that items with 'not-applicable' status (from "All Stores" view)
-        // are only shown if stockFilter is "all", which is handled by the outer 'if'.
-        // If stockFilter is 'in-stock', 'low-stock', or 'out-of-stock',
-        // items with 'not-applicable' status will be excluded.
         return stockStatus === stockFilter;
       });
     }
 
+    // Sort the filtered items
     const sortedItems = [...currentItems].sort((a, b) => {
       let aValue;
       let bValue;
@@ -236,7 +256,6 @@ export default function MerchantInventory() {
       } else if (sortField === "stock_level") {
         aValue = a.quantity_in_stock;
         bValue = b.quantity_in_stock;
-
         if (aValue === null || aValue === undefined) return sortOrder === "asc" ? 1 : -1;
         if (bValue === null || bValue === undefined) return sortOrder === "asc" ? -1 : 1;
       } else {
@@ -255,7 +274,7 @@ export default function MerchantInventory() {
     return sortedItems;
   }, [items, searchTerm, categoryFilter, stockFilter, sortField, sortOrder, categories, getStockStatus]);
 
-
+  // --- Component JSX ---
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -292,7 +311,6 @@ export default function MerchantInventory() {
                 </SelectContent>
               </Select>
 
-              {/* REVERTED: Removed the "N/A" SelectItem */}
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="All Stock" />
