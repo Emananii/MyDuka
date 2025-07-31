@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import { useUser } from "@/context/UserContext"; 
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";   
-// Removed Card, CardContent, CardHeader, CardTitle imports as we're using divs now
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -23,14 +22,33 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      const response = await login(email, password);
       setSuccess("Login successful!");
-      navigate("/"); // Navigate to dashboard or home page after successful login
+
+      const userRole = response?.user?.role;
+
+      if (userRole) {
+        if (userRole === 'admin') {
+          navigate('/dashboard/admin'); // <--- CHANGED THIS
+        } else if (userRole === 'merchant') {
+          navigate('/dashboard/merchant'); // <--- CHANGED THIS
+        } else if (userRole === 'cashier') {
+          navigate('/dashboard/cashier'); // <--- CHANGED THIS
+        } else {
+          console.warn("User role not found in login response. Navigating to default.");
+          navigate('/');
+        }
+      } else {
+        console.warn("User role not found in login response. Navigating to default.");
+        navigate('/');
+      }
     } catch (err) {
       console.error("Login failed:", err); 
       let displayErrorMessage = "Login failed. Please check your credentials.";
 
-      if (err.message) {
+      if (err.response && err.response.data && err.response.data.message) {
+        displayErrorMessage = err.response.data.message;
+      } else if (err.message) {
         const parts = err.message.split(': ', 2); 
         if (parts.length > 1) {
           displayErrorMessage = parts[1];
@@ -47,10 +65,7 @@ const Login = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 font-sans">
-      {/* Main container for the form, replacing the Card component */}
       <div className="w-full max-w-xl bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-md overflow-hidden"> 
-        
-        {/* Header section, replacing CardHeader */}
         <div className="bg-indigo-600 p-8 text-white text-center">
           <h1 className="text-4xl font-extrabold tracking-tight">
             MyDuka
@@ -58,7 +73,6 @@ const Login = () => {
           <p className="text-indigo-200 text-lg mt-2">Inventory & Sales Management</p>
         </div>
 
-        {/* Content section, replacing CardContent */}
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h2>

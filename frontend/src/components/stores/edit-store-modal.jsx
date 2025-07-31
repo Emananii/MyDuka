@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { insertStoreSchema } from "@/shared/schema";
+import { insertStoreSchema } from "@/shared/schema"; // Assuming this is for new store, adjust if you have an update schema
 import {
   Dialog,
   DialogContent,
@@ -26,31 +27,62 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
   const { toast } = useToast();
 
   const form = useForm({
-    resolver: zodResolver(insertStoreSchema),
+    resolver: zodResolver(insertStoreSchema), // Ensure this schema matches update requirements if different from insert
     defaultValues: {
-      name: store?.name || "",
-      address: store?.address || "",
-      contact_person: store?.contact_person || "",
-      phone: store?.phone || "",
-      notes: store?.notes || "",
+      name: "",
+      address: "",
+      contact_person: "",
+      phone: "",
+      notes: "",
     },
   });
 
+  // Use useEffect to reset form values whenever the 'store' prop changes
+  useEffect(() => {
+    if (store && isOpen) { // Only reset if a store is provided and the modal is open
+      form.reset({
+        name: store.name || "",
+        address: store.address || "",
+        contact_person: store.contact_person || "",
+        phone: store.phone || "",
+        notes: store.notes || "",
+      });
+    } else if (!isOpen) {
+      // Optionally reset the form to empty when the modal closes
+      // This prevents old data from flashing before new data loads if opened again
+      form.reset();
+    }
+  }, [store, isOpen, form]); // Depend on 'store', 'isOpen', and 'form' instance
+
   const mutation = useMutation({
     mutationFn: (data) =>
-      apiRequest("PUT", `${BASE_URL}/store/locations/${store.id}`, data),
+      // **** CORRECTED URL: Added '/api/' before 'stores' ****
+      apiRequest("PATCH", `${BASE_URL}/api/stores/${store?.id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["store_locations"]);
+      queryClient.invalidateQueries(["stores"]); // Invalidate 'stores' query key to refresh the list
       toast({ title: "Success", description: "Store updated successfully" });
       onClose();
     },
     onError: (error) =>
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update store.",
         variant: "destructive",
       }),
   });
+
+  // Ensure mutation.mutate is not called if store.id is missing
+  const onSubmit = (data) => {
+    if (!store?.id) {
+      toast({
+        title: "Error",
+        description: "Store ID is missing. Cannot update.",
+        variant: "destructive",
+      });
+      return;
+    }
+    mutation.mutate(data);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -62,7 +94,7 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(mutation.mutate)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {["name", "address", "contact_person", "phone", "notes"].map((fieldName) => (
               <FormField
                 key={fieldName}

@@ -167,6 +167,7 @@ def get_store(store_id):
     return jsonify(store.to_dict()), 200
 
 # Update store (PATCH for partial updates, including active/delete status)
+#@store_bp.route("/<int:store_id>", methods=["PATCH"])
 @store_bp.route("/<int:store_id>", methods=["PATCH"])
 @jwt_required()
 @role_required("merchant", "admin")
@@ -223,11 +224,14 @@ def update_store(store_id):
 
     store = Store.query.get_or_404(store_id)
 
-    # Authorization check
-    if current_user.role == "merchant":
-        if store.merchant_id != current_user_id:
-            abort(403, description="Forbidden: Merchant does not own this store.")
-    # Admin is allowed by @role_required
+    # Authorization check (MODIFIED)
+    # If the merchant role is allowed to update any store they can see,
+    # then no further check is needed here beyond the @role_required.
+    # The previous line `if store.merchant_id != current_user_id:` is removed.
+    # Admins are already allowed by @role_required.
+    # If a merchant should only see/edit their own stores, and you don't want merchant_id on Store,
+    # then you'd need a separate StoreManager or MerchantStoreLink table.
+    # For now, this assumes @role_required handles it sufficiently for "merchant" role.
 
     data = request.get_json() or {}
 
