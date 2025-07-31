@@ -103,7 +103,7 @@ export function CashierSelect({
 
   return (
     <div className="flex items-center space-x-2">
-      <Label htmlFor="cashier-select" className="text-sm">{label}:</Label>
+      <Label htmlFor="cashier-select" className="text-sm">{label}:</Label> {/* Keep this label */}
       <Select
         value={selectedCashierId === null || selectedCashierId === undefined || selectedCashierId === "all"
           ? "all"

@@ -1,5 +1,3 @@
-// src/pages/user-management/store-admin-user-management.jsx
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,7 +46,6 @@ const storeAdminManagedUserSchema = z.object({
   email: z.string().email("Invalid email format").min(1, "Email is required"),
   password: z.string().min(8, "Password must be at least 8 characters long").optional(),
   role: userRoleEnum.refine( // Use shared enum but refine allowed values
-    // ⭐ FIX: Removed 'user' from allowed roles for Store Admin to manage ⭐
     (role) => ["cashier", "clerk"].includes(role),
     { message: "Store Admin can only assign Cashier or Clerk roles." }
   ),
@@ -92,7 +89,7 @@ export default function StoreAdminUserManagement() {
         ...data,
         store_id: currentUser.store_id,
       };
-      return apiRequest("POST", `${BASE_URL}/api/users/create`, payload);
+      return apiRequest("POST", `${BASE_URL}/api/users/`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store-users", currentUser.store_id] });
@@ -163,8 +160,8 @@ export default function StoreAdminUserManagement() {
       if (targetUser.role === "merchant" || targetUser.role === "admin") {
         return false;
       }
-      // ⭐ FIX: Only allow actions on 'cashier' and 'clerk' roles ⭐
-      if (targetUser.role === "cashier" || targetUser.role === "clerk") {
+      // Allow actions on 'cashier' and 'clerk' roles
+      if (["cashier", "clerk"].includes(targetUser.role)) {
         return true;
       }
     }
@@ -179,8 +176,10 @@ export default function StoreAdminUserManagement() {
     const matchesSearch = nameMatches || emailMatches;
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     
-    // ⭐ FIX: Exclude 'user' role from display if it's no longer managed ⭐
-    const isAllowedRoleForDisplay = user.role !== "merchant" && user.role !== "admin" && user.role !== "user";
+    // Only display 'cashier' and 'clerk' roles in this management view.
+    // Do NOT filter by is_active here, as admins should see all users in their store
+    // regardless of their active status to manage them.
+    const isAllowedRoleForDisplay = ["cashier", "clerk"].includes(user.role);
 
     return matchesSearch && matchesRole && isAllowedRoleForDisplay;
   });
@@ -239,7 +238,7 @@ export default function StoreAdminUserManagement() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="cashier">Cashier</SelectItem>
                 <SelectItem value="clerk">Clerk</SelectItem>
-                {/* Removed 'user' from role filter options */}
+                {/* Removed 'user' from role filter options as it's not managed here */}
               </SelectContent>
             </Select>
           </div>

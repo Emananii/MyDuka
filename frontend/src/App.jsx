@@ -12,8 +12,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
-//import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
-//import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -23,10 +21,6 @@ import Register from "@/components/auth/register-form";
 import ProtectedRoute from "@/components/auth/protected-route";
 
 // Pages
-// Removed generic Dashboard import as we'll use role-specific ones
-// import Dashboard from "@/pages/dashboard";
-// Removed generic Dashboard import as we'll use role-specific ones
-// import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
@@ -49,7 +43,6 @@ import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
 // --- START: Supply Request Specific Pages ---
-// --- START: Supply Request Specific Pages ---
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
 // --- END: Supply Request Specific Pages ---
@@ -58,12 +51,17 @@ import NotFound from "@/pages/not-found";
 
 import POSInterfacePage from "@/pages/POS-interface";
 
+// ⭐ Ensure these are correctly imported using their actual export names ⭐
+// Based on typical project structures, these are often default exports
+// but if you get "does not provide an export named 'X'" errors again,
+// you might need to change them to named imports: import { StoreAdminUserManagement } from ...
 import StoreAdminUserManagement from "./pages/user-management/store-admin-user-management";
 import MerchantUserManagement from "./pages/user-management/merchant-user-management";
 
 import { UserProvider, UserContext } from "@/context/UserContext";
 
 // --- NEW: Import specific dashboard components for each role ---
+// Assuming these are default exports. If you get a "named 'X'" error, change to { X }
 import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
 import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 //import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
@@ -73,7 +71,7 @@ import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 // --- Layout Component ---
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false); // Preserving user's dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout } = useContext(UserContext);
   const [location, navigate] = useLocation();
 
@@ -108,13 +106,13 @@ function MainLayout({ children }) {
               <h2 className="text-2xl font-semibold text-gray-800">MyDuka</h2>
             </div>
 
-            <div className="relative flex items-center space-x-4"> {/* Added relative for dropdown positioning */}
+            <div className="relative flex items-center space-x-4">
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
               </Button>
 
               {user && profilePath ? (
-                <div className="relative"> {/* Outer div for dropdown positioning */}
+                <div className="relative">
                   <div onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <Avatar className="cursor-pointer">
                       <AvatarImage
@@ -171,7 +169,6 @@ function AuthRoutes() {
   return (
     <Switch>
       {/* 🔐 Separate login pages for each role */}
-      {/* Retained specific login paths from App.jsx_v1 logic for clarity */}
       <Route path="/login/admin">
           <Login role="admin" />
       </Route>
@@ -215,9 +212,6 @@ function AppRoutes() {
 
   return (
     <Switch>
-      {/* Removed the universal "/" route for dashboard */}
-      {/* <Route path="/" component={Dashboard} /> */}
-
       {/* NEW: Role-specific Dashboard Routes */}
       <Route path="/dashboard/merchant">
         <ProtectedRoute component={MerchantDashboardPage} allowedRoles={["merchant"]} />
@@ -231,7 +225,6 @@ function AppRoutes() {
       <Route path="/dashboard/clerk">
         <ProtectedRoute component={ClerkDashboardPage} allowedRoles={["clerk"]} />
       </Route> */}
-      {/* END NEW: Role-specific Dashboard Routes */}
 
       {/* Cashier */}
       <Route path="/pos">
@@ -256,7 +249,6 @@ function AppRoutes() {
       </Route>
 
       {/* --- START: Supply Request Pages --- */}
-      {/* --- START: Supply Request Pages --- */}
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
@@ -271,11 +263,6 @@ function AppRoutes() {
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
-      {/* If you need a specific Purchase Details Page, you'd add:
-      <Route path="/purchases/:id">
-        <ProtectedRoute component={PurchaseDetailsPage} allowedRoles={["admin", "merchant"]} />
-      </Route>
-      */}
 
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
@@ -306,8 +293,16 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
-      <Route path="/merchant-user-management">
+      {/* Route for Merchant User Management */}
+      {/* ⭐ ENSURE THIS ROUTE IS PRESENT AND CORRECT ⭐ */}
+      <Route path="/user-management/merchant"> {/* Changed path from /merchant-user-management to match sidebar */}
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
+      </Route>
+
+      {/* Route for Store Admin User Management */}
+      {/* ⭐ ENSURE THIS ROUTE IS PRESENT AND CORRECT ⭐ */}
+      <Route path="/user-management/store-admin">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
       </Route>
 
       {/* Fallback */}

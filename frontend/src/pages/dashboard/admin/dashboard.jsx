@@ -32,7 +32,7 @@ import { useUser } from "@/context/UserContext"; // Import useUser to get admin'
 // Import the chart components
 import SalesTrendChart from "@/components/dashboard/merchant/sales-trend-chart";
 import ProfitTrendChart from "@/components/dashboard/merchant/profit-trend-chart";
-import TopPerformingStoresCard from "@/components/dashboard/merchant/top-performing-stores-card";
+// REMOVED: import TopPerformingStoresCard from "@/components/dashboard/merchant/top-performing-stores-card";
 
 
 export default function AdminDashboard() {
@@ -354,9 +354,8 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Supplier Spending Trends and Top Performing Stores */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Supplier Spending Trends */}
+      {/* Supplier Spending Trends */}
+      <div className="grid grid-cols-1 gap-6"> {/* Changed to 1 column since TopPerformingStoresCard is removed */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -389,10 +388,6 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
-
-        {/* Top Performing Stores Card (This usually shows global performance, or can be adapted) */}
-        {/* Removed merchantId prop as it's not relevant for an admin dashboard directly */}
-        <TopPerformingStoresCard />
       </div>
 
       {/* Sales and Profit Charts */}

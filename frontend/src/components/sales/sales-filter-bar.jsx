@@ -78,11 +78,10 @@ export default function SalesFilterBar({
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-800">Filter Sales</h2>
-          {/* Replaced 'Add Purchase' button with 'Clear Filters' button */}
           <Button
             variant="outline"
             onClick={handleResetFilters}
-            disabled={!isFilterActive || isSalesLoading} // Disable if no filters or sales are loading
+            disabled={!isFilterActive || isSalesLoading}
             className="flex items-center gap-2"
           >
             <XCircle className="h-4 w-4" /> Clear Filters
@@ -100,33 +99,31 @@ export default function SalesFilterBar({
                   placeholder="Search by product, sale ID..."
                   value={filters.search || ''}
                   onChange={(e) => onFilterChange('search', e.target.value)}
-                  className="pl-9 text-sm" // Added text-sm for consistency
+                  className="pl-9 text-sm"
                   disabled={isSalesLoading}
                 />
               </div>
             </div>
           )}
 
-          {/* Start Date Filter */}
           <div className="flex flex-col gap-1">
             <Label htmlFor="start-date" className="text-sm text-gray-600">Start Date</Label>
             <Input
               id="start-date"
               type="date"
-              value={startDateString} // Use the formatted string
+              value={startDateString}
               onChange={handleStartDateChange}
               className="border rounded px-2 py-1 text-sm"
               disabled={isSalesLoading}
             />
           </div>
 
-          {/* End Date Filter */}
           <div className="flex flex-col gap-1">
             <Label htmlFor="end-date" className="text-sm text-gray-600">End Date</Label>
             <Input
               id="end-date"
               type="date"
-              value={endDateString} // Use the formatted string
+              value={endDateString}
               onChange={handleEndDateChange}
               className="border rounded px-2 py-1 text-sm"
               disabled={isSalesLoading}
@@ -140,9 +137,9 @@ export default function SalesFilterBar({
                 id="store-select"
                 selectedStoreId={filters.storeId}
                 onSelectStore={(id) => onFilterChange('storeId', id === 'all' ? null : Number(id))}
-                // Removed redundant label prop as Label is external
                 includeAllOption={true}
                 disabled={isSalesLoading}
+                // Removed redundant label prop here
               />
             </div>
           )}
@@ -154,15 +151,13 @@ export default function SalesFilterBar({
                 id="cashier-select"
                 selectedCashierId={filters.cashierId}
                 onSelectCashier={(id) => onFilterChange('cashierId', id === 'all' ? null : Number(id))}
-                // Removed redundant label prop as Label is external
                 includeAllOption={true}
-                // Pass the current storeId so CashierSelect can filter cashiers by that store
-                // For admin page, this will be currentUser.store_id from parent.
                 storeId={filters.storeId === null || filters.storeId === 'all' ? null : Number(filters.storeId)}
-                cashiers={cashiers} // Pass pre-fetched cashiers for admin scenario
-                isLoading={isLoadingCashiers} // Pass loading state to disable dropdown
+                cashiers={cashiers}
+                isLoading={isLoadingCashiers}
                 allowedRole="cashier"
                 disabled={isSalesLoading}
+                // Removed redundant label prop here
               />
             </div>
           )}
