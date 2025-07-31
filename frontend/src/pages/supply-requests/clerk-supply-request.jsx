@@ -1,5 +1,6 @@
+// ClerkSupplyRequest.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query"; // Use useQuery for data fetching
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,12 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react"; // Plus icon for "New Request" button
+import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import axios from "@/utils/axios"; // Your configured axios instance
-import { useUser } from "@/context/UserContext"; // To filter requests by clerk_id
-import { Badge } from "@/components/ui/badge"; // For status badge
-import { // Imported Select components for the status filter
+import axios from "@/utils/axios";
+import { useUser } from "@/context/UserContext";
+import { Badge } from "@/components/ui/badge";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,13 +24,10 @@ import { // Imported Select components for the status filter
   SelectValue,
 } from "@/components/ui/select";
 
-
-// Import the modals we created
 import { AddSupplyRequest } from "@/components/supply-request/add-supply-request";
 import { EditSupplyRequest } from "@/components/supply-request/edit-supply-request";
 import { ViewSupplyRequest } from "@/components/supply-request/view-supply-request";
 
-// Helper function to format dates
 const formatDate = (rawDate) => {
   if (!rawDate) return "N/A";
   const date = new Date(rawDate);
@@ -45,56 +43,62 @@ const formatDate = (rawDate) => {
 
 export default function ClerkSupplyRequest() {
   const { toast } = useToast();
-  const { user } = useUser(); // Get logged-in user details
-  const queryClient = useQueryClient(); // Initialize query client for invalidation
+  const { user } = useUser();
+  const queryClient = useQueryClient();
 
-  // Modal control states
+  // Log the user object to see its structure and ID
+  console.log("Clerk User Context:", user);
+
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [viewingRequest, setViewingRequest] = useState(null); // Data for the View modal
-  const [editingRequest, setEditingRequest] = useState(null); // Data for the Edit modal
-  const [currentlyFetchingId, setCurrentlyFetchingId] = useState(null); // To show loading state on specific row
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingRequest, setViewingRequest] = useState(null);
+  const [editingRequest, setEditingRequest] = useState(null);
+  const [currentlyFetchingId, setCurrentlyFetchingId] = useState(null);
 
-  // Filter states
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all"); // Changed default to "all" to match SelectItem
+  const [selectedStatus, setSelectedStatus] = useState("all");
 
-  // Sorting states
-  const [sortKey, setSortKey] = useState("created_at"); // default sort
-  const [sortDirection, setSortDirection] = useState("desc"); // "asc" or "desc"
+  const [sortKey, setSortKey] = useState("created_at");
+  const [sortDirection, setSortDirection] = useState("desc");
 
-  // --- Data Fetching with React Query ---
-  // Fetch supply requests specific to the logged-in clerk
   const {
     data: supplyRequests = [],
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["clerk_supply_requests", user?.id], // Query key includes user.id for specific clerk data
+    queryKey: ["clerk_supply_requests", user?.id], // Query key includes user.id
     queryFn: async () => {
-      if (!user?.id) return []; // Don't fetch if user ID isn't available
-
-      // Fetch requests, assuming backend filters by clerk_id if a clerk token is provided
-      const response = await axios.get('/api/supply-requests');
-
-      // Corrected: Access the 'data' array from the response object
-      // Then filter by current clerk's ID on the frontend if the backend doesn't do it automatically
-      const filteredByUser = response.data.data.filter(req => req.clerk_id === user.id);
-      return filteredByUser;
+      if (!user?.id) {
+        console.log("Clerk user ID is not available, skipping fetch.");
+        return [];
+      }
+      
+      // Send clerk_id as a query parameter to the backend for filtering
+      console.log(`Fetching supply requests for clerk_id: ${user.id}`);
+      const response = await axios.get(`/api/supply-requests?clerk_id=${user.id}`);
+      
+      // Log the raw response data from the backend
+      console.log("Raw API Response for clerk_supply_requests:", response.data);
+      
+      // The backend should now return only requests for this clerk, so no further frontend filter needed
+      return response.data.data;
     },
     enabled: !!user?.id, // Only run this query if user.id exists
-    staleTime: 5 * 60 * 1000, // Data considered fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
     onError: (err) => {
       toast({
         variant: "destructive",
         title: "Error fetching requests.",
         description: err.response?.data?.message || "Could not load supply requests.",
       });
+      console.error("Error fetching clerk supply requests:", err);
     },
   });
 
-  // --- Filtering & Sorting Logic ---
   const handleSort = (key) => {
     if (key === sortKey) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -105,46 +109,43 @@ export default function ClerkSupplyRequest() {
   };
 
   const getSortedAndFilteredRequests = useMemo(() => {
-    let filtered = supplyRequests; // Start with the data from useQuery
+    let filtered = supplyRequests;
 
-    // Filter by status, excluding "all" which means no status filter
-    if (selectedStatus && selectedStatus !== "all") {
-      filtered = filtered.filter(request => request.status === selectedStatus);
+    // Log requests before filters
+    console.log("Clerk requests before status filter:", filtered);
+
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter((r) => r.status === selectedStatus);
     }
+    console.log("Clerk requests after status filter:", filtered);
 
-    // Filter by date range
-    filtered = filtered.filter((request) => {
-      const requestDate = new Date(request.created_at);
+
+    filtered = filtered.filter((r) => {
+      const date = new Date(r.created_at);
       const from = startDate ? new Date(startDate) : null;
       const to = endDate ? new Date(endDate) : null;
-
-      const matchesDateRange =
-        (!from || requestDate >= from) && (!to || requestDate <= to);
-
-      return matchesDateRange;
+      return (!from || date >= from) && (!to || date <= to);
     });
+    console.log("Clerk requests after date filter:", filtered);
 
-    const sorted = [...filtered].sort((a, b) => {
-      let aValue = a[sortKey];
-      let bValue = b[sortKey];
+
+    return [...filtered].sort((a, b) => {
+      let aVal = a[sortKey];
+      let bVal = b[sortKey];
 
       if (sortKey === "created_at" || sortKey === "updated_at") {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
       } else if (sortKey === "product_name") {
-        aValue = a.product?.name?.toLowerCase() || "";
-        bValue = b.product?.name?.toLowerCase() || "";
+        aVal = a.product?.name?.toLowerCase() || "";
+        bVal = b.product?.name?.toLowerCase() || "";
       } else if (sortKey === "status") {
-        aValue = a.status?.toLowerCase() || "";
-        bValue = b.status?.toLowerCase() || "";
+        aVal = a.status?.toLowerCase() || "";
+        bVal = b.status?.toLowerCase() || "";
       }
 
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
+      return sortDirection === "asc" ? aVal > bVal ? 1 : -1 : aVal < bVal ? 1 : -1;
     });
-
-    return sorted;
   }, [supplyRequests, startDate, endDate, selectedStatus, sortKey, sortDirection]);
 
   const renderSortArrow = (key) => {
@@ -152,20 +153,19 @@ export default function ClerkSupplyRequest() {
     return sortDirection === "asc" ? " ▲" : " ▼";
   };
 
-  // --- Modal Interaction Handlers ---
   const fetchRequestDetails = async (id) => {
     setCurrentlyFetchingId(id);
     try {
-      const res = await axios.get(`/api/supply-requests/${id}`); // Assuming a GET /api/supply-requests/:id endpoint
+      const res = await axios.get(`/api/supply-requests/${id}`);
       setViewingRequest(res.data);
-      setCurrentlyFetchingId(null);
-      setIsViewModalOpen(true); // Open view modal after fetching
+      setIsViewModalOpen(true);
     } catch (err) {
       toast({
         title: "Fetch error",
         description: err.response?.data?.message || "Failed to fetch request details.",
         variant: "destructive",
       });
+    } finally {
       setCurrentlyFetchingId(null);
     }
   };
@@ -176,30 +176,33 @@ export default function ClerkSupplyRequest() {
   };
 
   const handleRequestActionSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["clerk_supply_requests"] }); // Invalidate and refetch
-    // Optionally, close any open modal here if not handled by the modal itself
+    if (user?.id) {
+      // Invalidate the clerk's specific query key to refetch their requests
+      queryClient.invalidateQueries({ queryKey: ["clerk_supply_requests", user.id] });
+    }
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
+    setIsViewModalOpen(false);
     setViewingRequest(null);
     setEditingRequest(null);
-    setSelectedStatus("all"); // Reset status filter after action
+    setSelectedStatus("all"); // Reset filter to show all requests after action
   };
 
-  // --- Render Logic ---
   if (isLoading) {
-    return (
-      <div className="p-6 text-center">
-        <p>Loading your supply requests...</p>
-        {/* Consider adding a proper spinner component */}
-      </div>
-    );
+    return <div className="p-6 text-center">Loading your supply requests...</div>;
   }
 
   if (isError) {
     return (
       <div className="p-6 text-center text-red-600">
         <p>{error.message || "An unexpected error occurred."}</p>
-        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["clerk_supply_requests"] })}>Retry</Button>
+        <Button
+          onClick={() =>
+            queryClient.invalidateQueries({ queryKey: ["clerk_supply_requests", user?.id] })
+          }
+        >
+          Retry
+        </Button>
       </div>
     );
   }
@@ -213,41 +216,39 @@ export default function ClerkSupplyRequest() {
         </Button>
       </div>
 
-      {/* --- Filter Controls --- */}
-      <Card className="bg-white rounded-xl shadow-sm border border-gray-200">
+      {/* Filter card */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">Filter Requests</CardTitle>
+          <CardTitle>Filter Requests</CardTitle>
         </CardHeader>
-        <CardContent className="p-6 pt-0 space-y-4">
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="startDate" className="text-sm text-gray-600">Start Date</label>
+            <div>
+              <label className="text-sm">Start Date</label>
               <input
-                id="startDate"
                 type="date"
+                className="border rounded px-2 py-1 text-sm w-full"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="endDate" className="text-sm text-gray-600">End Date</label>
+            <div>
+              <label className="text-sm">End Date</label>
               <input
-                id="endDate"
                 type="date"
+                className="border rounded px-2 py-1 text-sm w-full"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="statusFilter" className="text-sm text-gray-600 sr-only">Status</label>
-              <Select onValueChange={setSelectedStatus} value={selectedStatus}>
-                <SelectTrigger id="statusFilter">
+            <div>
+              <label className="text-sm sr-only">Status</label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger>
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem> {/* Changed value from "" to "all" */}
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="declined">Declined</SelectItem>
@@ -258,109 +259,73 @@ export default function ClerkSupplyRequest() {
         </CardContent>
       </Card>
 
-      {/* --- Supply Requests Table --- */}
-      <Card className="bg-white rounded-xl shadow-sm border border-gray-200">
+      {/* Table */}
+      <Card>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead onClick={() => handleSort("id")} className="cursor-pointer">
-                  ID{renderSortArrow("id")}
-                </TableHead>
-                <TableHead onClick={() => handleSort("product_name")} className="cursor-pointer">
-                  Product{renderSortArrow("product_name")}
-                </TableHead>
-                <TableHead>Requested Quantity</TableHead>
-                <TableHead onClick={() => handleSort("status")} className="cursor-pointer">
-                  Status{renderSortArrow("status")}
-                </TableHead>
-                <TableHead onClick={() => handleSort("created_at")} className="cursor-pointer">
-                  Requested On{renderSortArrow("created_at")}
-                </TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow>
+                <TableHead onClick={() => handleSort("id")} className="cursor-pointer">ID{renderSortArrow("id")}</TableHead>
+                <TableHead onClick={() => handleSort("product_name")} className="cursor-pointer">Product{renderSortArrow("product_name")}</TableHead>
+                <TableHead>Requested Qty</TableHead>
+                <TableHead onClick={() => handleSort("status")} className="cursor-pointer">Status{renderSortArrow("status")}</TableHead>
+                <TableHead onClick={() => handleSort("created_at")} className="cursor-pointer">Requested On{renderSortArrow("created_at")}</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {getSortedAndFilteredRequests.length > 0 ? (
+              {getSortedAndFilteredRequests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-4">
+                    No supply requests found.
+                  </TableCell>
+                </TableRow>
+              ) : (
                 getSortedAndFilteredRequests.map((request) => (
-                  <TableRow
-                    key={request.id}
-                    className="hover:bg-gray-100" // Removed cursor-pointer from row to avoid accidental clicks when row actions exist
-                  >
+                  <TableRow key={request.id}>
                     <TableCell>{request.id}</TableCell>
-                    <TableCell>{request.product?.name || 'N/A'}</TableCell>
+                    <TableCell>{request.product?.name || "N/A"}</TableCell>
                     <TableCell>{request.requested_quantity}</TableCell>
                     <TableCell>
                       <Badge
-                        className={`capitalize ${
-                          request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          request.status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                        }`}
+                        variant={
+                          request.status === "approved"
+                            ? "success"
+                            : request.status === "pending"
+                            ? "warning"
+                            : "destructive"
+                        }
                       >
-                        {request.status}
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(request.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => fetchRequestDetails(request.id)}
-                          disabled={currentlyFetchingId === request.id}
-                        >
-                          {currentlyFetchingId === request.id ? "Loading..." : "View"}
+                    <TableCell className="text-center space-x-2">
+                      <Button size="sm" variant="outline" onClick={() => fetchRequestDetails(request.id)} disabled={currentlyFetchingId === request.id}>
+                        View
+                      </Button>
+                      {/* Edit button only for pending requests */}
+                      {request.status === "pending" && (
+                        <Button size="sm" variant="ghost" onClick={() => handleEditRequest(request)}>
+                          Edit
                         </Button>
-                        {request.status === "pending" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditRequest(request)}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    No supply requests found matching your criteria.
-                  </TableCell>
-                </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
       </Card>
 
-      {/* --- Modals --- */}
-      <AddSupplyRequest
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSupplyRequestAdded={handleRequestActionSuccess}
-      />
-
-      {editingRequest && (
-        <EditSupplyRequest
-          isOpen={!!editingRequest}
-          onClose={() => setEditingRequest(null)}
-          request={editingRequest}
-          onUpdated={handleRequestActionSuccess}
-        />
+      {/* Modals */}
+      <AddSupplyRequest isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdded={handleRequestActionSuccess} />
+      {editingRequest && isEditModalOpen && (
+        <EditSupplyRequest isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setEditingRequest(null); }} request={editingRequest} onUpdated={handleRequestActionSuccess} />
       )}
-
-      {viewingRequest && (
-        <ViewSupplyRequest
-          isOpen={!!viewingRequest}
-          onClose={() => setIsViewModalOpen(false)} // Set setIsViewModalOpen to false to close
-          request={viewingRequest}
-          // The ViewSupplyRequest component has its own internal logic for edit/delete
-          // which will trigger handleRequestActionSuccess indirectly via queryClient.invalidateQueries
-        />
+      {viewingRequest && isViewModalOpen && (
+        <ViewSupplyRequest isOpen={isViewModalOpen} onClose={() => { setIsViewModalOpen(false); setViewingRequest(null); }} request={viewingRequest} />
       )}
     </div>
   );

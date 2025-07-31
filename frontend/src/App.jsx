@@ -66,7 +66,7 @@ function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false); // Preserving user's dropdown state
   const { user, logout } = useContext(UserContext);
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -193,7 +193,7 @@ function AuthRoutes() {
       </Route>
 
       {/* 🌐 Public landing page - move this BELOW the main layout */}
-      <Route path="/" component={LandingPage} />
+      <Route path="/" component={Dashboard} />
     </Switch>
   );
 }
