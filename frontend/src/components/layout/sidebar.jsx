@@ -20,9 +20,8 @@ import { Loader2 } from "lucide-react";
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
-  // The href for Dashboard will be dynamically determined below
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier", "clerk"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant","admin"] },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
   { 

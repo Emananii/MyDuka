@@ -93,7 +93,38 @@ def create_app():
     app.register_blueprint(purchase_bp)
     app.register_blueprint(merchant_dashboard_bp)
 
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    # Environment-based CORS origins for better security
+    ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    
+    # CORS configuration - centralized and clean
+    CORS(app, resources={
+        r"/*": {
+            "origins": ALLOWED_ORIGINS,
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
+
+    # Debug logging for CORS preflight requests
+    @app.before_request
+    def handle_preflight():
+        from flask import request
+        if request.method == "OPTIONS":
+            app.logger.info(f"OPTIONS request to: {request.path}")
+            app.logger.info(f"Origin: {request.headers.get('Origin')}")
+            app.logger.info(f"Access-Control-Request-Method: {request.headers.get('Access-Control-Request-Method')}")
+            app.logger.info(f"Access-Control-Request-Headers: {request.headers.get('Access-Control-Request-Headers')}")
+
+    # Debug logging for CORS response headers (only in debug mode)
+    @app.after_request
+    def after_request(response):
+        if app.debug:
+            # Log CORS headers being sent for debugging
+            cors_headers = {k: v for k, v in response.headers if k.startswith('Access-Control')}
+            if cors_headers:
+                app.logger.info(f"CORS headers sent: {cors_headers}")
+        return response
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
