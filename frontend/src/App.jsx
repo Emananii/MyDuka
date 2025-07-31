@@ -97,7 +97,7 @@ function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout } = useContext(UserContext);
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -187,6 +187,49 @@ function MainLayout({ children }) {
     </div>
   );
 }
+
+
+// --- Auth Routes ---
+function AuthRoutes() {
+  return (
+    <Switch>
+      {/* 🔐 Separate login pages for each role */}
+      {/* Retained specific login paths from App.jsx_v1 logic for clarity */}
+      <Route path="/login/admin">
+          <Login role="admin" />
+      </Route>
+      <Route path="/login/merchant">
+          <Login role="merchant" />
+      </Route>
+      <Route path="/login/clerk">
+          <Login role="clerk" />
+      </Route>
+      <Route path="/login/cashier">
+          <Login role="cashier" />
+      </Route>
+
+      {/* 🔁 Fallback login */}
+
+      <Route path="/login">
+          <Login />
+      </Route>
+
+      <Route path="/register">
+          <Register />
+      </Route>
+
+      <Route>
+        <MainLayout>
+          <AppRoutes />
+        </MainLayout>
+      </Route>
+
+      {/* 🌐 Public landing page - move this BELOW the main layout */}
+      <Route path="/" component={Dashboard} />
+    </Switch>
+  );
+}
+
 
 
 // --- Application Routes (Protected/Authenticated Routes) ---

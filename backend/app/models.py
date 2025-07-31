@@ -318,18 +318,7 @@ class PurchaseItem(BaseModel):
     unit_cost = db.Column(db.Numeric(10, 2))
 
 
-class SupplyRequest(BaseModel):
-    __tablename__ = 'supply_requests'
-
-    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
-    clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    requested_quantity = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.Enum('pending', 'approved', 'declined',
-                       name='supply_status'), default='pending')
-    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    admin_response = db.Column(db.Text)
-
+# Define SupplyRequestStatus before SupplyRequest model
 class SupplyRequestStatus(str, Enum):
     pending = "pending"
     approved = "approved"
@@ -337,6 +326,47 @@ class SupplyRequestStatus(str, Enum):
 
     def __str__(self):
         return self.value
+
+class SupplyRequest(BaseModel):
+    __tablename__ = 'supply_requests'
+
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    requested_quantity = db.Column(db.Integer, nullable=False)
+    # CORRECTED LINE: Use the Enum class directly
+    status = db.Column(db.Enum(SupplyRequestStatus), default=SupplyRequestStatus.pending, nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    admin_response = db.Column(db.Text)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "store_id": self.store_id,
+            "store": {
+                "id": self.store.id,
+                "name": self.store.name,
+            } if self.store else None,
+            "product_id": self.product_id,
+            "product": self.product.to_dict() if self.product else None,
+            "clerk_id": self.clerk_id,
+            "clerk": {
+                "id": self.clerk.id,
+                "name": self.clerk.name, # Using name as per model, assuming it's populated
+                "email": self.clerk.email
+            } if self.clerk else None,
+            "requested_quantity": self.requested_quantity,
+            "status": self.status.value if isinstance(self.status, SupplyRequestStatus) else self.status, # Ensure .value is used for serialization
+            "admin_id": self.admin_id,
+            "admin": {
+                "id": self.admin.id,
+                "name": self.admin.name, # Using name as per model, assuming it's populated
+                "email": self.admin.email
+            } if self.admin else None,
+            "admin_response": self.admin_response,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 class StockTransfer(BaseModel):
     __tablename__ = 'stock_transfers'

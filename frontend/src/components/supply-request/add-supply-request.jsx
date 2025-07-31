@@ -1,4 +1,6 @@
+// ClerkSupplyRequest.jsx
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,90 +20,160 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import axios from "@/utils/axios"; // Assuming your axios instance is set up for auth
-import { useUser } from "@/context/UserContext"; // To get the clerk's store_id
+import { Loader2 } from "lucide-react";
+import axios from "@/utils/axios";
+import { useUser } from "@/context/UserContext";
+
+// Custom hook for form management
+const useSupplyRequestForm = () => {
+  const [formData, setFormData] = useState({
+    selectedProductId: "",
+    requestedQuantity: "",
+  });
+
+  const updateField = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      selectedProductId: "",
+      requestedQuantity: "",
+    });
+  };
+
+  const validateForm = (products, user) => {
+    const errors = [];
+    
+    if (!formData.selectedProductId) {
+      errors.push("Please select a product");
+    } else if (!products.some(p => p.id === parseInt(formData.selectedProductId))) {
+      errors.push("Selected product is not valid");
+    }
+    
+    const quantity = parseInt(formData.requestedQuantity);
+    if (!formData.requestedQuantity || isNaN(quantity) || quantity <= 0) {
+      errors.push("Please enter a valid quantity greater than 0");
+    } else if (quantity > 10000) {
+      errors.push("Quantity cannot exceed 10,000");
+    }
+    
+    // Ensure user and store_id are present for the API call
+    if (!user?.store_id) {
+      errors.push("Your associated store could not be determined. Please log in again.");
+    }
+    if (!user?.id) {
+      errors.push("Your user ID could not be determined. Please log in again.");
+    }
+    
+    return errors;
+  };
+
+  return {
+    formData,
+    updateField,
+    resetForm,
+    validateForm,
+  };
+};
+
+// Error handling utility
+const handleApiError = (error, toast, context = "operation") => {
+  console.error(`Failed ${context}:`, error);
+  
+  const message = 
+    error.response?.data?.message || 
+    error.response?.data?.error || 
+    `An unexpected error occurred during ${context}. Please try again.`;
+  
+  toast({
+    variant: "destructive",
+    title: `${context.charAt(0).toUpperCase() + context.slice(1)} Failed`,
+    description: message,
+  });
+};
 
 export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
   const { toast } = useToast();
   const { user } = useUser(); // Access the current user from UserContext
+  const { formData, updateField, resetForm, validateForm } = useSupplyRequestForm();
+  
   const [products, setProducts] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [requestedQuantity, setRequestedQuantity] = useState("");
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch list of products when the modal opens
+  // Fetch products when modal opens
   useEffect(() => {
     if (isOpen) {
-      axios.get('/api/inventory/products') // Adjust this endpoint if clerks should only see certain products
-        .then(response => {
-          setProducts(response.data);
-        })
-        .catch(error => {
-          toast({
-            variant: "destructive",
-            title: "Error fetching products.",
-            description: error.response?.data?.message || "Could not load products.",
-          });
-        });
+      fetchProducts();
     }
-  }, [isOpen, toast]); // Re-fetch products only when the modal opens
+  }, [isOpen]);
+
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const response = await axios.get("/api/inventory/products");
+      setProducts(response.data || []);
+    } catch (error) {
+      handleApiError(error, toast, "product loading");
+      setProducts([]);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    if (!selectedProductId || !requestedQuantity || parseInt(requestedQuantity) <= 0) {
+    
+    // Validate form
+    const validationErrors = validateForm(products, user);
+    if (validationErrors.length > 0) {
       toast({
         variant: "destructive",
         title: "Validation Error",
-        description: "Please select a product and enter a valid quantity.",
+        description: validationErrors[0], // Show first error
       });
-      setIsSubmitting(false);
       return;
     }
 
-    // Ensure the clerk's store_id is available
-    if (!user || !user.store_id) {
-        toast({
-            variant: "destructive",
-            title: "Authentication Error",
-            description: "Could not determine your associated store. Please log in again.",
-        });
-        setIsSubmitting(false);
-        return;
-    }
+    setIsSubmitting(true);
+
+    const payload = {
+      product_id: parseInt(formData.selectedProductId),
+      store_id: user.store_id, // Send store_id in payload as per new backend
+      requested_quantity: parseInt(formData.requestedQuantity),
+      clerk_id: user.id, // Send clerk_id in payload as per new backend
+    };
 
     try {
-      const payload = {
-        product_id: parseInt(selectedProductId),
-        store_id: user.store_id, // Get the store_id from the clerk's user context
-        requested_quantity: parseInt(requestedQuantity),
-      };
-
-      const response = await axios.post('/api/supply-requests/create', payload);
+      // CORRECTED API ENDPOINT:
+      // Now targeting the new /api/supply-requests/create endpoint
+      const response = await axios.post("/api/supply-requests/create", payload);
 
       toast({
-        title: "Supply Request Submitted!",
-        description: response.data.message || "Your request has been sent for approval.",
+        title: "Supply Request Submitted",
+        description: response.data?.message || "Your request has been sent for approval.",
       });
-      onSupplyRequestAdded(); // Call parent to refresh list
-      onClose(); // Close the modal
-      
-      // Reset form fields after successful submission
-      setSelectedProductId("");
-      setRequestedQuantity("");
 
+      // Safe callback execution
+      if (onSupplyRequestAdded && typeof onSupplyRequestAdded === 'function') {
+        onSupplyRequestAdded(); // This triggers the parent to refetch data
+      }
+
+      handleClose(); // Close modal and reset form
     } catch (error) {
-      console.error("Failed to submit supply request:", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to Submit Request",
-        description: error.response?.data?.error || "An unexpected error occurred. Please try again.",
-      });
+      handleApiError(error, toast, "supply request submission");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const isFormDisabled = isLoadingProducts || isSubmitting;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -109,21 +181,23 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
         <DialogHeader>
           <DialogTitle>Make a Supply Request</DialogTitle>
           <DialogDescription>
-            Request products needed for your store. Fill in the details below.
+            Request products needed for your store.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          {/* Product Selection */}
+          {/* Product selection */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="product" className="text-right">
               Product
             </Label>
-            <Select onValueChange={setSelectedProductId} value={selectedProductId}>
+            <Select onValueChange={(value) => updateField("selectedProductId", value)} value={formData.selectedProductId} disabled={isFormDisabled}>
               <SelectTrigger id="product" className="col-span-3">
                 <SelectValue placeholder="Select a product" />
               </SelectTrigger>
               <SelectContent>
-                {products.length > 0 ? (
+                {isLoadingProducts ? (
+                  <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                ) : products.length > 0 ? (
                   products.map((product) => (
                     <SelectItem key={product.id} value={String(product.id)}>
                       {product.name} ({product.unit})
@@ -138,7 +212,7 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
             </Select>
           </div>
 
-          {/* Quantity Input */}
+          {/* Quantity input */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="quantity" className="text-right">
               Quantity
@@ -146,17 +220,37 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
             <Input
               id="quantity"
               type="number"
-              value={requestedQuantity}
-              onChange={(e) => setRequestedQuantity(e.target.value)}
+              value={formData.requestedQuantity}
+              onChange={(e) => updateField("requestedQuantity", e.target.value)}
               className="col-span-3"
-              min="1" // Ensure only positive quantities can be requested
+              min="1"
               placeholder="e.g., 50"
+              disabled={isFormDisabled}
             />
           </div>
-          
+
+
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Request"}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isFormDisabled || !formData.selectedProductId || !formData.requestedQuantity}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Request"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -164,3 +258,15 @@ export function AddSupplyRequest({ isOpen, onClose, onSupplyRequestAdded }) {
     </Dialog>
   );
 }
+
+// PropTypes for better development experience
+AddSupplyRequest.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSupplyRequestAdded: PropTypes.func, // Optional with safe handling
+};
+
+// Default props to prevent errors
+AddSupplyRequest.defaultProps = {
+  onSupplyRequestAdded: null, // Will be safely checked before calling
+};
