@@ -2,16 +2,17 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query"; // Changed to useQueryClient as apiRequest and BASE_URL are not in provided context
-import axios from "@/utils/axios"; // Assuming axios is used for API calls
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import axios from "@/utils/axios";
 import { useToast } from "@/hooks/use-toast";
+import PropTypes from "prop-types";
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription, // Added for better UX
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 import {
@@ -33,7 +34,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 
 // ---
 // 1. Define the Zod schema for form validation
@@ -46,27 +47,33 @@ const formSchema = z.object({
 // ---
 // 2. EditSupplyRequest Component
 // ---
-export function EditSupplyRequest({ isOpen, onClose, request }) {
+export function EditSupplyRequest({ isOpen, onClose, request, onUpdated }) {
   const { toast } = useToast();
-  const queryClient = useQueryClient(); // Initialize query client
+  const queryClient = useQueryClient();
 
   // Determine if the request is editable (only if status is 'pending')
   const isEditable = useMemo(() => {
     return request?.status === "pending";
   }, [request]);
 
-  // Fetch all products to populate the dropdown
-  const { data: products = [] } = axios.get('/api/products') // Removed useQuery to simplify for this example, assuming direct axios.get
-    .then(response => response.data)
-    .catch(error => {
+  // Use react-query to fetch all products to populate the dropdown
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const response = await axios.get("/api/inventory/products");
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: isOpen,
+    onError: (error) => {
       console.error("Failed to fetch products:", error);
       toast({
         variant: "destructive",
         title: "Error fetching products",
         description: "Could not load product list. Please try again.",
       });
-      return []; // Return empty array on error
-    });
+    },
+  });
 
   // ---
   // 3. Initialize react-hook-form
@@ -96,33 +103,33 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
   // ---
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      // Use PATCH to update specific fields on the request
-      // Note: Your backend route for PATCH is `/api/stores/<int:store_id>/supply-requests/<int:request_id>/respond`
-      // but that's for admin response. For clerk-initiated edits, a PATCH to `/api/supply-requests/<id>` (or similar)
-      // that allows updating product_id and requested_quantity is assumed.
-      // If your backend doesn't have a direct PATCH for clerks to edit, you'll need to create one.
-      return await axios.patch(
-        `/api/supply-requests/${request.id}`, // Assuming this route for clerk edits
-        {
-          product_id: data.product_id,
-          requested_quantity: data.requested_quantity,
-        }
-      );
+      // CORRECTED: Changed the method to PATCH and removed the '/update' from the URL.
+      // This matches the RESTful API endpoint expected by your backend.
+      return await axios.patch(`/api/supply-requests/${request.id}`, {
+        product_id: data.product_id,
+        requested_quantity: data.requested_quantity,
+      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supply_requests"] }); // Invalidate cache for supply requests
+    onSuccess: (response) => {
       toast({
         title: "Supply Request Updated",
-        description: `Request #${request.id} updated successfully.`,
+        description: response.data?.message || `Request #${request.id} updated successfully.`,
       });
-      onClose(); // Close the modal on success
+      // Invalidate both the list and the individual request cache
+      queryClient.invalidateQueries(["supplyRequests"]);
+      queryClient.invalidateQueries(["supplyRequest", request.id]);
+      if (onUpdated) {
+        onUpdated();
+      }
+      onClose();
     },
     onError: (error) => {
       toast({
         title: "Update Failed",
-        description: error.response?.data?.error || "An error occurred while updating the request.",
+        description: error.response?.data?.message || "An error occurred while updating the request.",
         variant: "destructive",
       });
+      console.error("Update error:", error);
     },
   });
 
@@ -131,23 +138,26 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
   // ---
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Assuming a DELETE route for supply requests
       return await axios.delete(`/api/supply-requests/${request.id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supply_requests"] }); // Invalidate cache
+    onSuccess: (response) => {
       toast({
         title: "Supply Request Deleted",
-        description: `Request #${request.id} has been deleted.`,
+        description: response.data?.message || `Request #${request.id} has been deleted.`,
       });
-      onClose(); // Close the modal on success
+      queryClient.invalidateQueries(["supplyRequests"]);
+      if (onUpdated) {
+        onUpdated();
+      }
+      onClose();
     },
     onError: (error) => {
       toast({
         title: "Deletion Failed",
-        description: error.response?.data?.error || "An error occurred while deleting the request.",
+        description: error.response?.data?.message || "An error occurred while deleting the request.",
         variant: "destructive",
       });
+      console.error("Deletion error:", error);
     },
   });
 
@@ -158,12 +168,13 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
     updateMutation.mutate(data);
   };
 
-  // Do not render if no request object is passed
   if (!request) return null;
+
+  const isUpdating = updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md"> {/* Adjusted max-width for simpler form */}
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Edit Supply Request #{request.id}
@@ -187,7 +198,7 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
                   <Select
                     onValueChange={(value) => field.onChange(parseInt(value))}
                     value={field.value?.toString() ?? ""}
-                    disabled={!isEditable}
+                    disabled={!isEditable || isLoadingProducts || isUpdating}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -195,7 +206,13 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {products.length > 0 ? (
+                      {isLoadingProducts ? (
+                        <SelectItem value="loading" disabled>
+                          <span className="flex items-center">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading products...
+                          </span>
+                        </SelectItem>
+                      ) : products.length > 0 ? (
                         products.map((product) => (
                           <SelectItem key={product.id} value={String(product.id)}>
                             {product.name} ({product.unit})
@@ -225,9 +242,9 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
                       type="number"
                       placeholder="e.g., 50"
                       {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))} // Ensure number type
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
                       min="1"
-                      disabled={!isEditable}
+                      disabled={!isEditable || isUpdating}
                     />
                   </FormControl>
                   <FormMessage />
@@ -244,15 +261,15 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
                     variant="destructive"
                     className="flex-1"
                     onClick={() => deleteMutation.mutate()}
-                    disabled={deleteMutation.isPending}
+                    disabled={isUpdating}
                   >
                     {deleteMutation.isPending ? "Deleting..." : "Delete Request"}
                     <Trash2 className="ml-2 h-4 w-4" />
                   </Button>
                   <Button
                     type="submit"
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    disabled={updateMutation.isPending || !form.formState.isDirty} // Disable if no changes
+                    className="flex-1"
+                    disabled={isUpdating || !form.formState.isDirty}
                   >
                     {updateMutation.isPending ? "Updating..." : "Update Request"}
                   </Button>
@@ -269,3 +286,11 @@ export function EditSupplyRequest({ isOpen, onClose, request }) {
     </Dialog>
   );
 }
+
+// PropTypes for better development experience
+EditSupplyRequest.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  request: PropTypes.object,
+  onUpdated: PropTypes.func,
+};
