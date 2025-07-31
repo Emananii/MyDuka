@@ -1,12 +1,11 @@
 from flask import Blueprint, request, jsonify, abort
-from datetime import datetime, timezone # Use timezone.utc for datetime.utcnow() replacement
+from datetime import datetime, timezone  # Use timezone.utc for datetime.utcnow() replacement
 from app import db
-from app.models import User, Store # Import Store model
-from app.services.user_services import can_deactivate_user, can_delete_user # Import the service functions
-from app.routes.auth_routes import EMAIL_REGEX # Import EMAIL_REGEX (role_required will be removed)
-from sqlalchemy import func # Import func for lower()
+from app.models import User, Store  # Import Store model
+from app.services.user_services import can_deactivate_user, can_delete_user  # Import the service functions
+from app.routes.auth_routes import EMAIL_REGEX  # Import EMAIL_REGEX (role_required will be removed)
+from sqlalchemy import func  # Import func for lower()
 from http import HTTPStatus
-from datetime import datetime # Import datetime for soft delete email modification
 
 # Renamed the blueprint instance to 'users_api_bp' and its internal name to 'users_api'
 users_api_bp = Blueprint("users_api", __name__, url_prefix="/api/users")
@@ -415,28 +414,40 @@ def create_user():
         abort(HTTPStatus.FORBIDDEN, description=f"Your role ({current_user_role}) is not allowed to create '{requested_role}' users.")
 
     final_store_id = None
-    if requested_role == "admin":
-        if current_user_role != "merchant":
-            abort(HTTPStatus.FORBIDDEN, description="Only merchants can create admin users.")
-        if not store_id:
-            abort(HTTPStatus.BAD_REQUEST, description="Store ID is required when creating an Admin.")
-        store = Store.query.get(store_id)
-        if not store:
-            abort(HTTPStatus.NOT_FOUND, description="Invalid Store ID provided.")
-        # Merchant can only create admins for their own stores (if merchant has a store_id)
-        # This logic assumes merchant_id on Store model
-        if store.merchant_id != current_user_id:
-            abort(HTTPStatus.FORBIDDEN, description="Merchant can only create admins for their own stores.")
-        final_store_id = store_id
-    elif current_user_role in ["admin", "clerk"]: # Cashiers typically don't create users
+
+    if current_user_role == "merchant":
+        if requested_role == "admin":
+            if not store_id:
+                abort(HTTPStatus.BAD_REQUEST, description="Store ID is required when creating an Admin.")
+            store = Store.query.get(store_id)
+            if not store:
+                abort(HTTPStatus.NOT_FOUND, description="Invalid Store ID provided.")
+            if store.merchant_id != current_user_id: # Assuming merchant_id is on Store model
+                abort(HTTPStatus.FORBIDDEN, description="Merchant can only create admins for their own stores.")
+            final_store_id = store_id
+        elif requested_role in ["clerk", "cashier"]: # Added: Merchant creating Clerk/Cashier
+            # For clerks/cashiers, the store_id can be null or a specific store.
+            # Validate if a store_id is provided and exists.
+            if store_id is not None:
+                store = Store.query.get(store_id)
+                if not store:
+                    abort(HTTPStatus.NOT_FOUND, description="Invalid Store ID provided.")
+                # Optional: Add logic to ensure merchant has control over this store if desired
+                # e.g., if store.merchant_id != current_user_id: abort(...)
+            final_store_id = store_id # Use the store_id sent from the frontend
+        # No 'else' here, if a merchant tries to create something else, it's caught by allowed_roles_to_create above.
+
+    elif current_user_role in ["admin", "clerk"]:
         if not current_user.store_id:
             abort(HTTPStatus.FORBIDDEN, description=f"Your account is not assigned to a store. Cannot create users.")
         if store_id and store_id != current_user.store_id:
             abort(HTTPStatus.FORBIDDEN, description=f"{current_user_role.capitalize()} can only create users for their assigned store.")
         final_store_id = current_user.store_id # Force new user to be in the current user's store
-    else:
-        # This case should ideally not be reached due to role_required, but as a fallback
-        abort(HTTPStatus.FORBIDDEN, description="Unauthorized to create users without a specific store context.")
+
+    # It's good practice to ensure final_store_id is set for roles that require it (e.g., non-merchant)
+    # If a clerk/cashier *must* have a store_id, you can add this check:
+    if requested_role in ["clerk", "cashier"] and final_store_id is None:
+        abort(HTTPStatus.BAD_REQUEST, description=f"Store ID is required for a {requested_role.capitalize()} user.")
 
 
     new_user = User(
@@ -446,9 +457,9 @@ def create_user():
         role=requested_role,
         created_by=current_user_id,
         store_id=final_store_id,
-        is_active=False, # New users are typically inactive until they set their password/activate
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        is_active=False # New users are typically inactive until they set their password/activate
+        # created_at and updated_at are typically handled automatically by SQLAlchemy defaults.
+        # Do NOT pass them here unless your User model's __init__ explicitly accepts them.
     )
 
     db.session.add(new_user)
