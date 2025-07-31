@@ -94,9 +94,8 @@ def create_app():
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
     from app.routes.supplier_routes import suppliers_bp
-    from app.routes.admin_dashboard import dashboard
-    from app.routes.purchase_routes import purchase_bp
-    from app.routes.supply_routes import supply_bp # Adjust path if different
+    from app.routes.supply_routes import supply_bp
+    from app.routes.invitation_routes import invitations_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard)
@@ -106,17 +105,51 @@ def create_app():
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
-    app.register_blueprint(purchase_bp)
     app.register_blueprint(supply_bp)
+    
+    # Register invitation blueprint with proper URL prefix
+    app.register_blueprint(invitations_bp, url_prefix='/api/invitations')
+    
+    # Register teammate users blueprint
+    app.register_blueprint(teammate_users_bp, url_prefix='/api/users')
 
-    # ✅ FIX: REMOVE this redundant CORS initialization
-    # CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    # Environment-based CORS origins for better security
+    ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    
+    # CORS configuration - centralized and clean
+    CORS(app, resources={
+        r"/*": {
+            "origins": ALLOWED_ORIGINS,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
 
+    # Debug logging for CORS preflight requests
+    @app.before_request
+    def handle_preflight():
+        from flask import request
+        if request.method == "OPTIONS":
+            app.logger.info(f"OPTIONS request to: {request.path}")
+            app.logger.info(f"Origin: {request.headers.get('Origin')}")
+            app.logger.info(f"Access-Control-Request-Method: {request.headers.get('Access-Control-Request-Method')}")
+            app.logger.info(f"Access-Control-Request-Headers: {request.headers.get('Access-Control-Request-Headers')}")
+
+    # Debug logging for CORS response headers (only in debug mode)
+    @app.after_request
+    def after_request(response):
+        if app.debug:
+            # Log CORS headers being sent for debugging
+            cors_headers = {k: v for k, v in response.headers if k.startswith('Access-Control')}
+            if cors_headers:
+                app.logger.info(f"CORS headers sent: {cors_headers}")
+        return response
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
 
-    # --- NEW: Root Route for Swagger UI ---
+    # --- Root Route for Swagger UI ---
     @app.route('/')
     def index():
         """
@@ -132,6 +165,21 @@ def create_app():
     def test_connection():
         return "Connection successful from Flask backend!"
 
+    # Test route for invitation system
+    @app.route('/api/test_invitations')
+    def test_invitations():
+        """Test route to verify invitation system is working"""
+        return {"message": "Invitation system is configured correctly!"}, 200
+
+    # Health check endpoint
+    @app.route('/api/health')
+    def health_check():
+        """Health check endpoint"""
+        return {
+            "status": "healthy",
+            "cors_origins": ALLOWED_ORIGINS,
+            "debug_mode": app.debug
+        }, 200
 
     # --- Configure Logging ---
     if not app.debug and not app.testing:
@@ -145,7 +193,6 @@ def create_app():
         file_handler.setLevel(logging.INFO)
 
         app.logger.addHandler(file_handler)
-
         app.logger.setLevel(logging.INFO)
         app.logger.info('Application startup')
 

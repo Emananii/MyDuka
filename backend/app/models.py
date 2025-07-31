@@ -2,11 +2,14 @@ from datetime import datetime, timezone
 from enum import Enum
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import select, func, cast, Numeric
-from . import db
+from sqlalchemy import select, func
+from app import db  # ✅ resolves circular import
+
 from app.auth.utils import hash_password, verify_password
 from decimal import Decimal
-
+from datetime import datetime, timedelta  # Add timedelta to existing datetime import
+import secrets  # Add this new import
+# --- Import Models (needed for Flask-Migrate) ---
 
 class SerializerMixin:
     def to_dict(self):
@@ -37,6 +40,91 @@ class Store(BaseModel):
     sales = db.relationship('Sale', backref='store')
     purchases = db.relationship('Purchase', backref='store')
     supply_requests = db.relationship('SupplyRequest', backref='store')
+
+
+
+ #(Add 'import secrets' and 'from datetime import timedelta' to your existing imports)
+
+class InvitationToken(db.Model):
+    __tablename__ = 'invitation_tokens'
+    __table_args__ = {'extend_existing': True}
+    
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Changed from invited_by
+    role = db.Column(db.String(50), nullable=False, default='admin')
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id'), nullable=True)
+    is_used = db.Column(db.Boolean, default=False, nullable=False)  # Changed from used
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)  # Added this field
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships - Updated to match new field names
+    inviter = db.relationship('User', foreign_keys=[user_id], backref='sent_invitations')
+    store = db.relationship('Store', backref='invitations')
+    
+    def __init__(self, email, user_id, role='admin', store_id=None, expires_hours=24):
+        """Initialize invitation token"""
+        self.email = email.lower().strip()
+        self.user_id = user_id  # Changed from invited_by
+        self.role = role
+        self.store_id = store_id
+        self.token = self._generate_token()
+        self.expires_at = datetime.utcnow() + timedelta(hours=expires_hours)
+        self.is_used = False
+        self.is_deleted = False
+    
+    def _generate_token(self):
+        """Generate a secure random token"""
+        import secrets
+        return secrets.token_urlsafe(32)
+    
+    @classmethod
+    def generate_token(cls, email, role, store_id, user_id, expires_hours=24):
+        """Class method to create a new invitation token - matches your routes"""
+        return cls(
+            email=email,
+            user_id=user_id,  # Changed from invited_by
+            role=role,
+            store_id=store_id,
+            expires_hours=expires_hours
+        )
+    
+    def is_expired(self):
+        """Check if invitation has expired"""
+        return datetime.utcnow() > self.expires_at
+    
+    def is_valid(self):
+        """Check if invitation is valid (not used, not deleted, not expired)"""
+        return not self.is_used and not self.is_deleted and not self.is_expired()
+    
+    def mark_as_used(self):
+        """Mark invitation as used"""
+        self.is_used = True
+    
+    def soft_delete(self):
+        """Soft delete the invitation"""
+        self.is_deleted = True
+    
+    def to_dict(self):
+        """Convert invitation to dictionary - required by your routes"""
+        return {
+            'id': self.id,
+            'token': self.token,
+            'email': self.email,
+            'user_id': self.user_id,
+            'role': self.role,
+            'store_id': self.store_id,
+            'is_used': self.is_used,
+            'is_deleted': self.is_deleted,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<InvitationToken {self.email} - {self.role}>'
+    
 
 
 class User(BaseModel):

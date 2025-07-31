@@ -18,9 +18,9 @@ def seed_auth():
 
         # Create merchant
         merchant = User(
-            name="Merchant One",
-            email="merchant@example.com",
-            password="adminpass123",
+            name="Admin User",
+            email="myduka213@gmail.com",
+            password="rycqjmzsasmahkxj",  # plain password; User.__init__ hashes it
             role="merchant",
             store_id=store.id,
             is_active=True
@@ -84,8 +84,8 @@ def seed_auth():
         db.session.commit()
 
         print("✅ Seeding complete.")
-        print("🔑 Merchant: merchant@example.com / adminpass123")
-        print("🔑 Admin: admin@example.com / admin123")
+        print("📧 Email: myduka213@gmail.com")
+        print("🔑 Password: rycqjmzsasmahkxj")
 
 if __name__ == "__main__":
     seed_auth()

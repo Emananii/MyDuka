@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timezone # Use timezone.utc for datetime.utcnow() replacement
 from app import db
 from app.models import (
-    Store, StoreProduct, SupplyRequest, StockTransfer, # Added StockTransfer
+    Store, StoreProduct, SupplyRequest, StockTransferItem,
     StockTransferItem, Product, User,
     SupplyRequestStatus, StockTransferStatus
 )
@@ -41,6 +41,15 @@ def check_store_access(store_id, current_user_id, current_user_role):
 @jwt_required()
 @role_required("merchant")
 def create_store():
+    data = request.get_json() or {}
+    name = data.get("name")
+    address = data.get("address")
+
+    if not name or not isinstance(name, str):
+        abort(400, description="Store name is required and must be a string.")
+
+    user_id = get_jwt_identity()
+    store = Store(name=name.strip(), address=data.get("address"))
     """
     Create a new store.
     ---
@@ -516,12 +525,47 @@ def invite_user(store_id):
     )
     db.session.add(user)
     db.session.commit()
-    
-    # In a real application, you would send an email with an activation link here
-    # e.g., send_invitation_email(user.email, user.id, temp_password_token)
+    return jsonify({"message": f"Invitation sent to {email}", "user_id": user.id}), 202
 
-    return jsonify({"message": f"Invitation sent to {email}. User created with ID {user.id}. (Temporary password for debugging: '{temp_password}')", "user_id": user.id}), 201
+# Update store details (Merchant only)
+@store_bp.route("/<int:store_id>", methods=["PUT"])
+@jwt_required()
+@role_required("merchant")
+def update_store_details(store_id):
+    data = request.get_json() or {}
+    name = data.get("name")
+    address = data.get("address")
 
+    user_id = get_jwt_identity()
+    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+
+    if not store or not store.is_active:
+        abort(404, description="Store not found")
+
+    if name:
+        store.name = name.strip()
+    if address:
+        store.address = address.strip()
+
+    db.session.commit()
+
+    return jsonify({"message": "Store updated", "store": store.to_dict()}), 200
+
+# Deactivate store (Merchant only)
+@store_bp.route("/<int:store_id>", methods=["DELETE"])
+@jwt_required()
+@role_required("merchant")
+def deactivate_store(store_id):
+    user_id = get_jwt_identity()
+    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+
+    if not store or not store.is_active:
+        abort(404, description="Store not found or already inactive")
+
+    store.is_active = False
+    db.session.commit()
+
+    return jsonify({"message": "Store deactivated"}), 200
 
 # Clerk creates a supply request
 @store_bp.route("/<int:store_id>/supply-requests", methods=["POST"])
@@ -1170,186 +1214,4 @@ def reject_transfer(transfer_id):
     transfer.updated_at = datetime.now(timezone.utc)
 
     db.session.commit()
-    return jsonify({"message": "Stock transfer rejected.", "status": transfer.status.value, "transfer_id": transfer.id}), 200
-
-# List stock transfers with pagination and filters
-@store_bp.route("/stock-transfers", methods=["GET"])
-@jwt_required()
-@role_required("admin", "merchant", "clerk") # Merchant/Clerk can view relevant transfers
-def list_stock_transfers():
-    """
-    Lists stock transfers with pagination and filtering.
-    ---
-    tags:
-      - Stock Transfers
-    security:
-      - Bearer: []
-    parameters:
-      - in: query
-        name: page
-        schema: {type: integer, default: 1}
-      - in: query
-        name: per_page
-        schema: {type: integer, default: 20}
-      - in: query
-        name: from_store_id
-        schema: {type: integer}
-        description: Filter by source store ID.
-      - in: query
-        name: to_store_id
-        schema: {type: integer}
-        description: Filter by destination store ID.
-      - in: query
-        name: status
-        schema: {type: string, enum: [pending, approved, rejected, completed]}
-        description: Filter by transfer status.
-      - in: query
-        name: start_date
-        schema: {type: string, format: date}
-        description: Filter transfers initiated from this date (YYYY-MM-DD).
-      - in: query
-        name: end_date
-        schema: {type: string, format: date}
-        description: Filter transfers initiated up to this date (YYYY-MM-DD).
-      - in: query
-        name: product_id
-        schema: {type: integer}
-        description: Filter by product ID included in the transfer items.
-    responses:
-      200:
-        description: A paginated list of stock transfers.
-        schema:
-          type: object
-          properties:
-            stock_transfers:
-              type: array
-              items:
-                type: object
-                properties:
-                  id: {type: integer}
-                  from_store_name: {type: string}
-                  to_store_name: {type: string}
-                  initiated_by_name: {type: string}
-                  approved_by_name: {type: string, nullable: true}
-                  status: {type: string}
-                  transfer_date: {type: string, format: date-time, nullable: true}
-                  notes: {type: string, nullable: true}
-                  created_at: {type: string, format: date-time}
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        product_name: {type: string}
-                        quantity: {type: integer}
-            total_pages: {type: integer}
-            current_page: {type: integer}
-            total_items: {type: integer}
-      401: {description: Unauthorized}
-      403: {description: Forbidden}
-      400: {description: Bad Request}
-    """
-    current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
-    if not current_user:
-        abort(401, description="User not found.")
-
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    from_store_id_filter = request.args.get('from_store_id', type=int)
-    to_store_id_filter = request.args.get('to_store_id', type=int)
-    status_filter = request.args.get('status', type=str)
-    start_date_str = request.args.get('start_date', type=str)
-    end_date_str = request.args.get('end_date', type=str)
-    product_id_filter = request.args.get('product_id', type=int)
-
-    transfers_query = StockTransfer.query
-
-    # Apply role-based filtering
-    if current_user.role == "merchant":
-        accessible_store_ids = get_user_accessible_store_ids(current_user_id, current_user.role)
-        if not accessible_store_ids:
-            return jsonify({'stock_transfers': [], 'total_pages': 0, 'current_page': 0, 'total_items': 0}), 200
-        # Merchants can only see transfers where their stores are involved (either from or to)
-        transfers_query = transfers_query.filter(
-            or_(
-                StockTransfer.from_store_id.in_(accessible_store_ids),
-                StockTransfer.to_store_id.in_(accessible_store_ids)
-            )
-        )
-    elif current_user.role == "clerk":
-        user_store_id = current_user.store_id
-        if not user_store_id:
-            return jsonify({'stock_transfers': [], 'total_pages': 0, 'current_page': 0, 'total_items': 0}), 200
-        # Clerks can only see transfers involving their assigned store
-        transfers_query = transfers_query.filter(
-            or_(
-                StockTransfer.from_store_id == user_store_id,
-                StockTransfer.to_store_id == user_store_id
-            )
-        )
-    # Admin can see all, no specific filter needed for them here.
-
-    if from_store_id_filter:
-        transfers_query = transfers_query.filter_by(from_store_id=from_store_id_filter)
-    if to_store_id_filter:
-        transfers_query = transfers_query.filter_by(to_store_id=to_store_id_filter)
-    
-    if status_filter:
-        try:
-            status_enum = StockTransferStatus[status_filter.lower()]
-            transfers_query = transfers_query.filter_by(status=status_enum)
-        except KeyError:
-            abort(400, "Invalid status provided. Must be 'pending', 'approved', 'rejected', or 'completed'.")
-
-    try:
-        if start_date_str:
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-            transfers_query = transfers_query.filter(StockTransfer.created_at >= start_date)
-        if end_date_str:
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-            transfers_query = transfers_query.filter(StockTransfer.created_at <= (datetime.combine(end_date, datetime.max.time())).astimezone(timezone.utc))
-    except ValueError:
-        abort(400, "Invalid date format. Use YYYY-MM-DD.")
-
-    if product_id_filter:
-        transfers_query = transfers_query.join(StockTransferItem).filter(StockTransferItem.product_id == product_id_filter)
-
-    transfers_query = transfers_query.order_by(StockTransfer.created_at.desc())
-
-    paginated_transfers = transfers_query.paginate(page=page, per_page=per_page, error_out=False)
-
-    transfers_data = []
-    for transfer in paginated_transfers.items:
-        items_data = []
-        for item in transfer.transfer_items:
-            items_data.append({
-                'product_id': item.product_id,
-                'product_name': item.product.name if item.product else 'N/A',
-                'quantity': item.quantity
-            })
-
-        transfers_data.append({
-            'id': transfer.id,
-            'from_store_id': transfer.from_store_id,
-            'from_store_name': transfer.from_store.name if transfer.from_store else 'N/A',
-            'to_store_id': transfer.to_store_id,
-            'to_store_name': transfer.to_store.name if transfer.to_store else 'N/A',
-            'initiated_by': transfer.initiated_by,
-            'initiated_by_name': transfer.initiator.name if transfer.initiator else 'N/A',
-            'approved_by': transfer.approved_by,
-            'approved_by_name': transfer.approver.name if transfer.approver else 'N/A',
-            'status': transfer.status.value,
-            'transfer_date': transfer.transfer_date.isoformat() if transfer.transfer_date else None,
-            'notes': transfer.notes,
-            'created_at': transfer.created_at.isoformat() if transfer.created_at else None,
-            'updated_at': transfer.updated_at.isoformat() if transfer.updated_at else None,
-            'items': items_data
-        })
-
-    return jsonify({
-        'stock_transfers': transfers_data,
-        'total_pages': paginated_transfers.pages,
-        'current_page': paginated_transfers.page,
-        'total_items': paginated_transfers.total
-    }), 200
+    return jsonify({"status": "approved", "transfer_id": transfer.id})
