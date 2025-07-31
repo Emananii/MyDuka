@@ -1,6 +1,3 @@
-# app.py
-
-from app.error_handlers import register_error_handlers
 import os
 from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -22,7 +19,7 @@ jwt = JWTManager()
 swagger = Swagger()
 
 # Import the registration function for error handlers
-
+from app.error_handlers import register_error_handlers
 
 def create_app():
     app = Flask(__name__)
@@ -30,30 +27,14 @@ def create_app():
     # --- Configuration ---
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv(
-        "JWT_SECRET_KEY", "super-secret-dev-key")
-    app.config["DEBUG"] = os.getenv(
-        "FLASK_DEBUG", "False").lower() in ('true', '1', 't')
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-dev-key")
+    app.config["DEBUG"] = os.getenv("FLASK_DEBUG", "False").lower() in ('true', '1', 't')
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
-
-    # Initialize CORS *before* blueprint registration, and correctly.
-    # This single CORS initialization should handle all your needs.
-    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}},
-         supports_credentials=True,
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"])
 
     # Flasgger configuration
     app.config['SWAGGER'] = {
         'title': 'MyDuka API',
         'uiversion': 3,
-        # ✅ FIX: REMOVE OR COMMENT OUT THIS 'headers' KEY ENTIRELY
-        # Flasgger should not dictate CORS headers; Flask-CORS does that.
-        # 'headers': [
-        #     ('Access-Control-Allow-Origin', '*'),
-        #     ('Access-Control-Allow-Methods', "GET, POST, PUT, DELETE, OPTIONS"),
-        #     ('Access-Control-Allow-Credentials', "true"),
-        # ],
         'specs': [
             {
                 'endpoint': 'apispec_1',
@@ -91,28 +72,28 @@ def create_app():
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
     from app.routes.sales_routes import sales_bp
+    from app.routes.purchase_routes import purchase_bp
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
     from app.routes.supplier_routes import suppliers_bp
-    from app.routes.admin_dashboard import dashboard
-    from app.routes.purchase_routes import purchase_bp
-    from app.routes.supply_routes import supply_bp  # Adjust path if different
+    from app.routes.supply_routes import supply_bp
+
+    # NEW: Import your merchant_dashboard blueprint
+    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(dashboard)
     app.register_blueprint(store_bp)
     app.register_blueprint(sales_bp)
-    app.register_blueprint(inventory_bp)  # This is the key one for the 404s
+    app.register_blueprint(inventory_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
-    app.register_blueprint(purchase_bp)
     app.register_blueprint(supply_bp)
+    app.register_blueprint(purchase_bp)
     app.register_blueprint(merchant_dashboard_bp)
 
-    # ✅ FIX: REMOVE this redundant CORS initialization
-    # CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)
@@ -133,12 +114,12 @@ def create_app():
     def test_connection():
         return "Connection successful from Flask backend!"
 
+
     # --- Configure Logging ---
     if not app.debug and not app.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')
-        file_handler = RotatingFileHandler(
-            'logs/app.log', maxBytes=10240, backupCount=10)
+        file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
         formatter = logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
         )

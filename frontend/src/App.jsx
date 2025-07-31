@@ -64,7 +64,7 @@ import MerchantUserManagement from "./pages/user-management/merchant-user-manage
 import { UserProvider, UserContext } from "@/context/UserContext";
 
 // --- NEW: Import specific dashboard components for each role ---
-//import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
+import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
 import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 //import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
 //import ClerkDashboardPage from "@/pages/dashboard/clerk/dashboard";

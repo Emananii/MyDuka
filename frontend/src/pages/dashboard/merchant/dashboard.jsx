@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -25,62 +26,166 @@ import {
   History
 } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
+import { apiRequest } from "@/lib/queryClient"; // Import apiRequest
+import { useUser } from "@/context/UserContext"; // Import useUser to get merchant ID
 
-// Import the new chart components
+// Import components for store selection
+import { StoreSelect } from "@/components/sales/store-select";
+
+// Import the chart components
 import SalesTrendChart from "@/components/dashboard/merchant/sales-trend-chart";
 import ProfitTrendChart from "@/components/dashboard/merchant/profit-trend-chart";
-// NEW: Import the TopPerformingStoresCard component
 import TopPerformingStoresCard from "@/components/dashboard/merchant/top-performing-stores-card";
 
-export default function Dashboard() {
+// Function to fetch stores for the current merchant
+const fetchMerchantStores = async (merchantId) => {
+  if (!merchantId) return []; // Don't fetch if no merchantId
+  // Assuming /api/stores/ endpoint returns stores accessible by the authenticated user (merchant)
+  const response = await apiRequest("GET", `${BASE_URL}/api/stores/`);
+  return response.stores || []; // Ensure it returns an array
+};
+
+export default function MerchantDashboard() {
+  const { user, isLoading: userLoading } = useUser();
+  const merchantId = user?.id;
+
+  // Initialize selectedStoreId to null.
+  // 'null' will represent the "All Stores" state.
+  const [selectedStoreId, setSelectedStoreId] = useState(null);
+
+  // Fetch list of stores for the dropdown (filtered by merchant automatically by backend)
+  const { data: stores = [], isLoading: storesLoading, error: storesError } = useQuery({
+    queryKey: ["merchant-stores-list", merchantId],
+    queryFn: () => fetchMerchantStores(merchantId),
+    enabled: !!merchantId,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Set initial selected store.
+  // If there are stores and no store is yet selected (selectedStoreId is null),
+  // decide between "All Stores" or the first store if only one exists.
+  useEffect(() => {
+    if (!storesLoading && stores.length > 0 && selectedStoreId === null) {
+      if (stores.length === 1) {
+        setSelectedStoreId(String(stores[0].id)); // Auto-select the only store
+      } else {
+        // If multiple stores, keep selectedStoreId as null to default to "All Stores"
+        // No explicit setSelectedStoreId(null) call needed here as it's already null initially
+      }
+    }
+  }, [stores, storesLoading]); // Removed selectedStoreId from dependencies to avoid loop
+
+  // Handle store selection change
+  const handleStoreSelect = (value) => {
+    // If "all" is selected from the dropdown, set selectedStoreId to null
+    // Otherwise, set it to the actual store ID value
+    setSelectedStoreId(value === "all" ? null : value);
+  };
+
+  // Fetch dashboard summary data for the selected store
   const { data: stats = {}, isLoading: statsLoading, error: statsError } = useQuery({
-    queryKey: ["dashboard-summary"],
-    queryFn: () => fetch(`${BASE_URL}/dashboard/summary`).then((r) => r.json())
+    queryKey: ["merchant-dashboard-summary", selectedStoreId],
+    queryFn: () => {
+        // If selectedStoreId is null, the backend should return summary for all merchant's stores
+        const url = selectedStoreId
+            ? `${BASE_URL}/dashboard/summary?store_id=${selectedStoreId}`
+            : `${BASE_URL}/dashboard/summary`;
+        return apiRequest("GET", url);
+    },
+    // Query is enabled when stores are loaded AND
+    // either a specific store is selected, OR "All Stores" is selected (null),
+    // OR there are no stores at all (to show empty state).
+    enabled: !storesLoading && (selectedStoreId !== undefined), // Use undefined check for initial state
   });
 
-  const { data: movements = [], isLoading: movLoading } = useQuery({
-    queryKey: ["dashboard-movements"],
-    queryFn: () => fetch(`${BASE_URL}/dashboard/movements`).then((r) => r.json())
+  // Fetch dashboard movements data for the selected store
+  const { data: movements = [], isLoading: movLoading, error: movError } = useQuery({
+    queryKey: ["merchant-dashboard-movements", selectedStoreId],
+    queryFn: () => {
+        // If selectedStoreId is null, the backend should return movements for all merchant's stores
+        const url = selectedStoreId
+            ? `${BASE_URL}/dashboard/movements?store_id=${selectedStoreId}`
+            : `${BASE_URL}/dashboard/movements`;
+        return apiRequest("GET", url);
+    },
+    // Same enabled logic as for stats query
+    enabled: !storesLoading && (selectedStoreId !== undefined), // Use undefined check for initial state
   });
 
-  const isLoading = statsLoading || movLoading;
-  if (isLoading) return <p>Loading...</p>;
-  if (statsError) return <p className="text-red-600">Error: {statsError.message}</p>;
+  const isLoading = userLoading || storesLoading || statsLoading || movLoading;
+  const error = storesError || statsError || movError;
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen p-6">
+        <p className="text-red-600 text-lg">Error loading data: {error.message}</p>
+      </div>
+    );
+  }
+
+  // Display a loading state or prompt to select a store
+  // Only show "Please select a store" if no stores exist, or if stores are loading
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-6">
+        <p className="text-lg text-gray-500">
+          Loading dashboard data...
+        </p>
+      </div>
+    );
+  }
+
+  // Destructure with default empty arrays/values for safety
   const {
-    total_items,
-    total_stock,
-    low_stock_count,
-    out_of_stock_count,
+    total_items = 0,
+    total_stock = 0,
+    low_stock_count = 0,
+    out_of_stock_count = 0,
     low_stock_items = [],
     out_of_stock_items = [],
     in_stock_items = [],
     recent_purchases = [],
     recent_transfers = [],
-    inventory_value,
-    total_purchase_value,
+    inventory_value = 0,
+    total_purchase_value = 0,
     supplier_spending_trends = []
   } = stats;
 
   const formatCurrency = (amt) =>
     new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(amt);
 
-  const formatDate = (date) =>
-    new Intl.DateTimeFormat("en-KE", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    }).format(new Date(date));
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat("en-KE", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      }).format(date);
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return "Invalid Date";
+    }
+  };
 
-  const formatTimeAgo = (date) => {
-    const now = new Date();
-    const then = new Date(date);
-    const diffMs = now.getTime() - then.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const now = new Date();
+      const then = new Date(dateString);
+      const diffMs = now.getTime() - then.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    if (diffHours < 1) return "Just now";
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    return `${Math.floor(diffHours / 24)} days ago`;
+      if (diffMinutes < 1) return "Just now";
+      if (diffMinutes < 60) return `${diffMinutes} mins ago`;
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      return `${Math.floor(diffHours / 24)} days ago`;
+    } catch (e) {
+      console.error("Error formatting time ago:", e);
+      return "Invalid Date";
+    }
   };
 
   const getStockStatus = (qty) =>
@@ -89,11 +194,11 @@ export default function Dashboard() {
   const getBadge = (status) => {
     if (status === "out-of-stock") return <Badge variant="destructive">Out of Stock</Badge>;
     if (status === "low-stock")
-      return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
-    return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Low Stock</Badge>;
+    return <Badge className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>;
   };
 
-  const allMovements = Array.isArray(movements) ? movements : [];
+  const allMovementsArray = Array.isArray(movements) ? movements : [];
 
   const SummaryCard = ({ label, value, icon, color, isCurrency = false, wide = false }) => {
     const formattedValue = isCurrency
@@ -129,11 +234,26 @@ export default function Dashboard() {
     );
   };
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
+  // Find the selected store's name for the dashboard title
+  const currentStore = stores.find(store => String(store.id) === selectedStoreId);
+  // Dynamically set the dashboard title based on selected store or "All Stores"
+  const dashboardTitle = selectedStoreId === null ? "Dashboard for All Stores" : (currentStore ? `Dashboard for ${currentStore.name}` : "Merchant Dashboard");
 
-      {/* Summary Cards (Keep at top) */}
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-semibold text-gray-800">{dashboardTitle}</h1>
+        <div className="w-full sm:w-auto">
+          <StoreSelect
+            stores={stores}
+            selectedStoreId={selectedStoreId}
+            onSelectStore={handleStoreSelect}
+            includeAllOption={true}
+          />
+        </div>
+      </div>
+
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <SummaryCard label="Total Items" value={total_items} icon={<Package className="w-6 h-6 text-blue-600" />} color="bg-blue-100" />
         <SummaryCard label="Total Stock" value={total_stock} icon={<Boxes className="w-6 h-6 text-green-600" />} color="bg-green-100" />
@@ -143,7 +263,7 @@ export default function Dashboard() {
         <SummaryCard label="Purchase Value" value={total_purchase_value} icon={<TrendingUp className="w-6 h-6 text-orange-600" />} color="bg-orange-100" isCurrency wide />
       </div>
 
-      {/* Inventory Status (Keep here) */}
+      {/* Inventory Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -161,13 +281,19 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {low_stock_items.concat(in_stock_items || []).slice(0, 5).map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.stock_level}</TableCell>
-                    <TableCell>{getBadge(getStockStatus(item.stock_level))}</TableCell>
+                {low_stock_items.length > 0 ? (
+                  low_stock_items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.stock_level}</TableCell>
+                      <TableCell>{getBadge(getStockStatus(item.stock_level))}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-gray-500">No low stock items for this store</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -189,13 +315,13 @@ export default function Dashboard() {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-500 text-center">No out-of-stock items</p>
+              <p className="text-sm text-gray-500 text-center">No out-of-stock items for this store</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Movements and Recent Activity (Keep here) */}
+      {/* Movements and Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -215,19 +341,25 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allMovements.map((m) => (
-                  <TableRow key={`${m.type}-${m.id}`}>
-                    <TableCell>{formatDate(m.date)}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs">{m.type}</Badge></TableCell>
-                    <TableCell>{m.quantity}</TableCell>
-                    <TableCell className="text-sm text-gray-700">
-                      {m.source_or_destination || "-"}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {m.notes || "—"}
-                    </TableCell>
+                {allMovementsArray.length > 0 ? (
+                  allMovementsArray.map((m) => (
+                    <TableRow key={`${m.type}-${m.id || Math.random()}`}>
+                      <TableCell>{formatDate(m.date)}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs">{m.type}</Badge></TableCell>
+                      <TableCell>{m.quantity}</TableCell>
+                      <TableCell className="text-sm text-gray-700">
+                        {m.source_or_destination || "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {m.notes || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-gray-500">No recent movements for this store</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -251,7 +383,7 @@ export default function Dashboard() {
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-sm text-gray-500">No recent purchases</p>}
+              ) : <p className="text-sm text-gray-500">No recent purchases for this store</p>}
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-600 mb-2">Recent Transfers</h4>
@@ -264,13 +396,13 @@ export default function Dashboard() {
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-sm text-gray-500">No recent transfers</p>}
+              ) : <p className="text-sm text-gray-500">No recent transfers for this store</p>}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* NEW SECTION: Supplier Spending Trends and Top Performing Stores (side-by-side) */}
+      {/* Supplier Spending Trends and Top Performing Stores */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Supplier Spending Trends */}
         <Card>
@@ -285,35 +417,36 @@ export default function Dashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>#</TableHead>
+                    <TableHead className="w-[50px]">#</TableHead>
                     <TableHead>Supplier</TableHead>
-                    <TableHead>Amount Spent</TableHead>
+                    <TableHead className="text-right">Amount Spent</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {supplier_spending_trends.map((supplier, index) => (
                     <TableRow key={supplier.supplier_id}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{supplier.supplier_name}</TableCell>
-                      <TableCell>{formatCurrency(supplier.total_spent)}</TableCell>
+                      <TableCell className="font-medium">{supplier.supplier_name}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(supplier.total_spent)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : (
-              <p className="text-sm text-gray-500">No supplier data available</p>
+              <p className="text-sm text-gray-500 text-center py-4">No supplier spending data for this store</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Top Performing Stores Card */}
-        <TopPerformingStoresCard />
+        {/* Top Performing Stores Card (This will now show performance among the merchant's stores) */}
+        <TopPerformingStoresCard merchantId={merchantId} /> {/* Pass merchantId */}
       </div>
 
-      {/* Charts Section (Moved to bottom) */}
+      {/* Sales and Profit Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SalesTrendChart />
-        <ProfitTrendChart />
+        {/* Pass selectedStoreId to charts so they fetch store-specific data */}
+        <SalesTrendChart storeId={selectedStoreId} />
+        <ProfitTrendChart storeId={selectedStoreId} />
       </div>
     </div>
   );
