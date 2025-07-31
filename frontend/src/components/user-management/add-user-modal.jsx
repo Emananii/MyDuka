@@ -81,7 +81,7 @@ export default function AddUserModal({ isOpen, onClose, createUserMutation, curr
     queryKey: ["stores-list"], 
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", `${BASE_URL}/api/store/`); 
+        const response = await apiRequest("GET", `${BASE_URL}/api/stores/`); 
         return Array.isArray(response) ? response : []; 
       } catch (error) {
         console.error("Failed to fetch stores:", error);

@@ -276,7 +276,7 @@ def seed_all():
                     existing_sp = StoreProduct.query.filter_by(store_id=store.id, product_id=product.id).first()
                     if not existing_sp:
                     # Ensure we don't duplicate StoreProduct if it's already added by specific seeding below
-                    existing_sp = StoreProduct.query.filter_by(store_id=store.id, product_id=product.id).first()
+                        existing_sp = StoreProduct.query.filter_by(store_id=store.id, product_id=product.id).first()
                     if not existing_sp:
                         store_products_to_seed.append(StoreProduct(
                             store_id=store.id,
@@ -431,9 +431,7 @@ def seed_all():
                             store_id=store.id,
                             cashier_id=cashier.id,
                             created_at=sale_date, # Explicitly set created_at for historical sales
-                            created_at=sale_date, # Explicitly set created_at for historical sales
                             payment_status=random.choice(['paid', 'unpaid']),
-                            is_deleted=faker.boolean(chance_of_getting_true=2) # Lower chance of deleted sales
                             is_deleted=faker.boolean(chance_of_getting_true=2) # Lower chance of deleted sales
                         ))
             

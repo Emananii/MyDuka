@@ -26,78 +26,57 @@ import {
   History
 } from "lucide-react";
 import { BASE_URL } from "@/lib/constants";
-import { apiRequest } from "@/lib/queryClient"; // Import apiRequest
+import { apiRequest } from "@/lib/queryClient";
+import { useUser } from "@/context/UserContext"; // Import useUser to get admin's store_id
 
-// Import components for store selection
-import { StoreSelect } from "@/components/sales/store-select"; // Import from the named export
-
-// Import the chart components (will be passed storeId)
+// Import the chart components
 import SalesTrendChart from "@/components/dashboard/merchant/sales-trend-chart";
 import ProfitTrendChart from "@/components/dashboard/merchant/profit-trend-chart";
 import TopPerformingStoresCard from "@/components/dashboard/merchant/top-performing-stores-card";
 
 
-// --- FIX: Corrected fetchStores to return only the 'stores' array ---
-const fetchStores = async () => {
-  const response = await apiRequest("GET", `${BASE_URL}/api/stores/`);
-  // The backend returns an object like { stores: [...], total_pages: ... }
-  // We need to extract the 'stores' array from this response.
-  return response.stores;
-};
-
 export default function AdminDashboard() {
-  const [selectedStoreId, setSelectedStoreId] = useState(null); // State to hold selected store ID
+  const { user, isLoading: userLoading } = useUser(); // Get current user and their loading state
 
-  // Fetch list of stores for the dropdown
-  const { data: stores = [], isLoading: storesLoading, error: storesError } = useQuery({
-    queryKey: ["stores-list"], // Consistent query key
-    queryFn: fetchStores,
-    staleTime: 10 * 60 * 1000, // Reuse staleTime from StoreSelect
-  });
+  // The selectedStoreId is now derived directly from the logged-in admin's user object
+  // It will be null if user or user.store_id is not yet available
+  const adminStoreId = user?.store_id;
 
-  // Set initial selected store to the first one available once loaded
-  useEffect(() => {
-    if (!storesLoading && stores.length > 0 && selectedStoreId === null) {
-      // Ensure the ID is a string, as StoreSelect expects string values
-      setSelectedStoreId(String(stores[0].id));
-    }
-  }, [stores, storesLoading, selectedStoreId]);
-
-  // Handle store selection change
-  const handleStoreSelect = (value) => {
-    // StoreSelect passes "all" for all stores, or the stringified ID for a specific store
-    setSelectedStoreId(value === "all" ? null : value);
-  };
-
-  // Fetch dashboard summary data for the selected store
+  // Fetch dashboard summary data for the admin's associated store
   const { data: stats = {}, isLoading: statsLoading, error: statsError } = useQuery({
-    queryKey: ["dashboard-summary", selectedStoreId],
+    queryKey: ["admin-dashboard-summary", adminStoreId],
     queryFn: () => {
-        // Only include store_id query parameter if a specific store is selected
-        const url = selectedStoreId
-            ? `${BASE_URL}/dashboard/summary?store_id=${selectedStoreId}`
-            : `${BASE_URL}/dashboard/summary`; // If selectedStoreId is null, fetch global summary
+        // Always include store_id query parameter based on the admin's assigned store
+        const url = `${BASE_URL}/dashboard/summary?store_id=${adminStoreId}`;
         return apiRequest("GET", url);
     },
-    // Enable fetching if stores are loaded AND (a specific store is selected OR 'all' is implicitly selected)
-    enabled: !storesLoading && (selectedStoreId !== null || stores.length === 0),
+    // Enable fetching only when user data is loaded and adminStoreId is available
+    enabled: !userLoading && !!adminStoreId,
   });
 
-  // Fetch dashboard movements data for the selected store
+  // Fetch dashboard movements data for the admin's associated store
   const { data: movements = [], isLoading: movLoading, error: movError } = useQuery({
-    queryKey: ["dashboard-movements", selectedStoreId],
+    queryKey: ["admin-dashboard-movements", adminStoreId],
     queryFn: () => {
-        const url = selectedStoreId
-            ? `${BASE_URL}/dashboard/movements?store_id=${selectedStoreId}`
-            : `${BASE_URL}/dashboard/movements`; // If selectedStoreId is null, fetch global movements
+        const url = `${BASE_URL}/dashboard/movements?store_id=${adminStoreId}`;
         return apiRequest("GET", url);
     },
-    // Enable fetching if stores are loaded AND (a specific store is selected OR 'all' is implicitly selected)
-    enabled: !storesLoading && (selectedStoreId !== null || stores.length === 0),
+    // Enable fetching only when user data is loaded and adminStoreId is available
+    enabled: !userLoading && !!adminStoreId,
   });
 
-  const isLoading = storesLoading || statsLoading || movLoading;
-  const error = storesError || statsError || movError;
+  // Fetch the specific store details for the admin's assigned store
+  // This is needed to display the store name in the dashboard title
+  const { data: adminStoreDetails, isLoading: adminStoreDetailsLoading, error: adminStoreDetailsError } = useQuery({
+    queryKey: ["admin-store-details", adminStoreId],
+    queryFn: () => apiRequest("GET", `${BASE_URL}/api/stores/${adminStoreId}`),
+    enabled: !userLoading && !!adminStoreId, // Only fetch if adminStoreId is available
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+
+  const isLoading = userLoading || statsLoading || movLoading || adminStoreDetailsLoading;
+  const error = statsError || movLoading || adminStoreDetailsError;
 
   if (error) {
     return (
@@ -107,26 +86,13 @@ export default function AdminDashboard() {
     );
   }
 
-  // Display a loading state or prompt to select a store
-  // This condition covers:
-  // 1. Initial loading of stores
-  // 2. Stores loaded, but no store selected yet (and there are stores to select)
-  if (isLoading || (selectedStoreId === null && stores.length > 0 && !storesLoading)) {
+  // Display a loading state if any data is still loading
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-6">
         <p className="text-lg text-gray-500">
-          {storesLoading ? "Loading stores..." : "Please select a store to view its dashboard."}
+          Loading Admin Dashboard...
         </p>
-        {/* Render StoreSelect even during loading to allow manual selection */}
-        {!storesLoading && (
-          <div className="mt-4 w-64">
-            <StoreSelect
-              stores={stores} // Pass the fetched stores to StoreSelect
-              selectedStoreId={selectedStoreId}
-              onSelectStore={handleStoreSelect}
-            />
-          </div>
-        )}
       </div>
     );
   }
@@ -229,21 +195,14 @@ export default function AdminDashboard() {
     );
   };
 
-  // Find the selected store's name for the dashboard title
-  const currentStore = stores.find(store => String(store.id) === selectedStoreId); // Compare as strings
-  const dashboardTitle = currentStore ? `Dashboard for ${currentStore.name}` : "Admin Dashboard (All Stores)";
+  // Dashboard title will now show the name of the admin's assigned store
+  const dashboardTitle = adminStoreDetails?.name ? `Dashboard for ${adminStoreDetails.name}` : "Admin Dashboard";
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold text-gray-800">{dashboardTitle}</h1>
-        <div className="w-full sm:w-auto">
-          <StoreSelect
-            stores={stores}
-            selectedStoreId={selectedStoreId}
-            onSelectStore={handleStoreSelect}
-          />
-        </div>
+        {/* StoreSelect dropdown is removed as per requirement */}
       </div>
 
       {/* Summary Cards */}
@@ -432,14 +391,15 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Top Performing Stores Card (This usually shows global performance, or can be adapted) */}
+        {/* Removed merchantId prop as it's not relevant for an admin dashboard directly */}
         <TopPerformingStoresCard />
       </div>
 
       {/* Sales and Profit Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pass selectedStoreId to charts so they fetch store-specific data */}
-        <SalesTrendChart storeId={selectedStoreId} />
-        <ProfitTrendChart storeId={selectedStoreId} />
+        {/* Pass adminStoreId to charts so they fetch store-specific data */}
+        <SalesTrendChart storeId={adminStoreId} />
+        <ProfitTrendChart storeId={adminStoreId} />
       </div>
     </div>
   );
