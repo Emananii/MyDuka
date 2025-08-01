@@ -23,6 +23,8 @@ const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
+  // Re-added the Purchases link
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
   { 
     name: "Suppliers", 

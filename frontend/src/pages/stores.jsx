@@ -1,4 +1,3 @@
-// frontend/src/pages/stores.jsx
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import { BASE_URL } from "@/lib/constants";
 import AddStoreModal from "@/components/stores/add-store-modal";
 import EditStoreModal from "@/components/stores/edit-store-modal";
 import DeleteStoreModal from "@/components/stores/delete-store-modal";
+import ViewStoreModal from "@/components/stores/view-store-modal"; // New import for the view modal
 
 export default function Stores() {
   const { toast } = useToast();
@@ -26,6 +26,7 @@ export default function Stores() {
   const [selectedStore, setSelectedStore] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false); // New state for the view modal
 
   const {
     data: stores = [],
@@ -44,14 +45,22 @@ export default function Stores() {
     store.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleEdit = (store) => {
+  const handleEdit = (store) => (e) => {
+    e.stopPropagation(); // Stop event bubbling to the row
     setSelectedStore(store);
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (store) => {
+  const handleDelete = (store) => (e) => {
+    e.stopPropagation(); // Stop event bubbling to the row
     setSelectedStore(store);
     setIsDeleteModalOpen(true);
+  };
+
+  // New handler for viewing a store
+  const handleView = (store) => {
+    setSelectedStore(store);
+    setIsViewModalOpen(true);
   };
 
   return (
@@ -80,21 +89,25 @@ export default function Stores() {
             <TableHeader>
               <TableRow className="bg-gray-50">
                 <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStores.length > 0 ? (
                 filteredStores.map((store) => (
-                  <TableRow key={store.id} className="hover:bg-gray-50">
+                  // Add onClick to the TableRow to open the view modal
+                  <TableRow 
+                    key={store.id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleView(store)}
+                  >
                     <TableCell>{store.name}</TableCell>
-                    <TableCell>{store.location}</TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(store)}>
+                      {/* Pass the store to the handlers to prevent event bubbling */}
+                      <Button variant="ghost" size="sm" onClick={handleEdit(store)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(store)}>
+                      <Button variant="ghost" size="sm" onClick={handleDelete(store)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -102,7 +115,7 @@ export default function Stores() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-6 text-gray-500">
+                  <TableCell colSpan={2} className="text-center py-6 text-gray-500">
                     No stores found.
                   </TableCell>
                 </TableRow>
@@ -112,6 +125,7 @@ export default function Stores() {
         </div>
       )}
 
+      {/* Existing Modals */}
       <EditStoreModal
         store={selectedStore}
         isOpen={isEditModalOpen}
@@ -129,10 +143,19 @@ export default function Stores() {
           setSelectedStore(null);
         }}
         onConfirm={() => {
-          // You can call the delete logic here, or inside DeleteStoreModal component.
           setIsDeleteModalOpen(false);
           setSelectedStore(null);
           refetch();
+        }}
+      />
+
+      {/* New ViewStoreModal component */}
+      <ViewStoreModal
+        store={selectedStore}
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedStore(null);
         }}
       />
     </div>
