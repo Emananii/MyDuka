@@ -20,6 +20,88 @@ from app.models import (
 
 faker = Faker('en_US') # Initialize Faker, optionally with a locale
 
+# Real product images from Unsplash (free to use)
+PRODUCT_IMAGES = {
+    'fruits': [
+        'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&h=400&fit=crop&crop=center',  # Mixed fruits
+        'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop&crop=center',  # Apples
+        'https://images.unsplash.com/photo-1547514701-42782101795e?w=400&h=400&fit=crop&crop=center',  # Oranges
+        'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop&crop=center',  # Bananas
+        'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=400&h=400&fit=crop&crop=center',  # Pineapple
+    ],
+    'vegetables': [
+        'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=400&fit=crop&crop=center',  # Vegetables mix
+        'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&h=400&fit=crop&crop=center',  # Carrots
+        'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?w=400&h=400&fit=crop&crop=center',  # Tomatoes
+        'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400&h=400&fit=crop&crop=center',  # Lettuce
+        'https://images.unsplash.com/photo-1553395495-e4ef52ba2f4c?w=400&h=400&fit=crop&crop=center',  # Onions
+    ],
+    'dairy': [
+        'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop&crop=center',  # Milk
+        'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=400&fit=crop&crop=center',  # Cheese
+        'https://images.unsplash.com/photo-1571212515416-fdc2d26c7b43?w=400&h=400&fit=crop&crop=center',  # Yogurt
+        'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&h=400&fit=crop&crop=center',  # Eggs
+        'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=400&h=400&fit=crop&crop=center',  # Butter
+    ],
+    'electronics': [
+        'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=400&fit=crop&crop=center',  # Wireless mouse
+        'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=400&fit=crop&crop=center',  # Keyboard
+        'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&h=400&fit=crop&crop=center',  # HDMI cable
+        'https://images.unsplash.com/photo-1625842268584-8f3296236761?w=400&h=400&fit=crop&crop=center',  # USB hub
+        'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&h=400&fit=crop&crop=center',  # Laptop
+    ],
+    'general': [
+        'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop&crop=center',  # Generic product
+        'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=400&fit=crop&crop=center',  # Shopping
+        'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=400&h=400&fit=crop&crop=center',  # Package
+        'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop&crop=center',  # Box
+        'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop&crop=center',  # Product
+    ]
+}
+
+def get_category_image(category_name):
+    """Get an appropriate image URL based on category name"""
+    category_lower = category_name.lower()
+    
+    if 'fruit' in category_lower:
+        return random.choice(PRODUCT_IMAGES['fruits'])
+    elif 'vegetable' in category_lower:
+        return random.choice(PRODUCT_IMAGES['vegetables'])
+    elif 'dairy' in category_lower or 'egg' in category_lower:
+        return random.choice(PRODUCT_IMAGES['dairy'])
+    elif 'electronic' in category_lower:
+        return random.choice(PRODUCT_IMAGES['electronics'])
+    else:
+        return random.choice(PRODUCT_IMAGES['general'])
+
+def get_product_image(product_name, category_name=None):
+    """Get an appropriate image URL based on product name or category"""
+    product_lower = product_name.lower()
+    
+    # Specific product mappings
+    if 'apple' in product_lower:
+        return 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop&crop=center'
+    elif 'orange' in product_lower:
+        return 'https://images.unsplash.com/photo-1547514701-42782101795e?w=400&h=400&fit=crop&crop=center'
+    elif 'milk' in product_lower:
+        return 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop&crop=center'
+    elif 'carrot' in product_lower:
+        return 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400&h=400&fit=crop&crop=center'
+    elif 'mouse' in product_lower and 'wireless' in product_lower:
+        return 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=400&fit=crop&crop=center'
+    elif 'keyboard' in product_lower:
+        return 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=400&fit=crop&crop=center'
+    elif 'hdmi' in product_lower:
+        return 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&h=400&fit=crop&crop=center'
+    elif 'usb' in product_lower and 'hub' in product_lower:
+        return 'https://images.unsplash.com/photo-1625842268584-8f3296236761?w=400&h=400&fit=crop&crop=center'
+    
+    # Fall back to category-based selection
+    if category_name:
+        return get_category_image(category_name)
+    else:
+        return random.choice(PRODUCT_IMAGES['general'])
+
 def seed_all():
     app = create_app()
 
@@ -197,19 +279,75 @@ def seed_all():
                 sku = faker.unique.bothify(text='???###').upper()
                 unit = random.choice(["piece", "box", "bottle", "pack", "kg", "g", "ml", "L"])
                 description = faker.sentence(nb_words=6)
-                image_url = faker.image_url()
+                image_url = get_category_image(category.name)
                 products.append(Product(name=name, sku=sku, unit=unit, description=description, category_id=category.id, image_url=image_url))
 
-            # Specific products
-            prod_apples = Product(name="Apples", sku="FRT001", unit="kg", description="Sweet Red Apples", category=cat_fruits)
-            prod_oranges = Product(name="Oranges", sku="FRT002", unit="kg", description="Juicy Oranges", category=cat_fruits)
-            prod_milk = Product(name="Milk (Full Cream)", sku="DRY001", unit="Liter", description="Fresh full cream milk", category=cat_dairy)
-            prod_carrots = Product(name="Carrots", sku="VEG001", unit="kg", description="Fresh Carrots", category=cat_vegetables)
+            # Specific products with targeted images
+            prod_apples = Product(
+                name="Apples", 
+                sku="FRT001", 
+                unit="kg", 
+                description="Sweet Red Apples", 
+                category=cat_fruits,
+                image_url=get_product_image("Apples", "Fruits")
+            )
+            prod_oranges = Product(
+                name="Oranges", 
+                sku="FRT002", 
+                unit="kg", 
+                description="Juicy Oranges", 
+                category=cat_fruits,
+                image_url=get_product_image("Oranges", "Fruits")
+            )
+            prod_milk = Product(
+                name="Milk (Full Cream)", 
+                sku="DRY001", 
+                unit="Liter", 
+                description="Fresh full cream milk", 
+                category=cat_dairy,
+                image_url=get_product_image("Milk", "Dairy")
+            )
+            prod_carrots = Product(
+                name="Carrots", 
+                sku="VEG001", 
+                unit="kg", 
+                description="Fresh Carrots", 
+                category=cat_vegetables,
+                image_url=get_product_image("Carrots", "Vegetables")
+            )
             
-            prod_wireless_mouse = Product(name="Wireless Mouse", sku="WM123", unit="pcs", description="Wireless Mouse description", category=cat_electronics)
-            prod_keyboard = Product(name="Keyboard", sku="KB456", unit="pcs", description="Keyboard description", category=cat_electronics)
-            prod_hdmi_cable = Product(name="HDMI Cable", sku="HD789", unit="pcs", description="HDMI Cable description", category=cat_electronics)
-            prod_usb_hub = Product(name="USB Hub", sku="UH321", unit="pcs", description="USB Hub description", category=cat_electronics)
+            prod_wireless_mouse = Product(
+                name="Wireless Mouse", 
+                sku="WM123", 
+                unit="pcs", 
+                description="Wireless Mouse description", 
+                category=cat_electronics,
+                image_url=get_product_image("Wireless Mouse", "Electronics")
+            )
+            prod_keyboard = Product(
+                name="Keyboard", 
+                sku="KB456", 
+                unit="pcs", 
+                description="Keyboard description", 
+                category=cat_electronics,
+                image_url=get_product_image("Keyboard", "Electronics")
+            )
+            prod_hdmi_cable = Product(
+                name="HDMI Cable", 
+                sku="HD789", 
+                unit="pcs", 
+                description="HDMI Cable description", 
+                category=cat_electronics,
+                image_url=get_product_image("HDMI Cable", "Electronics")
+            )
+            prod_usb_hub = Product(
+                name="USB Hub", 
+                sku="UH321", 
+                unit="pcs", 
+                description="USB Hub description", 
+                category=cat_electronics,
+                image_url=get_product_image("USB Hub", "Electronics")
+            )
 
             products.extend([
                 prod_apples, prod_oranges, prod_milk, prod_carrots,

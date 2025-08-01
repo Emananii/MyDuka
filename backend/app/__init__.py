@@ -68,6 +68,11 @@ def create_app():
     # --- Import Models (needed for Flask-Migrate) ---
     from app import models
 
+    # --- GLOBAL CORS CONFIGURATION ---
+    # Reverting to the more permissive path to ensure all routes are covered
+    # and to resolve potential conflicts.
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+
     # --- Register Blueprints ---
     from app.routes.auth_routes import auth_bp
     from app.routes.store_routes import store_bp
@@ -77,12 +82,10 @@ def create_app():
     from app.routes.user_routes import users_api_bp
     from app.routes.supplier_routes import suppliers_bp
     from app.routes.supply_routes import supply_bp
-    from app.routes.admin_dashboard import admin_dashboard_bp  # NEW: Import admin routes
-    from app.routes.purchase_routes import purchases_bp  # Import purchase routes
-    from app.routes.clerk_dashboard import clerk_dashboard_bp  # Import clerk dashboard routes
-
-    # NEW: Import your merchant_dashboard blueprint
-    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
+    from app.routes.admin_dashboard import admin_dashboard_bp
+    from app.routes.purchase_routes import purchases_bp
+    from app.routes.clerk_dashboard import clerk_dashboard_bp
+    from app.routes.merchant_dashboard import merchant_dashboard_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
@@ -95,9 +98,7 @@ def create_app():
     app.register_blueprint(merchant_dashboard_bp)
     app.register_blueprint(admin_dashboard_bp)
     app.register_blueprint(purchases_bp)
-    app.register_blueprint(clerk_dashboard_bp)  # Register clerk dashboard routes
-
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+    app.register_blueprint(clerk_dashboard_bp)
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)

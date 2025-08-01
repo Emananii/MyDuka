@@ -1,20 +1,16 @@
 from flask import Blueprint, request, jsonify, abort
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timezone # Use timezone.utc for datetime.utcnow() replacement
+from datetime import datetime, timezone
 from app import db
 from app.models import (
     Store, StoreProduct, SupplyRequest, StockTransferItem,
     StockTransferItem, Product, User,
     SupplyRequestStatus, StockTransferStatus
 )
-from app.routes.auth_routes import role_required
 
 store_bp = Blueprint("store", __name__, url_prefix="/api/store")
 
-# Create a new store (Merchant only)
+# Create a new store (No auth required)
 @store_bp.route("/store/create", methods=["POST"])
-@jwt_required()
-@role_required("merchant")
 def create_store():
     data = request.get_json() or {}
     name = data.get("name")
@@ -23,15 +19,12 @@ def create_store():
     if not name or not isinstance(name, str):
         abort(400, description="Store name is required and must be a string.")
 
-    user_id = get_jwt_identity()
     store = Store(name=name.strip(), address=data.get("address"))
     """
     Create a new store.
     ---
     tags:
       - Stores
-    security:
-      - Bearer: []
     parameters:
       - in: body
         name: body
@@ -62,10 +55,6 @@ def create_store():
               description: The name of the new store.
       400:
         description: Bad request, e.g., missing store name.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'merchant' role.
     """
     data = request.get_json()
     if not data.get("name"):
@@ -77,16 +66,12 @@ def create_store():
 
 # Update store
 @store_bp.route("/<int:store_id>", methods=["PATCH"])
-@jwt_required()
-@role_required("merchant")
 def update_store(store_id):
     """
     Update an existing store's information.
     ---
     tags:
       - Stores
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: store_id
@@ -118,10 +103,6 @@ def update_store(store_id):
               example: "Store updated"
       400:
         description: Bad request, e.g., invalid data format.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'merchant' role.
       404:
         description: Store not found.
     """
@@ -138,16 +119,12 @@ def update_store(store_id):
 
 # Soft delete a store
 @store_bp.route("/<int:store_id>", methods=["DELETE"])
-@jwt_required()
-@role_required("merchant")
 def delete_store(store_id):
     """
     Soft-deletes a store.
     ---
     tags:
       - Stores
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: store_id
@@ -164,10 +141,6 @@ def delete_store(store_id):
             message:
               type: string
               example: "Store soft-deleted"
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'merchant' role.
       404:
         description: Store not found.
     """
@@ -178,16 +151,12 @@ def delete_store(store_id):
 
 # List all stores
 @store_bp.route("/", methods=["GET"])
-@jwt_required()
-@role_required("merchant")
 def list_stores():
     """
     Lists all active (not soft-deleted) stores.
     ---
     tags:
       - Stores
-    security:
-      - Bearer: []
     responses:
       200:
         description: A list of active stores.
@@ -205,10 +174,6 @@ def list_stores():
               address:
                 type: string
                 description: The address of the store.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'merchant' or 'admin' role.
     """
     stores = Store.query.filter_by(is_deleted=False).all()
     return jsonify([
@@ -216,10 +181,46 @@ def list_stores():
         for s in stores
     ])
 
+# Get a store by ID (simplified without user context)
+@store_bp.route("/my-store", methods=["GET"])
+def get_my_store():
+    """
+    Retrieves the first active store (for demo purposes).
+    ---
+    tags:
+      - Stores
+    responses:
+      200:
+        description: A single store object.
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: The ID of the store.
+            name:
+              type: string
+              description: The name of the store.
+            address:
+              type: string
+              description: The address of the store.
+      404:
+        description: Store not found.
+    """
+    # For demo purposes, just return the first active store
+    store = Store.query.filter_by(is_deleted=False).first()
+    
+    if not store:
+        abort(404, description="No stores found.")
+
+    return jsonify({
+        "id": store.id,
+        "name": store.name,
+        "address": store.address
+    })
+
 # Invite user to store
 @store_bp.route("/<int:store_id>/invite", methods=["POST"])
-@jwt_required()
-@role_required("merchant", "admin")
 def invite_user(store_id):
     """
     Invites a new user to a specific store.
@@ -227,8 +228,6 @@ def invite_user(store_id):
     tags:
       - Stores
       - Users
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: store_id
@@ -265,10 +264,6 @@ def invite_user(store_id):
               example: "Invitation sent to newuser@example.com"
       400:
         description: Bad request, e.g., missing email/role or invalid role.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'merchant' or 'admin' role.
       404:
         description: Store not found.
     """
@@ -288,19 +283,16 @@ def invite_user(store_id):
     db.session.commit()
     return jsonify({"message": f"Invitation sent to {email}", "user_id": user.id}), 202
 
-# Update store details (Merchant only)
+# Update store details
 @store_bp.route("/<int:store_id>", methods=["PUT"])
-@jwt_required()
-@role_required("merchant")
 def update_store_details(store_id):
     data = request.get_json() or {}
     name = data.get("name")
     address = data.get("address")
 
-    user_id = get_jwt_identity()
-    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+    store = Store.query.filter_by(id=store_id).first()
 
-    if not store or not store.is_active:
+    if not store:
         abort(404, description="Store not found")
 
     if name:
@@ -310,36 +302,29 @@ def update_store_details(store_id):
 
     db.session.commit()
 
-    return jsonify({"message": "Store updated", "store": store.to_dict()}), 200
+    return jsonify({"message": "Store updated", "store": {"id": store.id, "name": store.name, "address": store.address}}), 200
 
-# Deactivate store (Merchant only)
-@store_bp.route("/<int:store_id>", methods=["DELETE"])
-@jwt_required()
-@role_required("merchant")
+# Deactivate store
+@store_bp.route("/<int:store_id>/deactivate", methods=["DELETE"])
 def deactivate_store(store_id):
-    user_id = get_jwt_identity()
-    store = Store.query.filter_by(id=store_id, merchant_id=user_id).first()
+    store = Store.query.filter_by(id=store_id).first()
 
-    if not store or not store.is_active:
-        abort(404, description="Store not found or already inactive")
+    if not store:
+        abort(404, description="Store not found")
 
-    store.is_active = False
+    store.is_deleted = True  # Using soft delete instead of is_active
     db.session.commit()
 
     return jsonify({"message": "Store deactivated"}), 200
 
-# Clerk creates a supply request
+# Create a supply request
 @store_bp.route("/<int:store_id>/supply-requests", methods=["POST"])
-@jwt_required()
-@role_required("clerk")
 def create_supply_request(store_id):
     """
     Creates a new supply request for a store.
     ---
     tags:
       - Supply Requests
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: store_id
@@ -378,10 +363,6 @@ def create_supply_request(store_id):
               description: The initial status of the supply request (always 'pending').
       400:
         description: Bad request, e.g., missing product ID or quantity.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'clerk' role.
       404:
         description: Store or Product not found.
     """
@@ -398,25 +379,21 @@ def create_supply_request(store_id):
     req = SupplyRequest(
         store=store,
         product=product,
-        clerk_id=get_jwt_identity(),
+        clerk_id=1,  # Default clerk ID for demo
         requested_quantity=quantity
     )
     db.session.add(req)
     db.session.commit()
     return jsonify({"id": req.id, "status": req.status.value}), 201
 
-# Admin responds to supply request
+# Respond to supply request
 @store_bp.route("/<int:store_id>/supply-requests/<int:req_id>/respond", methods=["PATCH"])
-@jwt_required()
-@role_required("admin")
 def respond_supply_request(store_id, req_id):
     """
     Responds to a pending supply request (approve or decline).
     ---
     tags:
       - Supply Requests
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: store_id
@@ -459,10 +436,6 @@ def respond_supply_request(store_id, req_id):
               description: The new status of the supply request.
       400:
         description: Bad request, e.g., invalid action or request already processed.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'admin' role.
       404:
         description: Store or Supply Request not found.
     """
@@ -476,33 +449,21 @@ def respond_supply_request(store_id, req_id):
         abort(400, "Action must be 'approve' or 'decline'.")
 
     req.status = SupplyRequestStatus.approved if action == "approve" else SupplyRequestStatus.declined
-    req.admin_id = get_jwt_identity()
+    req.admin_id = 1  # Default admin ID for demo
     req.admin_response = comment
-    req.updated_at = datetime.utcnow()
+    req.updated_at = datetime.now(timezone.utc)
 
-    # req.admin_response = data.get("comment")
-    req.updated_at = datetime.now(timezone.utc) # Use timezone-aware datetime
     db.session.commit()
     return jsonify({"status": req.status.value, "request_id": req.id})
 
-# Admin initiates stock transfer
+# Initiate stock transfer
 @store_bp.route("/stock-transfers", methods=["POST"])
-@jwt_required()
-@role_required("admin")
 def initiate_transfer():
-    data = request.get_json() or {}
-    items = data.get("items", [])
-
-    if not data.get("from_store_id") or not data.get("to_store_id") or not items:
-        abort(400, "from_store_id, to_store_id, and items are required.")
-
     """
     Initiates a new stock transfer between stores.
     ---
     tags:
       - Stock Transfers
-    security:
-      - Bearer: []
     parameters:
       - in: body
         name: body
@@ -558,18 +519,19 @@ def initiate_transfer():
               description: The initial status of the stock transfer (always 'pending').
       400:
         description: Bad request, e.g., missing required fields or invalid data.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'admin' role.
       404:
         description: Source or destination store, or product not found.
     """
-    data = request.get_json()
+    data = request.get_json() or {}
+    items = data.get("items", [])
+
+    if not data.get("from_store_id") or not data.get("to_store_id") or not items:
+        abort(400, "from_store_id, to_store_id, and items are required.")
+
     transfer = StockTransfer(
         from_store_id=data["from_store_id"],
         to_store_id=data["to_store_id"],
-        initiated_by=get_jwt_identity(),
+        initiated_by=1,  # Default user ID for demo
         notes=data.get("notes")
     )
     db.session.add(transfer)
@@ -588,18 +550,14 @@ def initiate_transfer():
     db.session.commit()
     return jsonify({"id": transfer.id, "status": transfer.status.value}), 201
 
-# Admin approves stock transfer
+# Approve stock transfer
 @store_bp.route("/stock-transfers/<int:transfer_id>/approve", methods=["PATCH"])
-@jwt_required()
-@role_required("admin")
 def approve_transfer(transfer_id):
     """
     Approves a pending stock transfer.
     ---
     tags:
       - Stock Transfers
-    security:
-      - Bearer: []
     parameters:
       - in: path
         name: transfer_id
@@ -618,10 +576,6 @@ def approve_transfer(transfer_id):
               example: "approved"
       400:
         description: Bad request, e.g., transfer already processed.
-      401:
-        description: Unauthorized, JWT token is missing or invalid.
-      403:
-        description: Forbidden, user does not have 'admin' role.
       404:
         description: Stock Transfer not found.
     """
@@ -631,8 +585,8 @@ def approve_transfer(transfer_id):
         abort(400, "Transfer already processed.")
 
     transfer.status = StockTransferStatus.approved
-    transfer.approved_by = get_jwt_identity()
-    transfer.transfer_date = datetime.utcnow()
+    transfer.approved_by = 1  # Default user ID for demo
+    transfer.transfer_date = datetime.now(timezone.utc)
 
     db.session.commit()
     return jsonify({"status": "approved", "transfer_id": transfer.id})
