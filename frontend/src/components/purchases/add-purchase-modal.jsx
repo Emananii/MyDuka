@@ -41,6 +41,7 @@ import { Trash2 } from "lucide-react";
 // ------------------ Validation Schema ------------------
 const formSchema = z.object({
   supplier_id: z.coerce.number().min(1, "Supplier is required"),
+  store_id: z.coerce.number().min(1, "Store is required"),
   notes: z.string().optional(),
   items: z
     .array(
@@ -68,10 +69,19 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
     },
   });
 
-  const { data: products = [] } = useQuery({
-    queryKey: ["products"],
+  const { data: stores = [] } = useQuery({
+    queryKey: ["stores"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/products`);
+      const res = await fetch(`${BASE_URL}/stores`);
+      if (!res.ok) throw new Error("Failed to fetch stores");
+      return res.json();
+    },
+  });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products-for-purchase"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL}/purchases/products`);
       if (!res.ok) throw new Error("Failed to fetch products");
       return res.json();
     },
@@ -81,18 +91,24 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       supplier_id: undefined,
+      store_id: undefined,
       notes: "",
       items: [],
     },
   });
 
   const addItem = (product) => {
+    // We now use the store_id from the form state to find the correct unit cost
+    const selectedStoreId = form.getValues("store_id");
+    const storeProduct = product.store_products.find(sp => sp.store_id === selectedStoreId);
+    const productUnitCost = storeProduct ? parseFloat(storeProduct.unit_cost) : 0;
+
     const updated = [
       ...items,
       {
         product_id: product.id,
         quantity: 1,
-        unit_cost: parseFloat(product.unit_cost ?? "0"),
+        unit_cost: productUnitCost,
       },
     ];
     setItems(updated);
@@ -127,12 +143,12 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
       if (!data.items || data.items.length === 0) {
         throw new Error("At least one purchase item is required.");
       }
-
+      
       const purchase = await apiRequest("POST", `${BASE_URL}/purchases`, {
         supplier_id: data.supplier_id,
-        total_cost: calculateTotal(data.items).toFixed(2),
+        store_id: data.store_id,
         notes: data.notes,
-        items: data.items, // ✅ Now included in the payload
+        purchase_items: data.items,
       });
 
       return purchase;
@@ -148,10 +164,8 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
         setItems([]);
         setSearchQuery("");
         onClose();
-        window.location.reload();
+        queryClient.invalidateQueries({ queryKey: ["/purchases"] });
       }, 1500);
-
-      queryClient.invalidateQueries({ queryKey: ["/purchases"] });
     },
     onError: (error) => {
       toast({
@@ -181,6 +195,35 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Store Select */}
+            <FormField
+              control={form.control}
+              name="store_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Store</FormLabel>
+                  <Select
+                    value={(field.value ?? "").toString()}
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select store" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {stores.map((store) => (
+                        <SelectItem key={store.id} value={store.id.toString()}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Supplier Select */}
             <FormField
               control={form.control}
@@ -220,6 +263,7 @@ export default function AddPurchaseModal({ isOpen, onClose }) {
                 placeholder="Type to search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={!form.getValues("store_id")}
               />
               {searchQuery && (
                 <div className="mt-2 border rounded shadow bg-white max-h-48 overflow-auto">

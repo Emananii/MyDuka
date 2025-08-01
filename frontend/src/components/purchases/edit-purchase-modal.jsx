@@ -38,24 +38,19 @@ import { Button } from "@/components/ui/button";
 
 import { Trash2, Trash } from "lucide-react";
 
-// Schema
+// The form schema now only validates the top-level purchase fields
 const formSchema = z.object({
   supplier_id: z.coerce.number().min(1, "Supplier is required"),
-  total_cost: z.string().min(1, "Total cost is required"),
   notes: z.string().optional(),
 });
 
 export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
   const { toast } = useToast();
-  const [items, setItems] = useState([]);
+  // Initialize state with purchase.purchase_items, which is the correct key from the backend
+  const [items, setItems] = useState(purchase?.purchase_items ?? []);
 
-  const isEditable = useMemo(() => {
-    if (!purchase?.purchase_date) return false;
-    const purchaseDate = new Date(purchase.purchase_date);
-    const now = new Date();
-    const diffInDays = (now - purchaseDate) / (1000 * 60 * 60 * 24);
-    return diffInDays <= 30;
-  }, [purchase]);
+  // Removed the date-based restriction. Now, all purchases are editable.
+  const isEditable = true;
 
   const { data: suppliers = [] } = useQuery({
     queryKey: [`${BASE_URL}/suppliers`],
@@ -69,8 +64,7 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      supplier_id: purchase?.supplier_id ?? undefined,
-      total_cost: purchase?.total_cost?.toString() ?? "0",
+      supplier_id: purchase?.supplier?.id ?? undefined,
       notes: purchase?.notes ?? "",
     },
   });
@@ -78,11 +72,11 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
   useEffect(() => {
     if (purchase) {
       form.reset({
-        supplier_id: purchase.supplier_id,
-        total_cost: purchase.total_cost?.toString() ?? "0",
+        supplier_id: purchase.supplier?.id ?? undefined,
         notes: purchase.notes ?? "",
       });
-      setItems(purchase.items ?? []);
+      // Update the state with the correct key from the purchase object
+      setItems(purchase.purchase_items ?? []);
     }
   }, [purchase, form]);
 
@@ -94,53 +88,42 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
     );
   };
 
-  const handleItemDelete = async (itemId) => {
-    try {
-      await apiRequest("DELETE", `${BASE_URL}/purchase_items/${itemId}`);
-      setItems((prev) => prev.filter((item) => item.id !== itemId));
-      toast({
-        title: "Item removed",
-        description: `Item ${itemId} removed successfully`,
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to delete item",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  // Remove the item from local state. The change will be saved on form submission.
+  const handleItemDelete = (itemId) => {
+    setItems((prev) => prev.filter((item) => item.id !== itemId));
+    toast({
+      title: "Item removed from list",
+      description: "Click 'Update Purchase' to save changes.",
+    });
   };
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      await apiRequest("PUT", `${BASE_URL}/purchases/${purchase.id}`, data);
-
-      await Promise.all(
-        items.map((item) =>
-          apiRequest("PUT", `${BASE_URL}/purchase_items/${item.id}`, {
-            quantity: parseInt(item.quantity),
-            unit_cost: parseFloat(item.unit_cost),
-          })
-        )
-      );
+      // Structure the payload correctly for the PATCH request
+      const payload = {
+        supplier_id: data.supplier_id,
+        notes: data.notes,
+        // The backend expects a full list of purchase_items to replace the old ones
+        purchase_items: items.map(item => ({
+          // FIXED: Access the product_id from the nested product object
+          product_id: item.product.id,
+          quantity: parseInt(item.quantity, 10),
+          unit_cost: parseFloat(item.unit_cost),
+        })),
+      };
+      await apiRequest("PATCH", `${BASE_URL}/purchases/${purchase.id}`, payload);
     },
-  onSuccess: async () => {
-  await queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/purchases`] });
-
-  toast({
-    title: "Purchase updated",
-    description: `Purchase #${purchase.id} updated successfully`,
-  });
-
-
-  setTimeout(() => {
-    window.location.href = "/purchases";
-  }, 1200);
-
-  onClose();
-},
-
-
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [`${BASE_URL}/purchases`] });
+      toast({
+        title: "Purchase updated",
+        description: `Purchase #${purchase.id} updated successfully`,
+      });
+      setTimeout(() => {
+        window.location.href = "/purchases";
+      }, 1200);
+      onClose();
+    },
     onError: (error) => {
       toast({
         title: "Update failed",
@@ -170,14 +153,17 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
   });
 
   const onSubmit = (data) => {
-    const newTotal = items.reduce((acc, item) => {
-      const q = parseInt(item.quantity) || 0;
-      const c = parseFloat(item.unit_cost) || 0;
-      return acc + q * c;
-    }, 0);
-    data.total_cost = newTotal.toFixed(2);
     updateMutation.mutate(data);
   };
+
+  // Calculate total cost from the local state
+  const totalCost = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const q = parseInt(item.quantity, 10) || 0;
+      const c = parseFloat(item.unit_cost) || 0;
+      return sum + q * c;
+    }, 0).toFixed(2);
+  }, [items]);
 
   if (!purchase) return null;
 
@@ -242,12 +228,12 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
             <div className="space-y-3">
               <h4 className="text-md font-semibold text-gray-700">Purchase Items</h4>
               {items.map((item) => {
-                const quantity = parseInt(item.quantity) || 0;
+                const quantity = parseInt(item.quantity, 10) || 0;
                 const unitCost = parseFloat(item.unit_cost) || 0;
                 const subtotal = (quantity * unitCost).toFixed(2);
 
                 return (
-                  <div key={item.id} className="flex items-center gap-2 flex-wrap">
+                  <div key={item.id || `temp-${item.product_id}`} className="flex items-center gap-2 flex-wrap">
                     <div className="flex-1 min-w-[120px]">
                       <p className="text-sm text-gray-700 font-medium">{item.product?.name}</p>
                     </div>
@@ -290,9 +276,7 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
               <Input
                 type="text"
                 readOnly
-                value={`KSH ${items
-                  .reduce((sum, item) => sum + item.quantity * item.unit_cost, 0)
-                  .toFixed(2)}`}
+                value={`KSH ${totalCost}`}
                 className="bg-gray-100"
               />
             </div>

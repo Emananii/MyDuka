@@ -30,6 +30,7 @@ export default function Purchases() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [selectedStoreId, setSelectedStoreId] = useState(""); // New state for store filter
 
   const { toast } = useToast();
   const printRef = useRef();
@@ -66,6 +67,26 @@ export default function Purchases() {
       return res.json();
     },
   });
+
+  // New query to fetch stores
+  const {
+    data: stores = [],
+    isLoading: storesLoading,
+    isError: storesError,
+  } = useQuery({
+    queryKey: [`${BASE_URL}/stores`],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL}/stores`);
+      if (!res.ok) throw new Error("Failed to fetch stores");
+      return res.json();
+    },
+  });
+
+  // Create a map for efficient store lookup
+  const storeMap = stores.reduce((map, store) => {
+    map[store.id] = store.name;
+    return map;
+  }, {});
 
   const fetchPurchaseDetails = async (purchaseId) => {
     setViewingLoading(true);
@@ -129,7 +150,10 @@ export default function Purchases() {
     const matchesSupplier =
       !selectedSupplierId || purchase.supplier?.id == selectedSupplierId;
 
-    return matchesDateRange && matchesSupplier;
+    const matchesStore =
+      !selectedStoreId || String(purchase.store_id) === String(selectedStoreId);
+
+    return matchesDateRange && matchesSupplier && matchesStore;
   });
 
   const sortedPurchases = [...filteredPurchases].sort((a, b) => {
@@ -157,7 +181,7 @@ export default function Purchases() {
       : valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
   });
 
-  if (loadingPurchases) {
+  if (loadingPurchases || storesLoading || suppliersLoading) {
     return (
       <div className="space-y-6">
         <Card className="animate-pulse">
@@ -169,12 +193,12 @@ export default function Purchases() {
     );
   }
 
-  if (errorPurchases) {
+  if (errorPurchases || storesError || suppliersError) {
     return (
       <div className="space-y-6">
         <Card>
           <CardContent className="p-6 text-red-500">
-            Error loading purchases: {purchasesError?.message || "Unknown error"}
+            Error loading data: {purchasesError?.message || "Unknown error"}
           </CardContent>
         </Card>
       </div>
@@ -229,6 +253,22 @@ export default function Purchases() {
                 ))}
               </select>
             </div>
+            {/* New Store Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600">Store</label>
+              <select
+                value={selectedStoreId}
+                onChange={(e) => setSelectedStoreId(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="">All Stores</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -241,6 +281,7 @@ export default function Purchases() {
                 <TableHead onClick={() => handleSort("id")} className="cursor-pointer select-none">
                   Purchase ID {sortBy === "id" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
                 </TableHead>
+                <TableHead>Store</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead onClick={() => handleSort("total_cost")} className="cursor-pointer select-none">
                   Total Cost {sortBy === "total_cost" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
@@ -261,6 +302,7 @@ export default function Purchases() {
                     onClick={() => fetchPurchaseDetails(purchase.id)}
                   >
                     <TableCell className="font-medium">#{purchase.id}</TableCell>
+                    <TableCell>{storeMap[purchase.store_id] || "Unknown Store"}</TableCell>
                     <TableCell>{purchase.supplier?.name || "Unknown Supplier"}</TableCell>
                     <TableCell>{formatCurrency(purchase.total_cost)}</TableCell>
                     <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
@@ -282,7 +324,7 @@ export default function Purchases() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                     No purchases found
                   </TableCell>
                 </TableRow>
