@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import PropTypes from "prop-types"; // Import PropTypes
 import { useToast } from "@/hooks/use-toast";
 import axios from "@/utils/axios"; // Your configured axios instance
 
@@ -15,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react"; // Import Loader2 for loading spinner
+import { useUser } from "@/context/UserContext"; // Import useUser to get the current user
 
 // Helper function to format dates (re-used for consistency)
 const formatDate = (rawDate) => {
@@ -33,6 +36,7 @@ const formatDate = (rawDate) => {
 export function ApproveSupplyRequest({ isOpen, onClose, request }) {
   const [adminResponse, setAdminResponse] = useState("");
   const { toast } = useToast();
+  const { user } = useUser(); // Get the current user from context
   const queryClient = useQueryClient();
 
   // Reset adminResponse when a new request is passed or modal opens
@@ -44,21 +48,22 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
   }, [isOpen, request]);
 
   // Determine if the request is still pending
-  const isPending = request?.status === "pending";
+  const isPendingStatus = request?.status === "pending";
 
   // Mutation for approving/declining the request
   const responseMutation = useMutation({
-    mutationFn: async ({ action, comment }) => {
+    mutationFn: async ({ action, comment, adminId }) => { // Added adminId to mutationFn arguments
       // Ensure we have the necessary IDs
-      if (!request || !request.store_id || !request.id) {
-        throw new Error("Invalid request or missing IDs for response.");
+      if (!request || !request.id) { // Removed store_id from check as it's no longer in URL path
+        throw new Error("Invalid request or missing request ID for response.");
       }
-      // Backend route: PATCH /api/stores/<int:store_id>/supply-requests/<int:request_id>/respond
+      // CORRECTED BACKEND ROUTE: PATCH /api/supply-requests/<int:request_id>/respond
       return await axios.patch(
-        `/api/stores/${request.store_id}/supply-requests/${request.id}/respond`,
+        `/api/supply-requests/${request.id}/respond`, // Corrected URL
         {
           action, // 'approve' or 'decline'
           comment,
+          admin_id: adminId, // Pass admin_id in the payload as expected by backend
         }
       );
     },
@@ -84,11 +89,29 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
 
   // Handlers for Approve and Decline buttons
   const handleApprove = () => {
-    responseMutation.mutate({ action: "approve", comment: adminResponse });
+    // Ensure user is defined and has an ID
+    if (!user || !user.id) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: "Admin user ID not found. Please log in again.",
+      });
+      return;
+    }
+    responseMutation.mutate({ action: "approve", comment: adminResponse, adminId: user.id });
   };
 
   const handleDecline = () => {
-    responseMutation.mutate({ action: "decline", comment: adminResponse });
+    // Ensure user is defined and has an ID
+    if (!user || !user.id) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: "Admin user ID not found. Please log in again.",
+      });
+      return;
+    }
+    responseMutation.mutate({ action: "decline", comment: adminResponse, adminId: user.id });
   };
 
   // Do not render the modal content if no request object is provided
@@ -123,7 +146,8 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
           </div>
           <div>
             <Label className="font-semibold">Requested By Clerk:</Label>{" "}
-            {request.clerk?.name || "N/A"}
+            {/* Display clerk's email as per backend serialization */}
+            {request.clerk?.email || "N/A"}
           </div>
           <div>
             <Label className="font-semibold">Status:</Label>
@@ -147,7 +171,7 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
           </div>
 
           {/* Admin Response/Comment Section */}
-          {isPending ? (
+          {isPendingStatus ? ( // Use isPendingStatus to check if it's pending
             // Show editable textarea if status is pending
             <div>
               <Label htmlFor="adminResponse" className="font-semibold">
@@ -172,7 +196,8 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
               {request.admin && (
                 <div>
                   <Label className="font-semibold">Responded By:</Label>{" "}
-                  {request.admin.name || "N/A"}
+                  {/* Display admin's email as per backend serialization */}
+                  {request.admin.email || "N/A"}
                 </div>
               )}
               <div>
@@ -190,20 +215,31 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
             onClick={onClose}
             disabled={responseMutation.isPending}
           >
-            {isPending ? "Cancel" : "Close"}
+            {isPendingStatus ? "Cancel" : "Close"}
           </Button>
-          {isPending && (
-            // Only show Approve/Decline buttons if the request is still pending
+          {isPendingStatus && ( // Only show Approve/Decline buttons if the request is still pending
             <>
               <Button
                 variant="destructive"
                 onClick={handleDecline}
                 disabled={responseMutation.isPending}
               >
-                {responseMutation.isPending ? "Declining..." : "Decline"}
+                {responseMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Declining...
+                  </>
+                ) : (
+                  "Decline"
+                )}
               </Button>
               <Button onClick={handleApprove} disabled={responseMutation.isPending}>
-                {responseMutation.isPending ? "Approving..." : "Approve"}
+                {responseMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Approving...
+                  </>
+                ) : (
+                  "Approve"
+                )}
               </Button>
             </>
           )}
@@ -212,3 +248,11 @@ export function ApproveSupplyRequest({ isOpen, onClose, request }) {
     </Dialog>
   );
 }
+
+ApproveSupplyRequest.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  request: PropTypes.object.isRequired,
+  // onSuccess is removed from propTypes as it's not directly used in this version
+  // but the query invalidation handles the refresh.
+};

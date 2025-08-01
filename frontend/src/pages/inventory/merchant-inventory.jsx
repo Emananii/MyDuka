@@ -52,6 +52,7 @@ export default function MerchantInventory() {
     queryFn: async () => {
       try {
         const data = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/categories`);
+        // Ensure the data is always an array of categories
         return Array.isArray(data) ? data : data.categories || [];
       } catch (error) {
         throw new Error(error.message || "Failed to fetch categories");
@@ -86,19 +87,63 @@ export default function MerchantInventory() {
       const [_key, currentStoreFilter, currentCategoryFilter, currentSearchTerm] = queryKey;
 
       if (currentStoreFilter === "all") {
-        const productsUrl = `${BASE_URL}${API_PREFIX}/products`;
-        const products = await apiRequest("GET", productsUrl);
+        // When 'All Stores' is selected, we fetch all products and aggregate their stock.
+        try {
+          const productsUrl = `${BASE_URL}${API_PREFIX}/products`;
+          const storesUrl = `${BASE_URL}${STORE_API_PREFIX}/`;
+          
+          const [products, stores] = await Promise.all([
+            apiRequest("GET", productsUrl),
+            apiRequest("GET", storesUrl)
+          ]);
+          
+          // Fetch inventory for each store concurrently
+          const storeInventories = await Promise.all(
+            (Array.isArray(stores) ? stores : []).map(store =>
+              apiRequest("GET", `${BASE_URL}${API_PREFIX}/stock/${store.id}`)
+                .catch(() => []) // Return an empty array on error for graceful failure
+            )
+          );
+          
+          const aggregatedStock = {};
+          
+          storeInventories.forEach(inventory => {
+            if (Array.isArray(inventory)) {
+              inventory.forEach(item => {
+                const productId = item.product_id;
+                const quantity = item.quantity_in_stock || 0;
+                
+                if (aggregatedStock[productId]) {
+                  aggregatedStock[productId] += quantity;
+                } else {
+                  aggregatedStock[productId] = quantity;
+                }
+              });
+            }
+          });
+          
+          // Map over products and attach the aggregated stock
+          return (Array.isArray(products) ? products : []).map(item => {
+            const category = categories.find(cat => cat.id === item.category_id);
+            const categoryName = category ? category.name : 'N/A';
+            
+            return {
+              ...item,
+              quantity_in_stock: aggregatedStock[item.id] || 0, // Set aggregated stock
+              low_stock_threshold: null, // Keep null for "All Stores"
+              price: null,
+              store_product_id: null,
+              product_name: item.name,
+              category_name: categoryName
+            };
+          });
+        } catch (error) {
+          console.error("Failed to fetch and aggregate inventory:", error);
+          return []; // Return empty array on error
+        }
 
-        return Array.isArray(products) ? products.map(item => ({
-          ...item,
-          quantity_in_stock: null,
-          low_stock_threshold: null,
-          price: null,
-          store_product_id: null,
-          product_name: item.name,
-          category_name: categories.find(cat => cat.id === item.category_id)?.name || 'N/A'
-        })) : [];
       } else {
+        // When a specific store is selected, fetch the inventory for that store.
         const params = new URLSearchParams();
         if (currentSearchTerm) {
             params.append('search', currentSearchTerm);
@@ -164,8 +209,8 @@ export default function MerchantInventory() {
   };
 
   const getStockStatus = useCallback((item) => {
-    // If not viewing a specific store, or if stock quantity is not provided, it's N/A for display purposes.
-    // This 'not-applicable' status will NOT be a filter option.
+    // Check if the item is from the aggregated view (storeFilter === "all")
+    // or if stock quantity is not provided.
     if (storeFilter === "all" || item.quantity_in_stock === null || item.quantity_in_stock === undefined) {
       return "not-applicable";
     }
@@ -373,7 +418,9 @@ export default function MerchantInventory() {
                       </a>
                       {item.product_name || item.name}
                     </TableCell>
-                    <TableCell>{item.category_name}</TableCell>
+                    <TableCell>
+                      {item.category_name}
+                    </TableCell>
                     <TableCell>
                       {item.quantity_in_stock !== null && item.quantity_in_stock !== undefined ?
                         `${item.quantity_in_stock} ${item.unit || ''}` : <span className="text-gray-500">N/A</span>

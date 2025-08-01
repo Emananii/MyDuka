@@ -62,7 +62,7 @@ const navigationConfig = [
     name: "Review Supply Requests",
     href: "/supply-requests/admin",
     icon: ClipboardList,
-    roles: ["admin", "merchant"],
+    roles: ["admin"],
   },
 ];
 

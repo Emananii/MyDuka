@@ -114,7 +114,7 @@ function MainLayout({ children }) {
                   <div onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <Avatar className="cursor-pointer">
                       <AvatarImage
-                        src={user.avatar || "/default-avatar.jpg"}
+                        src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name || "User"}`}
                         alt={user.name || "User"}
                       />
                       <AvatarFallback>

@@ -46,7 +46,8 @@ const Login = () => {
           dashboardPath = '/dashboard/clerk';
           break;
         case 'cashier':
-          dashboardPath = '/dashboard/cashier';
+          // Redirect the cashier to the POS page
+          dashboardPath = '/pos';
           break;
         default:
           // You can handle other roles here or just use the default path

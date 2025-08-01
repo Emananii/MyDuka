@@ -122,7 +122,7 @@ function ClerkDashboard() {
 
   const { store_name, low_stock_items = [], out_of_stock_items = [] } = dashboardData;
 
-  const dashboardTitle = store_name ? `Dashboard for ${store_name}` : "Clerk Dashboard";
+  const dashboardTitle = store_name ? `${store_name}` : "Clerk Dashboard";
 
   return (
     <div className="space-y-6 p-6 font-sans bg-gray-50 min-h-screen">

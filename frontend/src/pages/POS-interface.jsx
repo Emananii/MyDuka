@@ -8,7 +8,7 @@ import { BASE_URL } from "@/lib/constants";
 import {
   posProductListSchema,
   insertSaleSchema,
-  saleDetailsSchema, // Make sure this is imported
+  saleDetailsSchema,
 } from "@/shared/schema";
 
 // Re-import Link and Home icon
@@ -57,7 +57,8 @@ export default function POSInterfacePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSaleDetails, setLastSaleDetails] = useState(null);
 
-  const [selectedStoreId, setSelectedStoreId] = useState(1); // Default to store 1
+  // Default to store 1, but handle invalid input gracefully
+  const [selectedStoreId, setSelectedStoreId] = useState(1);
 
   const [sortOrder, setSortOrder] = useState("asc");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -85,9 +86,14 @@ export default function POSInterfacePage() {
   } = useQuery({
     queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm, sortOrder, selectedCategory],
     queryFn: async () => {
-      if (!selectedStoreId) {
-        return [];
-      }
+      // Log the parameters to debug when the query is triggered
+      console.log('Fetching products with:', {
+        selectedStoreId,
+        debouncedSearchTerm,
+        sortOrder,
+        selectedCategory,
+      });
+
       const url = new URL(`${BASE_URL}/api/inventory/stock/${selectedStoreId}`);
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm);
@@ -101,8 +107,11 @@ export default function POSInterfacePage() {
       const res = await apiRequest("GET", url.toString());
       return posProductListSchema.parse(res);
     },
-    enabled: !!selectedStoreId,
-    staleTime: 60 * 1000,
+    // The query is only enabled if the selectedStoreId is a number greater than 0
+    enabled: selectedStoreId > 0,
+    // Set staleTime to 0 to force a network request every time the queryKey changes.
+    // This is useful for debugging to see all network calls.
+    staleTime: 0,
   });
 
   // Ensure 'products' is always an array, even when productsData is undefined
@@ -272,7 +281,6 @@ export default function POSInterfacePage() {
       });
     },
   });
-
   // --- Cart Management Callbacks ---
   const handleAddToCart = useCallback((product) => {
     setCartItems(prevItems => {
@@ -339,7 +347,7 @@ export default function POSInterfacePage() {
     const currentStoreId = selectedStoreId;
     const currentCashierId = 1; // Placeholder: Replace with actual logged-in cashier ID
 
-    if (!currentStoreId) {
+    if (!currentStoreId || currentStoreId <= 0) {
       toast({
         title: "Store Not Selected",
         description: "Please enter a valid Store ID to process sales.",
@@ -412,13 +420,19 @@ export default function POSInterfacePage() {
           <Input
             id="store-id-select"
             type="number"
-            value={selectedStoreId}
-            onChange={(e) => setSelectedStoreId(parseInt(e.target.value) || 0)}
+            value={selectedStoreId || ''} // Use empty string for better UX with null
+            onChange={(e) => {
+              // Update selectedStoreId, ensuring it's a valid number.
+              // Set to 0 for invalid input to keep the query disabled.
+              const value = e.target.value;
+              const numericValue = parseInt(value, 10);
+              setSelectedStoreId(isNaN(numericValue) ? 0 : numericValue);
+            }}
             placeholder="Enter Store ID"
             className="w-full"
             min="1"
           />
-          {!selectedStoreId && (
+          {selectedStoreId === 0 && (
             <p className="text-red-500 text-xs mt-1">Please enter a valid Store ID to see products.</p>
           )}
         </div>
@@ -444,7 +458,7 @@ export default function POSInterfacePage() {
         <div className="flex-shrink-0">
           {/* Top row with Home button and reduced margin */}
           <div className="flex justify-end mb-2">
-            <Link href="/">
+            <Link href="/sales/cashier">
               <a className="flex items-center justify-center h-10 w-10 rounded-full shadow-md bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
                 <Home className="h-5 w-5" />
               </a>
