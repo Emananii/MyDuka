@@ -18,7 +18,7 @@ import { BASE_URL } from "@/lib/constants";
 import AddStoreModal from "@/components/stores/add-store-modal";
 import EditStoreModal from "@/components/stores/edit-store-modal";
 import DeleteStoreModal from "@/components/stores/delete-store-modal";
-import ViewStoreModal from "@/components/stores/view-store-modal"; // New import for the view modal
+import ViewStoreModal from "@/components/stores/view-store-modal";
 
 export default function Stores() {
   const { toast } = useToast();
@@ -26,7 +26,7 @@ export default function Stores() {
   const [selectedStore, setSelectedStore] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false); // New state for the view modal
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const {
     data: stores = [],
@@ -46,18 +46,17 @@ export default function Stores() {
   );
 
   const handleEdit = (store) => (e) => {
-    e.stopPropagation(); // Stop event bubbling to the row
+    e.stopPropagation();
     setSelectedStore(store);
     setIsEditModalOpen(true);
   };
 
   const handleDelete = (store) => (e) => {
-    e.stopPropagation(); // Stop event bubbling to the row
+    e.stopPropagation();
     setSelectedStore(store);
     setIsDeleteModalOpen(true);
   };
 
-  // New handler for viewing a store
   const handleView = (store) => {
     setSelectedStore(store);
     setIsViewModalOpen(true);
@@ -89,21 +88,23 @@ export default function Stores() {
             <TableHeader>
               <TableRow className="bg-gray-50">
                 <TableHead>Name</TableHead>
+                {/* --- New TableHead for Address --- */}
+                <TableHead>Address</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStores.length > 0 ? (
                 filteredStores.map((store) => (
-                  // Add onClick to the TableRow to open the view modal
-                  <TableRow 
-                    key={store.id} 
+                  <TableRow
+                    key={store.id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => handleView(store)}
                   >
                     <TableCell>{store.name}</TableCell>
+                    {/* --- New TableCell to display the address --- */}
+                    <TableCell>{store.address}</TableCell>
                     <TableCell className="text-right space-x-2">
-                      {/* Pass the store to the handlers to prevent event bubbling */}
                       <Button variant="ghost" size="sm" onClick={handleEdit(store)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -115,7 +116,8 @@ export default function Stores() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="text-center py-6 text-gray-500">
+                  {/* --- Updated colSpan from 2 to 3 --- */}
+                  <TableCell colSpan={3} className="text-center py-6 text-gray-500">
                     No stores found.
                   </TableCell>
                 </TableRow>
@@ -125,7 +127,6 @@ export default function Stores() {
         </div>
       )}
 
-      {/* Existing Modals */}
       <EditStoreModal
         store={selectedStore}
         isOpen={isEditModalOpen}
@@ -149,7 +150,6 @@ export default function Stores() {
         }}
       />
 
-      {/* New ViewStoreModal component */}
       <ViewStoreModal
         store={selectedStore}
         isOpen={isViewModalOpen}

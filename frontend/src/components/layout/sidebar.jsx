@@ -26,18 +26,18 @@ const navigationConfig = [
   // Re-added the Purchases link
   { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
-  { 
-    name: "Suppliers", 
-    href: "/suppliers", 
-    icon: Factory, 
+  {
+    name: "Suppliers",
+    href: "/suppliers",
+    icon: Factory,
     roles: ["merchant"]
   },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
-  { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
-  
+  // { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
+
 
   // NEW USER MANAGEMENT PAGES
   {
@@ -47,8 +47,9 @@ const navigationConfig = [
     roles: ["admin"], // ⭐ UPDATED: Visible to 'admin' role again ⭐
   },
   {
-    name: "Manage Users (Merchant)", // This is specifically for merchant to manage other merchants/super users if that ever becomes a thing
-    href: "/user-management/merchant", // ⭐ Updated path for consistency ⭐
+    name: "Manage Users (Merchant)",
+    // ⭐ FIX: Updated the href to match the route in App.jsx ⭐
+    href: "/merchant-user-management",
     icon: UserCog,
     roles: ["merchant"],
   },

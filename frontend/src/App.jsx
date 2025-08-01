@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useContext } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
 import { Menu, Bell } from "lucide-react";
@@ -301,6 +300,7 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
+      {/* --- The route below is correctly defined and should not be causing a 404. --- */}
       <Route path="/merchant-user-management">
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
       </Route>

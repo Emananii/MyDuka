@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime
+from functools import wraps
+from flask_jwt_extended import jwt_required
+from app.routes.auth_routes import role_required
 from app.models import db, Purchase, PurchaseItem, Supplier, Product, StoreProduct, Store
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
@@ -7,6 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 purchases_bp = Blueprint('purchases_bp', __name__)
 
 @purchases_bp.route("/purchases", methods=["GET"])
+# @jwt_required()
+# @role_required("merchant")
 def get_all_purchases():
     """
     Fetches all purchases with their related supplier information.
@@ -35,6 +40,8 @@ def get_all_purchases():
 
 
 @purchases_bp.route("/purchases/<int:id>", methods=["GET"])
+# @jwt_required()
+# @role_required("merchant")
 def get_purchase_by_id(id):
     """
     Fetches a single purchase with its detailed purchase items.
@@ -64,6 +71,8 @@ def get_purchase_by_id(id):
 
 
 @purchases_bp.route("/purchases", methods=["POST"])
+# @jwt_required()
+# @role_required("merchant")
 def create_purchase():
     """
     Creates a new purchase record and its associated purchase items, and updates
@@ -122,6 +131,8 @@ def create_purchase():
         return jsonify({"error": str(e)}), 500
 
 @purchases_bp.route("/purchases/<int:id>", methods=["PATCH"])
+# @jwt_required()
+# @role_required("merchant")
 def update_purchase(id):
     """
     Updates an existing purchase record, its items, and related inventory.
@@ -234,6 +245,8 @@ def update_purchase(id):
         return jsonify({"error": str(e)}), 500
 
 @purchases_bp.route("/purchases/<int:id>", methods=["DELETE"])
+# @jwt_required()
+# @role_required("merchant")
 def soft_delete_purchase(id):
     """
     Performs a soft delete on a purchase and its items, and reverts the inventory changes.
@@ -270,6 +283,8 @@ def soft_delete_purchase(id):
 
 
 @purchases_bp.route("/suppliers", methods=["GET"])
+# @jwt_required()
+# @role_required("merchant")
 def get_suppliers():
     """
     Fetches a list of all suppliers for the frontend's dropdowns.
@@ -279,6 +294,8 @@ def get_suppliers():
 
 
 @purchases_bp.route("/purchases/products", methods=["GET"])
+# @jwt_required()
+# @role_required("merchant")
 def get_products_for_purchase():
     """
     Fetches all products with their related store product data for purchase.
