@@ -78,9 +78,11 @@ def create_app():
     from app.routes.user_routes import users_api_bp
     from app.routes.supplier_routes import suppliers_bp
     from app.routes.supply_routes import supply_bp
+    from app.routes.merchant_routes import merchants_api_bp
+    from app.routes.clerk_routes import clerk_bp # Ensure this is also imported
 
-    # NEW: Import your merchant_dashboard blueprint
-    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
+    # NEW: Import your admin_routes blueprint
+    from app.routes.admin_routes import admin_api_bp # <--- ADD THIS
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
@@ -91,7 +93,9 @@ def create_app():
     app.register_blueprint(suppliers_bp)
     app.register_blueprint(supply_bp)
     app.register_blueprint(purchase_bp)
-    app.register_blueprint(merchant_dashboard_bp)
+    app.register_blueprint(merchants_api_bp)
+    app.register_blueprint(clerk_bp) # Ensure this is also registered
+    app.register_blueprint(admin_api_bp) # <--- ADD THIS
 
     # Environment-based CORS origins for better security
     ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
