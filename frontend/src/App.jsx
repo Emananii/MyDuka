@@ -63,7 +63,7 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
 import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 //import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
-//import ClerkDashboardPage from "@/pages/dashboard/clerk/dashboard";
+import ClerkDashboard from "@/pages/dashboard/clerk/dashboard";
 
 
 // --- Layout Component ---
@@ -221,12 +221,12 @@ function AppRoutes() {
       <Route path="/dashboard/admin">
         <ProtectedRoute component={AdminDashboardPage} allowedRoles={["admin"]} />
       </Route>
-      {/* <Route path="/dashboard/cashier">
+      {/* {/* <Route path="/dashboard/cashier">
         <ProtectedRoute component={CashierDashboardPage} allowedRoles={["cashier"]} />
-      </Route>
-      <Route path="/dashboard/clerk">
-        <ProtectedRoute component={ClerkDashboardPage} allowedRoles={["clerk"]} />
       </Route> */}
+      <Route path="/dashboard/clerk">
+        <ProtectedRoute component={ClerkDashboard} allowedRoles={["clerk"]} />
+      </Route>
       {/* END NEW: Role-specific Dashboard Routes */}
 
       {/* Cashier */}
@@ -251,14 +251,14 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
-      {/* --- START: Supply Request Pages --- */}
+      {/* --- Supply Request Pages --- */}
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
       <Route path="/supply-requests/admin">
          <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
       </Route>
-      {/* --- END: Supply Request Pages --- */}
+
 
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />

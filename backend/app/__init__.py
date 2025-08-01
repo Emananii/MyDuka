@@ -79,6 +79,7 @@ def create_app():
     from app.routes.supply_routes import supply_bp
     from app.routes.admin_dashboard import admin_dashboard_bp  # NEW: Import admin routes
     from app.routes.purchase_routes import purchases_bp  # Import purchase routes
+    from app.routes.clerk_dashboard import clerk_dashboard_bp  # Import clerk dashboard routes
 
     # NEW: Import your merchant_dashboard blueprint
     from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
@@ -94,6 +95,7 @@ def create_app():
     app.register_blueprint(merchant_dashboard_bp)
     app.register_blueprint(admin_dashboard_bp)
     app.register_blueprint(purchases_bp)
+    app.register_blueprint(clerk_dashboard_bp)  # Register clerk dashboard routes
 
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
 
