@@ -23,8 +23,11 @@ const navigationConfig = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
-  // Re-added the Purchases link
-  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
+  
+  // NEW: Separate purchases links for different roles
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant"] },
+  { name: "Purchases", href: "/purchases/admin", icon: ShoppingCart, roles: ["admin"] },
+
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
   {
     name: "Suppliers",
@@ -42,7 +45,7 @@ const navigationConfig = [
   // NEW USER MANAGEMENT PAGES
   {
     name: "Manage Users (Store)", // Re-added for Admin
-    href: "/user-management/store-admin", // ⭐ UPDATED: Point to the admin-specific user management page ⭐
+    href: "/store-admin-user-management", // ⭐ UPDATED: Point to the admin-specific user management page ⭐
     icon: UserRound,
     roles: ["admin"], // ⭐ UPDATED: Visible to 'admin' role again ⭐
   },

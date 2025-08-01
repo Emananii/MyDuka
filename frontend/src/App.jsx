@@ -24,6 +24,7 @@ import ProtectedRoute from "@/components/auth/protected-route";
 // Removed generic Dashboard import as we'll use role-specific ones
 // import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
+import AdminPurchases from "@/pages/admin-purchases"; // 👈 New import
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
 import Reports from "@/pages/reports";
@@ -265,11 +266,9 @@ function AppRoutes() {
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
-      {/* If you need a specific Purchase Details Page, you'd add:
-      <Route path="/purchases/:id">
-        <ProtectedRoute component={PurchaseDetailsPage} allowedRoles={["admin", "merchant"]} />
+      <Route path="/purchases/admin">
+        <ProtectedRoute component={AdminPurchases} allowedRoles={["admin"]} />
       </Route>
-      */}
 
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
@@ -303,6 +302,10 @@ function AppRoutes() {
       {/* --- The route below is correctly defined and should not be causing a 404. --- */}
       <Route path="/merchant-user-management">
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
+      </Route>
+      {/* Store Admin User Management */}
+      <Route path ="/store-admin-user-management">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
       </Route>
 
       {/* Fallback */}

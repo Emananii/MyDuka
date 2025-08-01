@@ -119,10 +119,6 @@ export default function EditPurchaseModal({ isOpen, onClose, purchase }) {
         title: "Purchase updated",
         description: `Purchase #${purchase.id} updated successfully`,
       });
-      setTimeout(() => {
-        window.location.href = "/purchases";
-      }, 1200);
-      onClose();
     },
     onError: (error) => {
       toast({
