@@ -61,7 +61,7 @@ import { UserProvider, UserContext } from "@/context/UserContext";
 
 // --- NEW: Import specific dashboard components for each role ---
 import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
-//import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
+import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 //import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
 //import ClerkDashboardPage from "@/pages/dashboard/clerk/dashboard";
 
@@ -218,9 +218,9 @@ function AppRoutes() {
       <Route path="/dashboard/merchant">
         <ProtectedRoute component={MerchantDashboardPage} allowedRoles={["merchant"]} />
       </Route>
-      {/* <Route path="/dashboard/admin">
+      <Route path="/dashboard/admin">
         <ProtectedRoute component={AdminDashboardPage} allowedRoles={["admin"]} />
-      </Route> */}
+      </Route>
       {/* <Route path="/dashboard/cashier">
         <ProtectedRoute component={CashierDashboardPage} allowedRoles={["cashier"]} />
       </Route>
