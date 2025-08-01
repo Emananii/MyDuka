@@ -4,7 +4,8 @@ from flask import Blueprint, request, jsonify, abort
 from app import db
 from app.models import User, Store
 from http import HTTPStatus
-from app.routes.user_routes import hash_password, serialize_user # Import shared utilities
+# Removed: from app.routes.user_routes import hash_password # No longer needed, User model handles hashing
+from app.routes.user_routes import serialize_user # Keep serialize_user
 
 merchants_api_bp = Blueprint("merchants_api", __name__, url_prefix="/api/merchants")
 
@@ -30,7 +31,8 @@ def get_merchants():
     merchant_data = [serialize_user(merchant) for merchant in merchants]
     return jsonify(merchant_data), HTTPStatus.OK
 
-@merchants_api_bp.route("/", methods=["POST"])
+@merchants_api_bp.route("", methods=["POST"]) # Handles /api/merchants
+@merchants_api_bp.route("/", methods=["POST"]) # Handles /api/merchants/
 def create_merchant():
     """
     Creates a new merchant user account.
@@ -79,13 +81,12 @@ def create_merchant():
     if User.query.filter_by(email=email).first():
         abort(HTTPStatus.CONFLICT, description="Email already exists.")
 
-    # Hash the password using the shared utility
-    hashed_password = hash_password(password)
-
+    # Pass the plain text password directly to the 'password' property of the User model.
+    # The User model's setter method (if correctly implemented) will handle hashing.
     new_merchant = User(
         name=name,
         email=email,
-        password_hash=hashed_password,
+        password=password, # Pass the plain text password here
         role="merchant", # Explicitly set role to merchant
         store_id=store_id, # Optional
         is_active=True # Merchants are typically active upon creation
