@@ -20,12 +20,17 @@ import { Loader2 } from "lucide-react";
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
+
   // ⭐️ UPDATED: Added 'clerk' to the roles list for the Dashboard link
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "clerk"] },
 
   // NEW: Add a specific inventory link for the admin role
   { name: "Admin Inventory", href: "/inventory/admin", icon: Package, roles: ["admin"] },
   { name: "Merchant Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+
+
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
+  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
 
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
 

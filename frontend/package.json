@@ -18,6 +18,7 @@
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tailwindcss/typography": "^0.5.16",
@@ -27,11 +28,17 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "date-range-picker": "^0.3.5",
+    "lucide": "^0.534.0",
     "lucide-react": "^0.525.0",
     "prop-types": "^15.8.1",
+
     "react": "^19.1.0",
+
+    "reac": "^0.0.0",
+    "react": "^19.1.1",
+
     "react-day-picker": "^9.8.0",
-    "react-dom": "^19.1.0",
+    "react-dom": "^19.1.1",
     "react-hook-form": "^7.59.0",
     "react-router-dom": "^7.7.0",
     "react-to-print": "^3.1.0",

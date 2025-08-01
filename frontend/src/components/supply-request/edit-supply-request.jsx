@@ -293,4 +293,8 @@ EditSupplyRequest.propTypes = {
   onClose: PropTypes.func.isRequired,
   request: PropTypes.object,
   onUpdated: PropTypes.func,
+
 };
+
+};
+

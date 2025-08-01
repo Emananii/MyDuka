@@ -1,5 +1,10 @@
+
 import React, { useState, useContext } from "react";
 import { Route, Switch, Router, useLocation, Link } from "wouter";
+
+import React, { useState, useContext, useEffect } from "react";
+import { Route, Switch, Router, useLocation, Link, Redirect } from "wouter";
+
 import { Menu, Bell } from "lucide-react";
 
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,14 +16,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
+
 //import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
+
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Auth
 import Login from "@/components/auth/login-form";
-import Register from "@/components/auth/register-form";
+//import Register from "@/components/auth/register-form";
 import ProtectedRoute from "@/components/auth/protected-route";
+
+// Admin Registration for Invitations
+import AdminRegistrationPage from "@/components/user-management/admin-registration-page";
 
 // Pages
 // Removed generic Dashboard import as we'll use role-specific ones
@@ -45,11 +55,16 @@ import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
+
 // --- START: Supply Request Specific Pages ---
+
+// Supply Request Specific Pages
+
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
-// --- END: Supply Request Specific Pages ---
 
+// Landing pages
+import LandingPage from "@/pages/landingpage";
 import NotFound from "@/pages/not-found";
 
 import POSInterfacePage from "@/pages/POS-interface";
@@ -59,6 +74,7 @@ import MerchantUserManagement from "./pages/user-management/merchant-user-manage
 
 import { UserProvider, UserContext } from "@/context/UserContext";
 
+
 // --- NEW: Import specific dashboard components for each role ---
 import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
 import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
@@ -66,12 +82,45 @@ import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
 import ClerkDashboard from "@/pages/dashboard/clerk/dashboard";
 
 
+// Root Route Component - handles initial routing logic
+function RootRoute() {
+  const { user, isLoading } = useContext(UserContext);
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        // User is authenticated, redirect to dashboard
+        navigate('/dashboard', { replace: true });
+      } else {
+        // User is not authenticated, redirect to landing page
+        navigate('/landing', { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate]);
+
+  // Show loading while determining auth status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+
 // --- Layout Component ---
 function MainLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false); // Preserving user's dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout } = useContext(UserContext);
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   const profilePathMap = {
     admin: "/admin-profile",
@@ -104,13 +153,13 @@ function MainLayout({ children }) {
               <h2 className="text-2xl font-semibold text-gray-800">MyDuka</h2>
             </div>
 
-            <div className="relative flex items-center space-x-4"> {/* Added relative for dropdown positioning */}
+            <div className="relative flex items-center space-x-4">
               <Button variant="ghost" size="sm">
                 <Bell className="h-5 w-5" />
               </Button>
 
               {user && profilePath ? (
-                <div className="relative"> {/* Outer div for dropdown positioning */}
+                <div className="relative">
                   <div onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <Avatar className="cursor-pointer">
                       <AvatarImage
@@ -162,6 +211,7 @@ function MainLayout({ children }) {
   );
 }
 
+
 // --- Auth Routes ---
 function AuthRoutes() {
   return (
@@ -182,6 +232,7 @@ function AuthRoutes() {
       </Route>
 
       {/* 🔁 Fallback login */}
+
       <Route path="/login">
           <Login />
       </Route>
@@ -195,11 +246,16 @@ function AuthRoutes() {
           <AppRoutes />
         </MainLayout>
       </Route>
+
+      {/* 🌐 Public landing page - move this BELOW the main layout */}
+      <Route path="/" component={Dashboard} />
     </Switch>
   );
 }
 
-// --- Application Routes ---
+
+
+// --- Application Routes (Protected/Authenticated Routes) ---
 function AppRoutes() {
   const { logout } = useContext(UserContext);
   const [, navigate] = useLocation();
@@ -211,6 +267,7 @@ function AppRoutes() {
 
   return (
     <Switch>
+
       {/* Removed the universal "/" route for dashboard */}
       {/* <Route path="/" component={Dashboard} /> */}
 
@@ -229,7 +286,13 @@ function AppRoutes() {
       </Route>
       {/* END NEW: Role-specific Dashboard Routes */}
 
-      {/* Cashier */}
+      {/* Dashboard - Default authenticated route */}
+      <Route path="/dashboard">
+        <ProtectedRoute component={Dashboard} allowedRoles={["admin", "merchant", "clerk", "cashier"]} />
+      </Route>
+
+
+      {/* Cashier Routes */}
       <Route path="/pos">
         <ProtectedRoute component={POSInterfacePage} allowedRoles={["cashier", "admin"]} />
       </Route>
@@ -238,6 +301,14 @@ function AppRoutes() {
       </Route>
       <Route path="/cashier-profile">
         <ProtectedRoute component={() => <CashierProfile onLogout={handleLogout} />} allowedRoles={["cashier"]} />
+      </Route>
+
+      {/* User Management Routes */}
+      <Route path="/store-admin-user-management">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/merchant-user-management">
+        <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
       </Route>
 
       {/* Inventory Routes */}
@@ -251,7 +322,11 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
+
       {/* --- Supply Request Pages --- */}
+
+      {/* Supply Request Routes */}
+
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
@@ -260,15 +335,18 @@ function AppRoutes() {
       </Route>
 
 
+      {/* Other Business Routes */}
       <Route path="/categories">
         <ProtectedRoute component={Categories} allowedRoles={["admin", "merchant"]} />
       </Route>
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
+
       <Route path="/purchases/admin">
         <ProtectedRoute component={AdminPurchases} allowedRoles={["admin"]} />
       </Route>
+
 
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
@@ -289,7 +367,11 @@ function AppRoutes() {
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
 
+
       {/* Merchant */}
+
+      {/* Merchant Routes */}
+
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -299,6 +381,7 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
+
       {/* --- The route below is correctly defined and should not be causing a 404. --- */}
       <Route path="/merchant-user-management">
         <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
@@ -308,20 +391,148 @@ function AppRoutes() {
         <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
       </Route>
 
-      {/* Fallback */}
+
+      {/* 404 Not Found - This should be last */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// --- Main App ---
+// --- Main App with Fixed Route Order ---
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <UserProvider>
           <Router>
-            <AuthRoutes />
+            <Switch>
+              {/* 🏠 ROOT ROUTE - Handle initial routing logic */}
+              <Route path="/" exact>
+                <RootRoute />
+              </Route>
+
+              {/* 🌐 PUBLIC ROUTES - Exact matches, highest priority */}
+              <Route path="/landing" exact>
+                <LandingPage />
+              </Route>
+              
+              <Route path="/login" exact>
+                <Login />
+              </Route>
+              
+              
+
+              <Route path="/admin-registration" exact>
+                <AdminRegistrationPage />
+              </Route>
+
+              {/* 🔐 PROTECTED ROUTES - More specific pattern matching */}
+              <Route path="/dashboard" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/pos" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/sales" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/inventory" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/supply-requests" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/store-admin-user-management" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/merchant-user-management" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/categories" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/purchases" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/stock-transfers" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/suppliers" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/reports" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/stores" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              {/* Profile routes */}
+              <Route path="/admin-profile" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/merchant-profile" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/clerks-profile" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              <Route path="/cashier-profile" nest>
+                <MainLayout>
+                  <AppRoutes />
+                </MainLayout>
+              </Route>
+
+              {/* 404 - This should be the very last route */}
+              <Route component={NotFound} />
+            </Switch>
             <Toaster />
           </Router>
         </UserProvider>

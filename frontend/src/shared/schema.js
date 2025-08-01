@@ -47,6 +47,19 @@ export const userSchema = baseModelSchema.extend({
   created_by: z.number().int().positive().nullable(),
 });
 
+// --- Invitation Token Schema ---
+export const invitationTokenSchema = baseModelSchema.extend({
+  token: z.string(),
+  email: z.string().email(),
+  role: z.literal("admin"), // Only admins are invited
+  store_id: z.number().int().positive().nullable(),
+  user_id: z.number().int().positive(), // Who sent the invitation
+  expires_at: dateStringTransform,
+  is_used: z.boolean(),
+  store: storeSchema.pick({ id: true, name: true }).optional(),
+  invited_by: userSchema.pick({ id: true, name: true, email: true }).optional(),
+});
+
 export const categorySchema = baseModelSchema.extend({
   name: z.string(),
   description: z.string().nullable(),
@@ -158,19 +171,71 @@ export const saleDetailsSchema = baseModelSchema.extend({
   sale_items: z.array(saleItemFetchedSchema).min(1),
 });
 
+// --- User Management Schemas ---
 
+// Updated insertUserSchema - Removed 'admin' role for direct creation
 export const insertUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   password: z.string().min(8, "Password must be at least 8 characters.").optional(),
-  role: userRoleEnum,
+  role: z.enum(['merchant', 'clerk', 'cashier']), // Admin removed - use invitation system
   is_active: z.boolean().default(true),
   store_id: z.coerce.number().int().positive("Store ID is required for non-merchant roles.").nullable(),
   created_by: z.coerce.number().int().positive("Creator ID is required.").nullable(),
 });
+
 export const editUserSchema = insertUserSchema.extend({
     password: z.string().min(8, "Password must be at least 8 characters.").or(z.literal("")).optional(),
+    role: userRoleEnum, // Allow editing to admin role for existing users
 });
+
+// --- Invitation System Schemas ---
+
+// Schema for inviting an admin
+export const inviteAdminSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  role: z.literal("admin"), // Always admin for invitations
+  store_id: z.coerce.number().int().positive("Store selection is required"),
+});
+
+// Schema for admin registration via invitation token
+export const adminRegistrationSchema = z.object({
+  token: z.string().min(1, "Invalid invitation token"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+    ),
+  confirm_password: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ["confirm_password"],
+});
+
+// Schema for token validation (used in invitation link validation)
+export const tokenValidationSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+});
+
+// Schema for canceling an invitation
+export const cancelInvitationSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+});
+
+// Schema for pending invitations list
+export const pendingInvitationListSchema = z.array(invitationTokenSchema);
+
+// --- Store Management Schemas ---
 
 export const insertStoreSchema = z.object({
   name: z.string().min(2, "Store name must be at least 2 characters."),
