@@ -1,4 +1,3 @@
-// src/context/UserContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient"; // Your API request utility
 import { BASE_URL } from "@/lib/constants"; // Your base URL constant
@@ -13,15 +12,25 @@ export function UserProvider({ children }) {
 
   // Function to fetch and set user data
   const fetchUser = useCallback(async () => {
+    // --- FIX: Check for token before making API call ---
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      console.log("No token found. User is not authenticated.");
+      setUser(null);
+      setIsLoading(false);
+      return; // Exit early if no token exists
+    }
+
     setIsLoading(true); // Set loading true at the start of fetch
     try {
-      // Corrected the API endpoint for /me to include the blueprint's URL prefix
+      // The apiRequest function should automatically add the token to the headers
       const res = await apiRequest("GET", `${BASE_URL}/api/auth/me`);
       const validatedUser = userSchema.parse(res); // Validate user data with Zod
       setUser(validatedUser);
     } catch (error) {
       console.error("Failed to fetch user session:", error);
       setUser(null); // Clear user if session is invalid or not found
+      localStorage.removeItem('jwt_token'); // Also remove invalid token
     } finally {
       setIsLoading(false); // Set loading false after fetch completes (success or failure)
     }
@@ -48,7 +57,7 @@ export function UserProvider({ children }) {
       const validatedUser = userSchema.parse(res.user);
       setUser(validatedUser);
 
-      return res; // Return the response for the calling component (e.g., login form)
+      return validatedUser; // Return the validated user object
     } catch (error) {
       console.error("Login failed:", error);
       setUser(null); // Clear user if login fails
@@ -57,12 +66,13 @@ export function UserProvider({ children }) {
     } finally {
       setIsLoading(false); // Ensure loading is set to false
     }
-  }, []); // apiRequest, BASE_URL, userSchema are typically stable, or add if they change
+  }, []); 
 
   // Logout function: Clears user state and JWT
   const logout = useCallback(async () => {
     try {
       // Assuming your backend has a logout endpoint that clears server-side session/token
+      // The apiRequest should not require a token for this endpoint, or we'll need to remove it manually.
       await apiRequest("POST", `${BASE_URL}/api/auth/logout`);
     } catch (error) {
       console.error("Logout failed on server:", error);
@@ -81,7 +91,6 @@ export function UserProvider({ children }) {
     logout,
     fetchUser // Expose fetchUser if components might need to manually refresh user data
   }), [user, isLoading, login, logout, fetchUser]);
-
 
   return (
     <UserContext.Provider value={contextValue}>
