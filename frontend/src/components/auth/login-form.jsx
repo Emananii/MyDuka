@@ -1,10 +1,8 @@
-// Login.jsx
 import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useUser } from "@/context/UserContext"; 
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";   
-// Removed Card, CardContent, CardHeader, CardTitle imports as we're using divs now
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,9 +11,12 @@ const Login = () => {
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // useLocation is a hook from 'wouter' that returns a tuple:
+  // a getter for the current path, and a setter for navigation.
   const [, navigate] = useLocation();
   const { login } = useUser();
 
+  // This is the core logic that has been updated.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -23,14 +24,46 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      // The `login` function is expected to return the user object
+      // from the API response on success.
+      const user = await login(email, password);
+
       setSuccess("Login successful!");
-      navigate("/"); // Navigate to dashboard or home page after successful login
+
+      // --- NEW LOGIC: Redirect based on user role ---
+      // We use a switch statement to handle different roles.
+      // This is a clean way to manage multiple redirection paths.
+      let dashboardPath = '/dashboard'; // Default path in case of an unknown role
+
+      switch (user.role) {
+        case 'merchant':
+          dashboardPath = '/dashboard/merchant';
+          break;
+        case 'admin':
+          dashboardPath = '/dashboard/admin';
+          break;
+        case 'clerk':
+          dashboardPath = '/dashboard/clerk';
+          break;
+        case 'cashier':
+          // Redirect the cashier to the POS page
+          dashboardPath = '/pos';
+          break;
+        default:
+          // You can handle other roles here or just use the default path
+          console.warn(`Unknown user role: ${user.role}. Redirecting to default dashboard.`);
+          break;
+      }
+      
+      // Navigate to the determined dashboard path.
+      navigate(dashboardPath);
+
     } catch (err) {
       console.error("Login failed:", err); 
       let displayErrorMessage = "Login failed. Please check your credentials.";
 
       if (err.message) {
+        // Attempt to extract a more user-friendly message from the error
         const parts = err.message.split(': ', 2); 
         if (parts.length > 1) {
           displayErrorMessage = parts[1];
@@ -47,10 +80,7 @@ const Login = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-indigo-100 font-sans">
-      {/* Main container for the form, replacing the Card component */}
       <div className="w-full max-w-xl bg-white bg-opacity-90 backdrop-blur-sm rounded-xl shadow-md overflow-hidden"> 
-        
-        {/* Header section, replacing CardHeader */}
         <div className="bg-indigo-600 p-8 text-white text-center">
           <h1 className="text-4xl font-extrabold tracking-tight">
             MyDuka
@@ -58,7 +88,6 @@ const Login = () => {
           <p className="text-indigo-200 text-lg mt-2">Inventory & Sales Management</p>
         </div>
 
-        {/* Content section, replacing CardContent */}
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-800 text-center">Welcome Back!</h2>

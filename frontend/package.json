@@ -31,13 +31,18 @@
     "lucide": "^0.534.0",
     "lucide-react": "^0.525.0",
     "prop-types": "^15.8.1",
+
+    "react": "^19.1.0",
+
     "reac": "^0.0.0",
     "react": "^19.1.1",
+
     "react-day-picker": "^9.8.0",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.59.0",
     "react-router-dom": "^7.7.0",
     "react-to-print": "^3.1.0",
+    "recharts": "^3.1.0",
     "tailwind-merge": "^3.3.1",
     "tanstack": "^1.0.0",
     "wouter": "^3.7.1",

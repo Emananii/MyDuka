@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { BASE_URL } from "@/lib/constants";
+import { useEffect } from "react"; // Imported useEffect
 
 export default function EditStoreModal({ store, isOpen, onClose }) {
   const { toast } = useToast();
@@ -36,9 +37,23 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
     },
   });
 
+  // NEW: Add a useEffect to reset the form when the 'store' prop changes.
+  // This ensures the form is always populated with the latest data.
+  useEffect(() => {
+    if (store) {
+      form.reset({
+        name: store.name || "",
+        address: store.address || "",
+        contact_person: store.contact_person || "",
+        phone: store.phone || "",
+        notes: store.notes || "",
+      });
+    }
+  }, [store, form]);
+
   const mutation = useMutation({
     mutationFn: (data) =>
-      apiRequest("PUT", `${BASE_URL}/store/locations/${store.id}`, data),
+      apiRequest("PATCH", `${BASE_URL}/api/store/${store.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries(["store_locations"]);
       toast({ title: "Success", description: "Store updated successfully" });
@@ -63,16 +78,18 @@ export default function EditStoreModal({ store, isOpen, onClose }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(mutation.mutate)} className="space-y-4">
-            {["name", "address", "contact_person", "phone", "notes"].map((field) => (
+            {["name", "address", "contact_person", "phone", "notes"].map((fieldName) => (
               <FormField
-                key={field}
+                key={fieldName}
                 control={form.control}
-                name={field}
+                name={fieldName}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="capitalize">{field.replace("_", " ")}</FormLabel>
+                    {/* The fix is here: we access field.name, which is a string */}
+                    <FormLabel className="capitalize">{field.name.replace("_", " ")}</FormLabel>
                     <FormControl>
-                      <Input placeholder={`Enter ${field.replace("_", " ")}`} {...field} />
+                      {/* The placeholder was also corrected to use field.name */}
+                      <Input placeholder={`Enter ${field.name.replace("_", " ")}`} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

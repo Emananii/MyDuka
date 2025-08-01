@@ -255,4 +255,8 @@ ApproveSupplyRequest.propTypes = {
   request: PropTypes.object.isRequired,
   // onSuccess is removed from propTypes as it's not directly used in this version
   // but the query invalidation handles the refresh.
+
 };
+
+};
+

@@ -8,7 +8,7 @@ import { BASE_URL } from "@/lib/constants";
 import {
   posProductListSchema,
   insertSaleSchema,
-  saleDetailsSchema, // Make sure this is imported
+  saleDetailsSchema,
 } from "@/shared/schema";
 
 // Re-import Link and Home icon
@@ -35,6 +35,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
+const API_PREFIX = "/api/inventory";
+const STORE_API_PREFIX = "/api/store";
+
 // --- Custom Hook for Debouncing ---
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -57,7 +60,8 @@ export default function POSInterfacePage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSaleDetails, setLastSaleDetails] = useState(null);
 
-  const [selectedStoreId, setSelectedStoreId] = useState(1); // Default to store 1
+  // Default to store 1, but handle invalid input gracefully
+  const [selectedStoreId, setSelectedStoreId] = useState(1);
 
   const [sortOrder, setSortOrder] = useState("asc");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -68,44 +72,99 @@ export default function POSInterfacePage() {
 
   // --- Tanstack Query: Fetch Categories ---
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', API_PREFIX],
     queryFn: async () => {
-      const res = await apiRequest("GET", `${BASE_URL}/api/inventory/categories`);
-      return res;
+      try {
+        const data = await apiRequest("GET", `${BASE_URL}${API_PREFIX}/categories`);
+        // Ensure the data is always an array of categories
+        return Array.isArray(data) ? data : data.categories || [];
+      } catch (error) {
+        throw new Error(error.message || "Failed to fetch categories");
+      }
     },
     staleTime: Infinity,
+    cacheTime: Infinity,
   });
 
-  // --- Tanstack Query: Fetch Products for the Selected Store ---
+  // --- Tanstack Query: Fetch Stores ---
+  const { data: stores = [] } = useQuery({
+    queryKey: ["stores", STORE_API_PREFIX],
+    queryFn: async () => {
+      try {
+        const data = await apiRequest("GET", `${BASE_URL}${STORE_API_PREFIX}/`);
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        throw new Error(error.message || "Failed to fetch stores");
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+  });
+
+  // --- Tanstack Query: Fetch Products for the Selected Store (Updated Logic) ---
   const {
-    data: productsData,
+    data: productsData = [],
     isLoading: isLoadingProducts,
     isError: isErrorProducts,
     error: productsError,
   } = useQuery({
     queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm, sortOrder, selectedCategory],
-    queryFn: async () => {
-      if (!selectedStoreId) {
+    queryFn: async ({ queryKey }) => {
+      const [_key, currentStoreId, currentSearchTerm, currentSortOrder, currentCategory] = queryKey;
+      
+      console.log('Fetching products with:', {
+        currentStoreId,
+        currentSearchTerm,
+        currentSortOrder,
+        currentCategory,
+      });
+
+      if (!currentStoreId || currentStoreId <= 0) {
         return [];
       }
-      const url = new URL(`${BASE_URL}/api/inventory/stock/${selectedStoreId}`);
-      if (debouncedSearchTerm) {
-        url.searchParams.append('search', debouncedSearchTerm);
+
+      try {
+        // Build the URL with parameters similar to inventory page
+        const params = new URLSearchParams();
+        if (currentSearchTerm) {
+          params.append('search', currentSearchTerm);
+        }
+        if (currentCategory && currentCategory !== 'all') {
+          params.append('category_id', currentCategory);
+        }
+        if (currentSortOrder) {
+          params.append('sort_order', currentSortOrder);
+        }
+
+        const storeProductsUrl = `${BASE_URL}${API_PREFIX}/stock/${currentStoreId}?${params.toString()}`;
+        console.log('Fetching from URL:', storeProductsUrl);
+        
+        const storeProducts = await apiRequest("GET", storeProductsUrl);
+        const products = Array.isArray(storeProducts) ? storeProducts : [];
+        
+        console.log('Received products:', products);
+        
+        // Transform the data to match what your POS components expect
+        return products.map(item => ({
+          ...item,
+          // Ensure consistent naming for POS components
+          product_name: item.product_name || item.name,
+          // Add any other transformations needed
+        }));
+        
+      } catch (error) {
+        console.error("Failed to fetch products for store:", error);
+        throw new Error(error.message || "Failed to fetch products");
       }
-      if (sortOrder) {
-        url.searchParams.append('sort_order', sortOrder);
-      }
-      if (selectedCategory && selectedCategory !== 'all') {
-        url.searchParams.append('category_id', selectedCategory);
-      }
-      const res = await apiRequest("GET", url.toString());
-      return posProductListSchema.parse(res);
     },
-    enabled: !!selectedStoreId,
-    staleTime: 60 * 1000,
+    // The query is only enabled if the selectedStoreId is a number greater than 0
+    enabled: selectedStoreId > 0 && stores.length > 0,
+    // Set staleTime for better performance
+    staleTime: 30 * 1000, // 30 seconds
+    cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Ensure 'products' is always an array, even when productsData is undefined
+  // Ensure 'products' is always an array
   const products = productsData || [];
 
   // --- Tanstack Query: Create Sale Mutation ---
@@ -113,12 +172,12 @@ export default function POSInterfacePage() {
     mutationFn: (saleData) => apiRequest("POST", `${BASE_URL}/sales`, saleData),
     onSuccess: async (data) => {
       // Invalidate relevant queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['sales'] }); // Invalidate general sales list
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
       // Invalidate products in stock for the current store to reflect quantity changes
-      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId, debouncedSearchTerm, sortOrder, selectedCategory] });
+      queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId] });
 
       const createdSaleId = data.sale_id;
-      const saleTotal = parseFloat(data.total); // Ensure total is a number
+      const saleTotal = parseFloat(data.total);
 
       const nowIsoString = new Date().toISOString();
 
@@ -128,20 +187,19 @@ export default function POSInterfacePage() {
 
         // Define a function to validate and format dates
         const getValidDatetimeString = (dateInput) => {
-          if (!dateInput) return nowIsoString; // If null/undefined, use current time
+          if (!dateInput) return nowIsoString;
           try {
             const date = new Date(dateInput);
-            if (!isNaN(date.getTime())) { // Check if date is valid
+            if (!isNaN(date.getTime())) {
               return date.toISOString();
             }
           } catch (e) {
             // Ignore parsing errors, fall through to default
           }
-          return nowIsoString; // If invalid or error, use current time
+          return nowIsoString;
         };
 
         // Default/placeholder values for nested objects if product details are not found
-        // These base objects include all fields from baseModelSchema and specific schema
         const defaultProductBase = {
           id: 0, name: 'Unknown Product', sku: 'N/A', unit: 'N/A',
           description: null, category_id: null, image_url: null,
@@ -155,19 +213,18 @@ export default function POSInterfacePage() {
           is_deleted: false, created_at: nowIsoString, updated_at: nowIsoString,
         };
 
-
         // Construct the nested product object for store_product.product
         const productForStoreProduct = fullProductDetails ? {
           id: fullProductDetails.product_id,
           name: fullProductDetails.product_name,
           sku: fullProductDetails.sku || null,
           unit: fullProductDetails.unit,
-          description: null, // Assuming this is not in posProductDisplaySchema
-          category_id: null, // Assuming this is not in posProductDisplaySchema
+          description: null,
+          category_id: null,
           image_url: fullProductDetails.image_url || null,
           is_deleted: false,
-          created_at: getValidDatetimeString(fullProductDetails.created_at), // Use helper
-          updated_at: getValidDatetimeString(fullProductDetails.updated_at), // Use helper
+          created_at: getValidDatetimeString(fullProductDetails.created_at),
+          updated_at: getValidDatetimeString(fullProductDetails.updated_at),
         } : defaultProductBase;
 
         // Construct the full store_product object
@@ -176,18 +233,18 @@ export default function POSInterfacePage() {
           store_id: fullProductDetails.store_id || selectedStoreId,
           product_id: fullProductDetails.product_id,
           quantity_in_stock: fullProductDetails.quantity_in_stock,
-          quantity_spoilt: 0, // Assuming new sales don't immediately affect spoilt quantity
+          quantity_spoilt: 0,
           low_stock_threshold: fullProductDetails.low_stock_threshold,
-          price: fullProductDetails.price, // Use price from fetched stock list
-          last_updated: getValidDatetimeString(fullProductDetails.last_updated), // Use helper
+          price: fullProductDetails.price,
+          last_updated: getValidDatetimeString(fullProductDetails.last_updated),
           is_deleted: false,
-          created_at: getValidDatetimeString(fullProductDetails.created_at), // Use helper
-          updated_at: getValidDatetimeString(fullProductDetails.updated_at), // Use helper
-          product: productForStoreProduct, // Nested product object
-        } : { ...defaultStoreProductBase, product: productForStoreProduct }; // Ensure product is nested for default
+          created_at: getValidDatetimeString(fullProductDetails.created_at),
+          updated_at: getValidDatetimeString(fullProductDetails.updated_at),
+          product: productForStoreProduct,
+        } : { ...defaultStoreProductBase, product: productForStoreProduct };
 
         return {
-          id: index + 1, // Temporary ID for the sale item
+          id: index + 1,
           sale_id: createdSaleId,
           store_product_id: cartItem.store_product_id,
           quantity: cartItem.quantity,
@@ -195,23 +252,20 @@ export default function POSInterfacePage() {
           is_deleted: false,
           created_at: nowIsoString,
           updated_at: nowIsoString,
-          store_product: storeProductForSaleItem, // FULLY NESTED store_product
+          store_product: storeProductForSaleItem,
         };
       });
 
       const detailsForModal = {
         id: createdSaleId,
         total: saleTotal,
-        // --- FIXED: Add top-level store_id and cashier_id ---
         store_id: selectedStoreId,
-        cashier_id: 1, // Placeholder: Replace with actual logged-in cashier ID
-        // --- END FIXED ---
+        cashier_id: 1,
         sale_items: mappedSaleItemsForModal,
-        payment_status: 'paid', // Assuming 'paid' on successful creation
+        payment_status: 'paid',
         is_deleted: false,
         created_at: nowIsoString,
         updated_at: nowIsoString,
-        // These can be replaced with actual user/store data if available from auth context
         cashier: {
           id: 1, name: 'POS Cashier', email: 'cashier@example.com', role: 'cashier',
           is_active: true, created_by: null, store_id: selectedStoreId,
@@ -224,7 +278,6 @@ export default function POSInterfacePage() {
       };
 
       try {
-        // Validate the constructed object against the schema
         saleDetailsSchema.parse(detailsForModal);
         setLastSaleDetails(detailsForModal);
         setShowSuccessModal(true);
@@ -236,10 +289,8 @@ export default function POSInterfacePage() {
         });
       } catch (validationError) {
         console.error("Error constructing or parsing sale details for modal:", validationError);
-        // Fallback for modal display if local validation fails
         setLastSaleDetails({
           id: createdSaleId, total: saleTotal, sale_items: [], payment_status: 'paid',
-          // Ensure these are present even in fallback for minimal schema adherence
           created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
           store_id: selectedStoreId, cashier_id: 1,
           cashier: { name: 'Unknown', id: 0, email: 'unknown@example.com', role: 'cashier', is_active: true, created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false },
@@ -254,7 +305,7 @@ export default function POSInterfacePage() {
           duration: 5000,
         });
       }
-    }, // --- END: Frontend reconstruction of saleDetails ---
+    },
     onError: (error) => {
       console.error("Sale creation error:", error);
       let errorMessage = "Failed to complete sale. Please try again.";
@@ -337,9 +388,9 @@ export default function POSInterfacePage() {
   // --- Sale Processing Function ---
   const handleProcessSale = useCallback(() => {
     const currentStoreId = selectedStoreId;
-    const currentCashierId = 1; // Placeholder: Replace with actual logged-in cashier ID
+    const currentCashierId = 1;
 
-    if (!currentStoreId) {
+    if (!currentStoreId || currentStoreId <= 0) {
       toast({
         title: "Store Not Selected",
         description: "Please enter a valid Store ID to process sales.",
@@ -365,11 +416,11 @@ export default function POSInterfacePage() {
     const salePayload = {
       store_id: currentStoreId,
       cashier_id: currentCashierId,
-      payment_status: 'paid', // Assuming all POS sales are marked as 'paid' immediately
+      payment_status: 'paid',
       sale_items: saleItemsPayload,
     };
     try {
-      insertSaleSchema.parse(salePayload); // Validate payload before sending
+      insertSaleSchema.parse(salePayload);
       createSaleMutation.mutate(salePayload);
     } catch (validationError) {
       console.error("Sale payload validation error:", validationError);
@@ -401,25 +452,42 @@ export default function POSInterfacePage() {
     setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc');
   };
 
+  // Display error message if products failed to load
+  useEffect(() => {
+    if (isErrorProducts) {
+      toast({
+        title: "Error loading products",
+        description: productsError?.message || "Could not load products for the selected store.",
+        variant: "destructive",
+      });
+    }
+  }, [isErrorProducts, productsError, toast]);
+
   return (
     <div className="pos-interface-container flex h-screen overflow-hidden bg-gray-100">
       {/* Left Panel: Cart and Checkout Summary */}
       <div className="flex flex-col w-full md:w-2/5 p-4 bg-gray-50 border-r border-gray-200">
         <div className="mb-4">
           <Label htmlFor="store-id-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Selected Store ID (for demo)
+            Selected Store
           </Label>
-          <Input
-            id="store-id-select"
-            type="number"
-            value={selectedStoreId}
-            onChange={(e) => setSelectedStoreId(parseInt(e.target.value) || 0)}
-            placeholder="Enter Store ID"
-            className="w-full"
-            min="1"
-          />
-          {!selectedStoreId && (
-            <p className="text-red-500 text-xs mt-1">Please enter a valid Store ID to see products.</p>
+          <Select 
+            value={selectedStoreId.toString()} 
+            onValueChange={(value) => setSelectedStoreId(parseInt(value, 10))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a store" />
+            </SelectTrigger>
+            <SelectContent>
+              {stores.map((store) => (
+                <SelectItem key={store.id} value={store.id.toString()}>
+                  {store.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(!selectedStoreId || selectedStoreId === 0) && (
+            <p className="text-red-500 text-xs mt-1">Please select a store to see products.</p>
           )}
         </div>
         <div className="flex-grow overflow-y-auto pr-2">
@@ -444,7 +512,7 @@ export default function POSInterfacePage() {
         <div className="flex-shrink-0">
           {/* Top row with Home button and reduced margin */}
           <div className="flex justify-end mb-2">
-            <Link href="/">
+            <Link href="/sales/cashier">
               <a className="flex items-center justify-center h-10 w-10 rounded-full shadow-md bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
                 <Home className="h-5 w-5" />
               </a>

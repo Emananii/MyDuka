@@ -236,4 +236,8 @@ AddSupplyRequest.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onCreated: PropTypes.func,
+
 };
+
+};
+

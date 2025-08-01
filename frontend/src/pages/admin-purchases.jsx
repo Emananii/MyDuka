@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import AddPurchaseModal from "@/components/purchases/add-purchase-modal";
 import ViewPurchaseModal from "@/components/purchases/view-purchase-modal";
 import PrintPurchaseModal from "@/components/purchases/print-purchase-modal";
 import { BASE_URL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
+import { useUser } from "@/context/UserContext";
 
-export default function Purchases() {
+export default function AdminPurchases() {
+  const { user: currentUser, isLoading: isLoadingUser } = useUser();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingPurchase, setViewingPurchase] = useState(null);
   const [viewingLoading, setViewingLoading] = useState(false);
@@ -30,10 +32,12 @@ export default function Purchases() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
-  const [selectedStoreId, setSelectedStoreId] = useState(""); // New state for store filter
 
   const { toast } = useToast();
   const printRef = useRef();
+
+  // Get the store ID for the logged-in admin
+  const adminStoreId = currentUser?.store_id;
 
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
@@ -41,20 +45,26 @@ export default function Purchases() {
     removeAfterPrint: true,
   });
 
+  // Fetch purchases for the admin's specific store
   const {
     data: purchases = [],
     isLoading: loadingPurchases,
     isError: errorPurchases,
     error: purchasesError,
   } = useQuery({
-    queryKey: [`${BASE_URL}/purchases`],
+    queryKey: [`${BASE_URL}/purchases`, { storeId: adminStoreId }],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/purchases`);
-      if (!res.ok) throw new Error("Failed to fetch purchases");
+      if (!adminStoreId) {
+        return [];
+      }
+      const res = await fetch(`${BASE_URL}/purchases?store_id=${adminStoreId}`);
+      if (!res.ok) throw new Error("Failed to fetch purchases for this store");
       return res.json();
     },
+    enabled: !!adminStoreId,
   });
 
+  // Fetch all suppliers
   const {
     data: suppliers = [],
     isLoading: suppliersLoading,
@@ -68,7 +78,7 @@ export default function Purchases() {
     },
   });
 
-  // New query to fetch stores
+  // Fetch all stores to resolve store names
   const {
     data: stores = [],
     isLoading: storesLoading,
@@ -82,7 +92,7 @@ export default function Purchases() {
     },
   });
 
-  // Create a map for efficient store lookup
+  // Create a map for efficient store name lookups
   const storeMap = stores.reduce((map, store) => {
     map[store.id] = store.name;
     return map;
@@ -150,10 +160,10 @@ export default function Purchases() {
     const matchesSupplier =
       !selectedSupplierId || purchase.supplier?.id == selectedSupplierId;
 
-    const matchesStore =
-      !selectedStoreId || String(purchase.store_id) === String(selectedStoreId);
+    // 👇 NEW: This line ensures only purchases from the admin's store are shown
+    const matchesAdminStore = purchase.store_id === adminStoreId;
 
-    return matchesDateRange && matchesSupplier && matchesStore;
+    return matchesDateRange && matchesSupplier && matchesAdminStore;
   });
 
   const sortedPurchases = [...filteredPurchases].sort((a, b) => {
@@ -181,19 +191,15 @@ export default function Purchases() {
       : valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
   });
 
-  if (loadingPurchases || storesLoading || suppliersLoading) {
+  if (isLoadingUser || loadingPurchases || suppliersLoading || storesLoading) {
     return (
-      <div className="space-y-6">
-        <Card className="animate-pulse">
-          <CardContent className="p-6">
-            <div className="h-20 bg-gray-200 rounded"></div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  if (errorPurchases || storesError || suppliersError) {
+  if (errorPurchases || suppliersError || storesError) {
     return (
       <div className="space-y-6">
         <Card>
@@ -212,12 +218,10 @@ export default function Purchases() {
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-800">Filter Purchases</h2>
-            <Button onClick={() => setIsAddModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Add Purchase
-            </Button>
+            {/* The 'Add Purchase' button is intentionally omitted for the admin view. */}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-600">Start Date</label>
               <input
@@ -253,22 +257,7 @@ export default function Purchases() {
                 ))}
               </select>
             </div>
-            {/* New Store Filter */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-gray-600">Store</label>
-              <select
-                value={selectedStoreId}
-                onChange={(e) => setSelectedStoreId(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value="">All Stores</option>
-                {stores.map((store) => (
-                  <option key={store.id} value={store.id}>
-                    {store.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* The 'Store' filter has been removed for the admin view. */}
           </div>
         </CardContent>
       </Card>

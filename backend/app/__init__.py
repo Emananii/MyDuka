@@ -75,10 +75,18 @@ def create_app():
     from app.routes.inventory_routes import inventory_bp
     from app.routes.report_routes import report_bp
     from app.routes.user_routes import users_api_bp
-    from app.users.routes import users_bp as teammate_users_bp
     from app.routes.supplier_routes import suppliers_bp
     from app.routes.supply_routes import supply_bp
+
+    from app.routes.admin_dashboard import admin_dashboard_bp  # NEW: Import admin routes
+    from app.routes.purchase_routes import purchases_bp  # Import purchase routes
+    from app.routes.clerk_dashboard import clerk_dashboard_bp  # Import clerk dashboard routes
+
+    # NEW: Import your merchant_dashboard blueprint
+    from app.routes.merchant_dashboard import merchant_dashboard_bp # <--- NEW IMPORT
+
     from app.routes.invitation_routes import invitations_bp
+
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(store_bp)
@@ -88,6 +96,14 @@ def create_app():
     app.register_blueprint(users_api_bp)
     app.register_blueprint(suppliers_bp)
     app.register_blueprint(supply_bp)
+
+    app.register_blueprint(merchant_dashboard_bp)
+    app.register_blueprint(admin_dashboard_bp)
+    app.register_blueprint(purchases_bp)
+    app.register_blueprint(clerk_dashboard_bp)  # Register clerk dashboard routes
+
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}})
+
     
     # Register invitation blueprint with proper URL prefix
     app.register_blueprint(invitations_bp, url_prefix='/api/invitations')
@@ -127,6 +143,7 @@ def create_app():
             if cors_headers:
                 app.logger.info(f"CORS headers sent: {cors_headers}")
         return response
+
 
     # --- Register Global Error Handlers ---
     register_error_handlers(app)

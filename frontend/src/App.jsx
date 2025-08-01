@@ -1,5 +1,10 @@
+
+import React, { useState, useContext } from "react";
+import { Route, Switch, Router, useLocation, Link } from "wouter";
+
 import React, { useState, useContext, useEffect } from "react";
 import { Route, Switch, Router, useLocation, Link, Redirect } from "wouter";
+
 import { Menu, Bell } from "lucide-react";
 
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +17,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
 
+//import AuthenticatedLayout from "@/components/layout/authenticated-layout"; // Not used
+
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Auth
@@ -23,8 +31,10 @@ import ProtectedRoute from "@/components/auth/protected-route";
 import AdminRegistrationPage from "@/components/user-management/admin-registration-page";
 
 // Pages
-import Dashboard from "@/pages/dashboard";
+// Removed generic Dashboard import as we'll use role-specific ones
+// import Dashboard from "@/pages/dashboard";
 import Purchases from "@/pages/purchases";
+import AdminPurchases from "@/pages/admin-purchases"; // 👈 New import
 import StockTransfers from "@/pages/stock-transfers";
 import Stores from "@/pages/stores";
 import Reports from "@/pages/reports";
@@ -45,7 +55,11 @@ import MerchantInventory from "@/pages/inventory/merchant-inventory";
 import ClerkInventoryDashboard from "@/pages/inventory/clerk-inventory";
 import AdminInventory from "./pages/inventory/admin-inventory";
 
+
+// --- START: Supply Request Specific Pages ---
+
 // Supply Request Specific Pages
+
 import ClerkSupplyRequest from "@/pages/supply-requests/clerk-supply-request";
 import StoreAdminSupplyRequest from "@/pages/supply-requests/store-admin-supply-request";
 
@@ -59,6 +73,14 @@ import StoreAdminUserManagement from "./pages/user-management/store-admin-user-m
 import MerchantUserManagement from "./pages/user-management/merchant-user-management";
 
 import { UserProvider, UserContext } from "@/context/UserContext";
+
+
+// --- NEW: Import specific dashboard components for each role ---
+import MerchantDashboardPage from "@/pages/dashboard/merchant/dashboard";
+import AdminDashboardPage from "@/pages/dashboard/admin/dashboard";
+//import CashierDashboardPage from "@/pages/dashboard/cashier/dashboard";
+import ClerkDashboard from "@/pages/dashboard/clerk/dashboard";
+
 
 // Root Route Component - handles initial routing logic
 function RootRoute() {
@@ -91,6 +113,7 @@ function RootRoute() {
 
   return null;
 }
+
 
 // --- Layout Component ---
 function MainLayout({ children }) {
@@ -140,7 +163,7 @@ function MainLayout({ children }) {
                   <div onClick={() => setDropdownOpen(!dropdownOpen)}>
                     <Avatar className="cursor-pointer">
                       <AvatarImage
-                        src={user.avatar || "/default-avatar.jpg"}
+                        src={user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.name || "User"}`}
                         alt={user.name || "User"}
                       />
                       <AvatarFallback>
@@ -244,10 +267,30 @@ function AppRoutes() {
 
   return (
     <Switch>
+
+      {/* Removed the universal "/" route for dashboard */}
+      {/* <Route path="/" component={Dashboard} /> */}
+
+      {/* NEW: Role-specific Dashboard Routes */}
+      <Route path="/dashboard/merchant">
+        <ProtectedRoute component={MerchantDashboardPage} allowedRoles={["merchant"]} />
+      </Route>
+      <Route path="/dashboard/admin">
+        <ProtectedRoute component={AdminDashboardPage} allowedRoles={["admin"]} />
+      </Route>
+      {/* {/* <Route path="/dashboard/cashier">
+        <ProtectedRoute component={CashierDashboardPage} allowedRoles={["cashier"]} />
+      </Route> */}
+      <Route path="/dashboard/clerk">
+        <ProtectedRoute component={ClerkDashboard} allowedRoles={["clerk"]} />
+      </Route>
+      {/* END NEW: Role-specific Dashboard Routes */}
+
       {/* Dashboard - Default authenticated route */}
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} allowedRoles={["admin", "merchant", "clerk", "cashier"]} />
       </Route>
+
 
       {/* Cashier Routes */}
       <Route path="/pos">
@@ -279,13 +322,18 @@ function AppRoutes() {
         <ProtectedRoute component={AdminInventory} allowedRoles={["admin"]} />
       </Route>
 
+
+      {/* --- Supply Request Pages --- */}
+
       {/* Supply Request Routes */}
+
       <Route path="/supply-requests/clerk">
         <ProtectedRoute component={ClerkSupplyRequest} allowedRoles={["clerk"]} />
       </Route>
       <Route path="/supply-requests/admin">
          <ProtectedRoute component={StoreAdminSupplyRequest} allowedRoles={["admin"]} />
       </Route>
+
 
       {/* Other Business Routes */}
       <Route path="/categories">
@@ -294,6 +342,12 @@ function AppRoutes() {
       <Route path="/purchases">
         <ProtectedRoute component={Purchases} allowedRoles={["admin", "merchant"]} />
       </Route>
+
+      <Route path="/purchases/admin">
+        <ProtectedRoute component={AdminPurchases} allowedRoles={["admin"]} />
+      </Route>
+
+
       <Route path="/stock-transfers">
         <ProtectedRoute component={StockTransfers} allowedRoles={["admin", "merchant"]} />
       </Route>
@@ -313,7 +367,11 @@ function AppRoutes() {
         <ProtectedRoute component={() => <ClerksProfile onLogout={handleLogout} />} allowedRoles={["admin", "merchant", "clerk"]} />
       </Route>
 
+
+      {/* Merchant */}
+
       {/* Merchant Routes */}
+
       <Route path="/stores">
         <ProtectedRoute component={Stores} allowedRoles={["merchant"]} />
       </Route>
@@ -323,6 +381,16 @@ function AppRoutes() {
       <Route path="/merchant-profile">
         <ProtectedRoute component={() => <MerchantProfile onLogout={handleLogout} />} allowedRoles={["merchant"]} />
       </Route>
+
+      {/* --- The route below is correctly defined and should not be causing a 404. --- */}
+      <Route path="/merchant-user-management">
+        <ProtectedRoute component={MerchantUserManagement} allowedRoles={["merchant"]} />
+      </Route>
+      {/* Store Admin User Management */}
+      <Route path ="/store-admin-user-management">
+        <ProtectedRoute component={StoreAdminUserManagement} allowedRoles={["admin"]} />
+      </Route>
+
 
       {/* 404 Not Found - This should be last */}
       <Route component={NotFound} />

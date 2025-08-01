@@ -1,5 +1,3 @@
-// src/pages/user-management/store-admin-user-management.jsx
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Edit, Trash2, ArrowUpDown, Eye } from "lucide-react";
 
 import AddUserModal from "@/components/user-management/add-user-modal";
-import EditUserModal from "@/components/user-management/edit-user-modal";
+import AdminEditUserModal from "@/components/user-management/admin-edit-user-modal";
 import { ConfirmUserDeleteDialog } from "@/components/user-management/confirm-user-delete-dialog";
 import { ConfirmUserDeactivateDialog } from "@/components/user-management/confirm-user-deactivate-dialog";
 import ViewUserModal from "@/components/user-management/view-user-modal";
@@ -357,7 +355,7 @@ export default function StoreAdminUserManagement() {
         currentUser={currentUser}
       />
 
-      <EditUserModal
+      <AdminEditUserModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         user={selectedUserForEdit}

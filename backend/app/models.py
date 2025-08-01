@@ -222,8 +222,11 @@ class StoreProduct(BaseModel):
     quantity_in_stock = db.Column(db.Integer, default=0)
     quantity_spoilt = db.Column(db.Integer, default=0)
     low_stock_threshold = db.Column(db.Integer, default=10)
-
     
+    # The new column to track the cost to the store for this product.
+    unit_cost = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0.00"))
+    
+    # This is the selling price to the customer.
     price = db.Column(db.Numeric(10, 2), nullable=False, default=Decimal("0.00"))
 
     last_updated = db.Column(

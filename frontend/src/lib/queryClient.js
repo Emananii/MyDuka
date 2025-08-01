@@ -1,30 +1,41 @@
 // src/lib/queryClient.js
 import { QueryClient } from "@tanstack/react-query";
-import { BASE_URL } from "./constants"; // Make sure BASE_URL is correctly defined here
+import { BASE_URL } from "./constants";
 
-// Throw an error if response is not OK
+/**
+ * Throws an error if the fetch response status is not OK (2xx).
+ * @param {Response} res The fetch response object.
+ * @returns {Promise<void>}
+ */
 async function throwIfResNotOk(res) {
   if (!res.ok) {
     let errorMsg = res.statusText;
     try {
-      // Try to parse JSON error message from backend
       const errorData = await res.json();
-      errorMsg = errorData.error || errorData.message || errorData.msg || JSON.stringify(errorData); // Check common error keys
+      errorMsg = errorData.error || errorData.message || errorData.msg || JSON.stringify(errorData);
     } catch {
-      // Fallback to plain text if not JSON
+      // If the response body is not JSON, use the plain text.
       errorMsg = await res.text();
     }
     throw new Error(`${res.status}: ${errorMsg}`);
   }
 }
 
+/**
+ * A wrapper for fetch that automatically handles JWT authentication.
+ * @param {string} method The HTTP method (e.g., 'GET', 'POST').
+ * @param {string} url The full API endpoint URL.
+ * @param {any} data The request body data for POST/PUT/PATCH.
+ * @returns {Promise<any>}
+ */
 export async function apiRequest(method, url, data) {
   const headers = {
     // Only set Content-Type for requests that actually have a body
     ...(data && { "Content-Type": "application/json" }),
   };
 
-  // ✅ FIX: Get JWT from localStorage and add to headers if available
+  // Get the JWT from localStorage and add it to the Authorization header
+  // FIXED: Changed key from 'access_token' to 'jwt_token' to match the storage key
   const token = localStorage.getItem('jwt_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -32,7 +43,7 @@ export async function apiRequest(method, url, data) {
 
   const options = {
     method,
-    headers: headers,
+    headers,
     body: data ? JSON.stringify(data) : undefined,
   };
 
@@ -41,38 +52,40 @@ export async function apiRequest(method, url, data) {
 
     // Handle 204 No Content explicitly if your backend returns it
     if (res.status === 204) {
-        return null; // Or undefined, based on your desired return type for no content
+      return null;
     }
 
     await throwIfResNotOk(res); // Check for HTTP errors (4xx, 5xx)
 
-    // Try to parse JSON, but handle cases where response might be empty or not JSON
+    // Handle cases where the response might be empty or not JSON
     const text = await res.text();
-    return text ? JSON.parse(text) : {}; // Return empty object for empty responses
+    return text ? JSON.parse(text) : {};
 
   } catch (error) {
     console.error(`API Request Error [${method} ${url}]:`, error);
-    throw error; // Re-throw the error for the calling component to handle
+    throw error;
   }
 }
 
-// NOTE: This getQueryFn structure is a bit unusual for @tanstack/react-query
-// if you intend to use `apiRequest` for all queries.
-// If all your queries use apiRequest, you might simplify the default queryFn.
-// However, I've updated it to use apiRequest for consistency.
+/**
+ * Creates a standard query function for use with react-query.
+ * @param {{on401: string}} options Configuration options.
+ * @returns {Function} A function that executes an API request for react-query.
+ */
 export function getQueryFn({ on401 }) {
   return async ({ queryKey }) => {
-    const url = queryKey[0]; // Assuming queryKey[0] is always the URL
+    // Assuming queryKey[0] is always the URL
+    const url = queryKey[0];
 
     try {
-        const res = await apiRequest("GET", url); // Use apiRequest to handle headers
-        return res;
+      const res = await apiRequest("GET", url);
+      return res;
     } catch (error) {
-        // Handle 401 specifically if requested
-        if (on401 === "returnNull" && error.message.startsWith("401:")) {
-            return null;
-        }
-        throw error; // Re-throw other errors
+      // Handle 401 specifically if requested, e.g., for unauthenticated requests
+      if (on401 === "returnNull" && error.message.startsWith("401:")) {
+        return null;
+      }
+      throw error;
     }
   };
 }
@@ -80,7 +93,7 @@ export function getQueryFn({ on401 }) {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }), // This will use your updated getQueryFn
+      queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,

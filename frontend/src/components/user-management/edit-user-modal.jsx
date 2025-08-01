@@ -182,27 +182,27 @@ export default function EditUserModal({ user, isOpen, onClose, editUserMutation,
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  {/* Logic for when the role is editable (can change) */}
+                  {/* Now, both the Select and the Input are correctly wrapped in FormControl */}
                   {(currentUser?.role === "merchant" && user?.role !== "merchant") || 
                    (currentUser?.role === "admin" && user?.role !== "admin" && user?.role !== "merchant")
                   ? ( 
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || ""} 
-                      >
-                        <FormControl>
+                      <FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ""} 
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {assignableRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {role.charAt(0).toUpperCase() + role.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          <SelectContent>
+                            {assignableRoles.map((role) => (
+                              <SelectItem key={role} value={role}>
+                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
                   ) : ( // Render disabled Input if not editable
                       <FormControl> 
                         <Input value={user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)} disabled />
@@ -288,7 +288,7 @@ export default function EditUserModal({ user, isOpen, onClose, editUserMutation,
                         checked={field.value}
                         onCheckedChange={field.onChange}
                         disabled={
-                            (currentUser?.role === "admin" && user?.role === "admin") // ⭐ FIXED SYNTAX HERE ⭐
+                            (currentUser?.role === "admin" && user?.role === "admin")
                         }
                       />
                     </FormControl>

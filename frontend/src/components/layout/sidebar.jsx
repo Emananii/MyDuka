@@ -20,48 +20,63 @@ import { Loader2 } from "lucide-react";
 
 // Define all possible navigation items with their required roles
 const navigationConfig = [
+
+  // ⭐️ UPDATED: Added 'clerk' to the roles list for the Dashboard link
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "clerk"] },
+
+  // NEW: Add a specific inventory link for the admin role
+  { name: "Admin Inventory", href: "/inventory/admin", icon: Package, roles: ["admin"] },
+  { name: "Merchant Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+
+
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
-  // ⭐ UPDATED: Admin can view Purchases for supplier payment statuses ⭐
-  //{ name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
-  // ⭐ UPDATED: Admin can manage Stock Transfers (stock approvals) ⭐
-  //{ name: "Stock Transfers", href: "/stock-transfers", icon: Truck, roles: ["merchant", "admin"] },
-  // ⭐ UPDATED: Admin can view Stores (as they manage one) ⭐
-  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant", "admin"] },
-  { name: "Suppliers", href: "/suppliers", icon: Factory, roles: ["merchant", "admin"] },
+
+  // NEW: Separate purchases links for different roles
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant"] },
+  { name: "Purchases", href: "/purchases/admin", icon: ShoppingCart, roles: ["admin"] },
+
+  { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
+  {
+    name: "Suppliers",
+    href: "/suppliers",
+    icon: Factory,
+    roles: ["merchant"]
+  },
   { name: "POS", href: "/pos", icon: Calculator, roles: ["cashier"] },
   { name: "Sales (Cashier)", href: "/sales/cashier", icon: DollarSign, roles: ["cashier"] },
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
-  { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
-  
+  // { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
+
 
   // NEW USER MANAGEMENT PAGES
   {
-    name: "Manage Users (Store)",
-    href: "/user-management/store",
+    name: "Manage Users (Store)", // Re-added for Admin
+    href: "/store-admin-user-management", // ⭐ UPDATED: Point to the admin-specific user management page ⭐
     icon: UserRound,
-    roles: ["admin"],
+    roles: ["admin"], // ⭐ UPDATED: Visible to 'admin' role again ⭐
   },
   {
     name: "Manage Users (Merchant)",
+    // ⭐ FIX: Updated the href to match the route in App.jsx ⭐
     href: "/merchant-user-management",
     icon: UserCog,
     roles: ["merchant"],
   },
-  // ⭐ UPDATED: Supply Requests links, specific to roles ⭐
   {
-    name: "My Supply Requests", // Link for clerks
+    name: "My Supply Requests",
     href: "/supply-requests/clerk",
     icon: ClipboardList,
-    roles: ["clerk"], // Only visible to clerks
+    roles: ["clerk"],
   },
   {
-    name: "Review Supply Requests", // Link for admins/merchants
+    name: "Review Supply Requests",
     href: "/supply-requests/admin",
     icon: ClipboardList,
-    roles: ["admin"], // Visible to admins and merchants
+    roles: ["admin"],
   },
 ];
 
@@ -112,35 +127,46 @@ export default function Sidebar() {
   return (
     <div className="hidden md:flex md:flex-shrink-0">
       <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
-          {/* Logo / Brand Header */}
-          <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200">
-            <ShoppingCart className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
+        <div className="flex flex-col h-full bg-white border-r border-gray-200">
+          {/* Logo and Brand Header - Reduced spacing */}
+          <div className="flex items-center justify-center flex-shrink-0 px-6 py-3">
+            <img
+              src="/Orange and Gray Tag Cart Virtual Shop Logo.png"
+              alt="My Duka Logo"
+              className="w-full h-auto object-contain"
+            />
           </div>
 
-          {/* Navigation Links */}
-          <nav className="mt-5 flex-grow px-4 space-y-1">
-            {visibleNavigation.map((item) => {
-              const isActive = location === item.href;
-              const Icon = item.icon;
+          {/* Navigation Links - Reduced top margin */}
+          <nav className="flex-1 px-4 pb-4 overflow-y-auto">
+            <div className="space-y-1">
+              {visibleNavigation.map((item) => {
+                let itemHref = item.href;
+                // Dynamically set the Dashboard href based on user role
+                if (item.name === "Dashboard" && currentUser?.role) {
+                  itemHref = `/dashboard/${currentUser.role}`;
+                }
 
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
-              );
-            })}
+                const isActive = location === itemHref;
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={itemHref}
+                    className={cn(
+                      "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors",
+                      isActive
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                  >
+                    <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
         </div>
       </div>
