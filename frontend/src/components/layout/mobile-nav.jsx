@@ -24,10 +24,19 @@ import { useUser } from "@/context/UserContext";
 // Define all possible navigation items with their required roles.
 // This is a direct copy of the sidebar's navigationConfig for consistency.
 const navigationConfig = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "cashier"] },
-  { name: "Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+  // ⭐️ UPDATED: Added 'clerk' to the roles list for the Dashboard link
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["merchant", "admin", "clerk"] },
+
+  // NEW: Add a specific inventory link for the admin role
+  { name: "Admin Inventory", href: "/inventory/admin", icon: Package, roles: ["admin"] },
+  { name: "Merchant Inventory", href: "/inventory", icon: Package, roles: ["merchant"] },
+
   { name: "Categories", href: "/categories", icon: Tag, roles: ["merchant"] },
-  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant", "admin"] },
+
+  // NEW: Separate purchases links for different roles
+  { name: "Purchases", href: "/purchases", icon: ShoppingCart, roles: ["merchant"] },
+  { name: "Purchases", href: "/purchases/admin", icon: ShoppingCart, roles: ["admin"] },
+
   { name: "Stores", href: "/stores", icon: Warehouse, roles: ["merchant"] },
   {
     name: "Suppliers",
@@ -40,14 +49,18 @@ const navigationConfig = [
   { name: "Sales (Admin)", href: "/sales/admin", icon: DollarSign, roles: ["admin"] },
   { name: "Sales (Merchant)", href: "/sales/merchant", icon: DollarSign, roles: ["merchant"] },
   // { name: "Reports", href: "/reports", icon: BarChart3, roles: ["merchant", "admin"] },
+
+
+  // NEW USER MANAGEMENT PAGES
   {
-    name: "Manage Users (Store)",
-    href: "/user-management/store-admin",
+    name: "Manage Users (Store)", // Re-added for Admin
+    href: "/store-admin-user-management", // ⭐ UPDATED: Point to the admin-specific user management page ⭐
     icon: UserRound,
-    roles: ["admin"],
+    roles: ["admin"], // ⭐ UPDATED: Visible to 'admin' role again ⭐
   },
   {
     name: "Manage Users (Merchant)",
+    // ⭐ FIX: Updated the href to match the route in App.jsx ⭐
     href: "/merchant-user-management",
     icon: UserCog,
     roles: ["merchant"],
@@ -69,6 +82,11 @@ const navigationConfig = [
 export default function MobileNav({ isOpen, onClose }) {
   const [location] = useLocation();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+
+  // If the location is /pos, we don't render the MobileNav
+  if (location === "/pos") {
+    return null;
+  }
 
   // Don't render the mobile nav at all if it's not open.
   if (!isOpen) return null;
@@ -97,19 +115,17 @@ export default function MobileNav({ isOpen, onClose }) {
   return (
     <div className="md:hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-40">
       <div className="fixed inset-y-0 left-0 max-w-xs w-full bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <Warehouse className="h-8 w-8 text-blue-600 mr-3" />
-            <h1 className="text-xl font-semibold text-gray-800">My Duka</h1>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-6 w-6" />
-          </Button>
+        {/* Logo and Brand Header - Replicated from Sidebar */}
+        <div className="flex items-center justify-center flex-shrink-0 px-6 py-3 border-b border-gray-200">
+          <img
+            src="/Orange and Gray Tag Cart Virtual Shop Logo.png"
+            alt="My Duka Logo"
+            className="w-full h-auto object-contain"
+          />
         </div>
 
         {/* Navigation */}
-        <nav className="mt-5 px-4 space-y-1">
+        <nav className="mt-5 px-4 space-y-1 overflow-y-auto h-[calc(100%-80px)]"> {/* Adjusted height to account for header and close button */}
           {visibleNavigation.map((item) => {
             let itemHref = item.href;
             // Dynamically set the Dashboard href based on user role
@@ -133,11 +149,18 @@ export default function MobileNav({ isOpen, onClose }) {
                 )}
               >
                 <Icon className="mr-3 h-5 w-5" />
-                {item.name}
+                <span className="truncate">{item.name}</span>
               </Link>
             );
           })}
         </nav>
+        {/* Close Button */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+          <Button variant="outline" className="w-full" onClick={onClose}>
+            <X className="h-5 w-5 mr-2" />
+            Close Menu
+          </Button>
+        </div>
       </div>
     </div>
   );

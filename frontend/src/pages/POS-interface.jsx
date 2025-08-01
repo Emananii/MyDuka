@@ -10,6 +10,7 @@ import {
   insertSaleSchema,
   saleDetailsSchema,
 } from "@/shared/schema";
+import { useUser } from '@/context/UserContext'; // ⭐ FIX: Import the user context
 
 // Re-import Link and Home icon
 import { Link } from "wouter";
@@ -55,6 +56,7 @@ function useDebounce(value, delay) {
 
 export default function POSInterfacePage() {
   // --- State Management ---
+  const { user: currentUser } = useUser(); // ⭐ FIX: Get the current user
   const [cartItems, setCartItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -173,6 +175,7 @@ export default function POSInterfacePage() {
     onSuccess: async (data) => {
       // Invalidate relevant queries to refetch fresh data
       queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['cashierSales'] }); // ⭐ FIX: Invalidate cashier sales query
       // Invalidate products in stock for the current store to reflect quantity changes
       queryClient.invalidateQueries({ queryKey: ['posProducts', selectedStoreId] });
 
@@ -256,20 +259,28 @@ export default function POSInterfacePage() {
         };
       });
 
+      // ⭐ FIX: Use the actual currentUser details for the modal
       const detailsForModal = {
         id: createdSaleId,
         total: saleTotal,
         store_id: selectedStoreId,
-        cashier_id: 1,
+        cashier_id: currentUser.id,
         sale_items: mappedSaleItemsForModal,
         payment_status: 'paid',
         is_deleted: false,
         created_at: nowIsoString,
         updated_at: nowIsoString,
         cashier: {
-          id: 1, name: 'POS Cashier', email: 'cashier@example.com', role: 'cashier',
-          is_active: true, created_by: null, store_id: selectedStoreId,
-          created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
+          id: currentUser.id,
+          name: currentUser.name || 'POS Cashier',
+          email: currentUser.email || 'cashier@example.com',
+          role: 'cashier',
+          is_active: true,
+          created_by: null,
+          store_id: selectedStoreId,
+          created_at: nowIsoString,
+          updated_at: nowIsoString,
+          is_deleted: false,
         },
         store: {
           id: selectedStoreId, name: `Store ${selectedStoreId}`, address: '123 Retail St',
@@ -292,7 +303,7 @@ export default function POSInterfacePage() {
         setLastSaleDetails({
           id: createdSaleId, total: saleTotal, sale_items: [], payment_status: 'paid',
           created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false,
-          store_id: selectedStoreId, cashier_id: 1,
+          store_id: selectedStoreId, cashier_id: currentUser.id, // ⭐ FIX: Use currentUser.id
           cashier: { name: 'Unknown', id: 0, email: 'unknown@example.com', role: 'cashier', is_active: true, created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false },
           store: { name: 'Unknown', id: 0, address: '', created_at: nowIsoString, updated_at: nowIsoString, is_deleted: false }
         });
@@ -388,8 +399,17 @@ export default function POSInterfacePage() {
   // --- Sale Processing Function ---
   const handleProcessSale = useCallback(() => {
     const currentStoreId = selectedStoreId;
-    const currentCashierId = 1;
+    const currentCashierId = currentUser?.id; // ⭐ FIX: Use the logged-in user's ID
 
+    if (!currentUser || !currentCashierId) {
+      toast({
+        title: "User Not Logged In",
+        description: "Please log in as a cashier to process sales.",
+        variant: "destructive",
+        duration: 2500,
+      });
+      return;
+    }
     if (!currentStoreId || currentStoreId <= 0) {
       toast({
         title: "Store Not Selected",
@@ -430,7 +450,7 @@ export default function POSInterfacePage() {
         variant: "destructive",
       });
     }
-  }, [cartItems, toast, createSaleMutation, selectedStoreId]);
+  }, [cartItems, toast, createSaleMutation, selectedStoreId, currentUser]); // ⭐ FIX: Add currentUser to dependencies
 
   // --- Close Transaction Success Modal ---
   const closeSuccessModal = useCallback(() => {
@@ -462,6 +482,18 @@ export default function POSInterfacePage() {
       });
     }
   }, [isErrorProducts, productsError, toast]);
+
+  // --- Access Control: Render a message if not a cashier ---
+  if (!currentUser || currentUser.role !== 'cashier') {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="p-8 text-center bg-white rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You must be logged in as a cashier to access the POS interface.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pos-interface-container flex h-screen overflow-hidden bg-gray-100">

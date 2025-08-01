@@ -30,9 +30,22 @@ export default function CashierSalesPage() {
         from: fourteenDaysAgo,
         to: today,
       },
-      cashierId: currentUser?.id || null, // Default to current user's ID
+      // Note: We intentionally start with cashierId as null.
+      // The useEffect below will update it once the user is loaded.
+      cashierId: null,
     };
   });
+
+  // ⭐ FIX: Add a useEffect to sync the cashierId filter once the user is loaded.
+  // This solves the race condition where the initial state might be null.
+  useEffect(() => {
+    if (currentUser?.id) {
+      setFilters(prev => ({
+        ...prev,
+        cashierId: currentUser.id,
+      }));
+    }
+  }, [currentUser?.id]);
 
   const [viewingSaleId, setViewingSaleId] = useState(null); // State for opening sale details dialog
 
@@ -56,8 +69,8 @@ export default function CashierSalesPage() {
   } = useQuery({
     queryKey: ['cashierSales', queryFilters],
     queryFn: async () => {
+      // If cashier ID is not available (e.g., user not loaded yet), return empty data
       if (!queryFilters.cashier_id) {
-        // If cashier ID is not available (e.g., user not loaded yet), return empty data
         return { sales: [], total: 0, page: 1, pages: 1, per_page: 10 };
       }
       const queryString = new URLSearchParams(queryFilters).toString();
